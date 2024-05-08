@@ -1,0 +1,18 @@
+/**
+ *@NApiVersion 2.0
+ *@NScriptType ClientScript
+ */
+define(["N/log"], function (log) {
+  const exports = {};
+  /* ------------------------ Page Init Begin ------------------------ */
+  function pageInit(scriptContext) {
+    var rec = scriptContext.currentRecord;
+    var customForm = rec.getValue({
+      fieldId: "customform",
+    });
+    if (customForm === "171" || customForm === 171) {
+      rec.setValue({ fieldId: "requireddepositpercentage", value: "60.00" });
+    }
+  }
+  /* ------------------------ Page Init End ------------------------ */
+  //

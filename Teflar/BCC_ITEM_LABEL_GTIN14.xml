@@ -1,0 +1,58 @@
+<?xml version="1.0"?><!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+<pdf>
+<head>
+    <!-- <link name="Arial" type="font" subtype="opentype" src="https://6922326.app.netsuite.com/core/media/media.nl?id=4576&amp;c=6922326&amp;h=dKkjoI8BYQgN8LDnKMOwjGECqBCzBZ66bWT09u9SDYAlmfb3&amp;_xt=.ttf" bytes="2" /> -->
+
+    <#assign arialTest = "https://6922326.app.netsuite.com/core/media/media.nl?id=4576&amp;c=6922326&amp;h=dKkjoI8BYQgN8LDnKMOwjGECqBCzBZ66bWT09u9SDYAlmfb3&amp;_xt=.ttf" />
+  <link type="font" name="Arial" subtype="TrueType" src="${arialTest?html}" src-bold="${arialTest?html}" src-italic="${arialTest?html}" src-bolditalic="${arialTest?html}" bytes="2"/>
+
+    <style type="text/css">* 
+		{
+        <#if .locale == "zh_CN">
+            font-family: NotoSans, NotoSansCJKsc, sans-serif;
+        <#elseif .locale == "zh_TW">
+            font-family: NotoSans, NotoSansCJKtc, sans-serif;
+        <#elseif .locale == "ja_JP">
+            font-family: NotoSans, NotoSansCJKjp, sans-serif;
+        <#elseif .locale == "ko_KR">
+            font-family: NotoSans, NotoSansCJKkr, sans-serif;
+        <#elseif .locale == "th_TH">
+            font-family: NotoSans, NotoSansThai, sans-serif;
+        <#else>
+            font-family: NotoSans, sans-serif;
+        </#if>
+        }
+		table {
+            font-size: 9pt;
+            margin-top: 10px;
+            table-layout: fixed;
+            page-break-inside: avoid;
+        }
+		td p { align:left }
+</style>
+</head>
+<body width= "4in" height= "2in" padding="10px" font-family= "Arial, sans-serif">
+
+<table style=" width: 100%; padding: 0px; margin: 0; vertical-align: middle; align: center; " >
+<tr height="10px">
+<td align="left" colspan="1" font-size="10pt"  ><b>${items.itemid?keep_after(": ")}</b></td>
+<td font-size="10pt" align= "right"><b>QTY: ${items.custitem_pcs}</b></td>
+</tr>
+<tr height="10px">
+<td align="left" colspan="2" font-size="10pt">${items.displayname}</td>
+</tr>
+<tr height="10px">
+<td align="left" colspan="1" font-size="10pt">${items.custitem_bcc_size}</td>
+</tr>
+<tr> 
+<td align="center" colspan="2" padding-bottom="0" >
+<barcode codetype="code128" style="width: 230px; height: 75px; border: 4px solid #333; corner-radius: 0px;" showtext="false" value="${items.custitem5}"/>
+</td>
+</tr>
+<tr>
+<td align="center" colspan="2" font-size="10pt" padding-bottom="0">${items.custitem5}</td>
+</tr>
+</table>
+
+</body>
+</pdf>

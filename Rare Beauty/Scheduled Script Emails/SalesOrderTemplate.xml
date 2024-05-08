@@ -1,0 +1,137 @@
+<?xml version="1.0"?><!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+<pdf>
+<head>
+	<link name="NotoSans" type="font" subtype="truetype" src="${nsfont.NotoSans_Regular}" src-bold="${nsfont.NotoSans_Bold}" src-italic="${nsfont.NotoSans_Italic}" src-bolditalic="${nsfont.NotoSans_BoldItalic}" bytes="2" />
+	<#if .locale == "zh_CN">
+		<link name="NotoSansCJKsc" type="font" subtype="opentype" src="${nsfont.NotoSansCJKsc_Regular}" src-bold="${nsfont.NotoSansCJKsc_Bold}" bytes="2" />
+	<#elseif .locale == "zh_TW">
+		<link name="NotoSansCJKtc" type="font" subtype="opentype" src="${nsfont.NotoSansCJKtc_Regular}" src-bold="${nsfont.NotoSansCJKtc_Bold}" bytes="2" />
+	<#elseif .locale == "ja_JP">
+		<link name="NotoSansCJKjp" type="font" subtype="opentype" src="${nsfont.NotoSansCJKjp_Regular}" src-bold="${nsfont.NotoSansCJKjp_Bold}" bytes="2" />
+	<#elseif .locale == "ko_KR">
+		<link name="NotoSansCJKkr" type="font" subtype="opentype" src="${nsfont.NotoSansCJKkr_Regular}" src-bold="${nsfont.NotoSansCJKkr_Bold}" bytes="2" />
+	<#elseif .locale == "th_TH">
+		<link name="NotoSansThai" type="font" subtype="opentype" src="${nsfont.NotoSansThai_Regular}" src-bold="${nsfont.NotoSansThai_Bold}" bytes="2" />
+	</#if>
+    <macrolist>
+        <macro id="nlheader">
+            <table style="width: 100%; font-size: 10pt;"><tr>
+	<td rowspan="3" style="padding: 0;"><#if companyInformation.logoUrl?length != 0><img src="${companyInformation.logoUrl}" style="float: left; margin: 7px" width="110px" height="60px" /> </#if> ${companyInformation.companyName}<br />${companyInformation.addressText}</td>
+	<td align="right" style="padding: 0;"><span style="font-size: 28pt;">${record@title}</span></td>
+	</tr>
+	<tr>
+	<td align="right" style="padding: 0;"><span style="font-size: 16pt;">#${record.tranid}</span></td>
+	</tr>
+	<tr>
+	<td align="right" style="padding: 0;">${record.trandate}</td>
+	</tr></table>
+        </macro>
+        <macro id="nlfooter">
+            <table style="width: 100%; font-size: 8pt;"><tr>
+	<td style="padding: 0;"><barcode codetype="code128" showtext="true" value="${record.tranid}"/></td>
+	<td align="right" style="padding: 0;"><pagenumber/> of <totalpages/></td>
+	</tr></table>
+        </macro>
+    </macrolist>
+    <style type="text/css">* {
+		<#if .locale == "zh_CN">
+			font-family: NotoSans, NotoSansCJKsc, sans-serif;
+		<#elseif .locale == "zh_TW">
+			font-family: NotoSans, NotoSansCJKtc, sans-serif;
+		<#elseif .locale == "ja_JP">
+			font-family: NotoSans, NotoSansCJKjp, sans-serif;
+		<#elseif .locale == "ko_KR">
+			font-family: NotoSans, NotoSansCJKkr, sans-serif;
+		<#elseif .locale == "th_TH">
+			font-family: NotoSans, NotoSansThai, sans-serif;
+		<#else>
+			font-family: NotoSans, sans-serif;
+		</#if>
+		}
+		table {
+			font-size: 9pt;
+			table-layout: fixed;
+		}
+        th {
+            font-weight: bold;
+            font-size: 8pt;
+            vertical-align: middle;
+            padding: 5px 6px 3px;
+            background-color: #e3e3e3;
+            color: #333333;
+        }
+        td {
+            padding: 4px 6px;
+        }
+		td p { align:left }
+</style>
+</head>
+<body header="nlheader" header-height="10%" footer="nlfooter" footer-height="20pt" padding="0.5in 0.5in 0.5in 0.5in" size="Letter">
+    <table style="width: 100%; margin-top: 10px;"><tr>
+	<td colspan="3" style="font-size: 8pt; padding: 6px 0 2px; font-weight: bold; color: #333333;">${record.billaddress@label}</td>
+	<td colspan="3" style="font-size: 8pt; padding: 6px 0 2px; font-weight: bold; color: #333333;">${record.shipaddress@label}</td>
+	<td colspan="5" style="font-size: 12pt; background-color: #e3e3e3; font-weight: bold;">${record.total@label?upper_case}</td>
+	</tr>
+	<tr>
+	<td colspan="3" style="padding: 0;">${record.billaddress}</td>
+	<td colspan="3" style="padding: 0;">${record.shipaddress}</td>
+	<td align="right" colspan="5" style="font-size: 28pt; padding-top: 20px; background-color: #e3e3e3;">${record.total}</td>
+	</tr></table>
+
+<table style="width: 100%; margin-top: 10px;"><tr>
+	<th>Cust PO Number</th>
+  <th>${record.shipdate@label}</th>
+	<th>${record.shipmethod@label}</th>
+  <th>Cancel Date</th>
+	</tr>
+	<tr>
+	<td style="padding-top: 2px;">${record.custbody1}</td>
+		<td style="padding-top: 2px;">${record.shipdate}</td>
+	<td style="padding-top: 2px;">${record.shipmethod}</td>
+
+      <td style="padding-top: 2px;">${record.custbody14}</td>
+	</tr></table>
+<#if record.item?has_content>
+
+<table style="width: 100%; margin-top: 10px;"><!-- start items --><#list record.item as item><#if item_index==0>
+<thead>
+	<tr>
+	<th align="center" colspan="3" style="padding: 10px 6px;">${item.quantity@label}</th>
+	<th colspan="12" style="padding: 10px 6px;">${item.item@label}</th>
+	<th align="right" colspan="4" style="padding: 10px 6px;">${item.rate@label}</th>
+	<th align="right" colspan="4" style="padding: 10px 6px;">${item.amount@label}</th>
+	</tr>
+</thead>
+</#if><tr>
+	<td align="center" colspan="3" line-height="150%">${item.quantity}</td>
+	<td colspan="12"><span style="font-weight: bold; line-height: 150%; color: #333333;">${item.item}</span><br />${item.description}</td>
+	<td align="right" colspan="4">${item.rate}</td>
+	<td align="right" colspan="4">${item.amount}</td>
+	</tr>
+	</#list><!-- end items --></table>
+
+<hr style="width: 100%; color: #d3d3d3; background-color: #d3d3d3; height: 1px;" /></#if>
+<table style="page-break-inside: avoid; width: 100%; margin-top: 10px;"><tr>
+	<td colspan="4">&nbsp;</td>
+	<td align="right" style="font-weight: bold; color: #333333;">${record.subtotal@label}</td>
+	<td align="right">${record.subtotal}</td>
+	</tr>
+	<tr>
+	<td colspan="4">&nbsp;</td>
+	<td align="right" style="font-weight: bold; color: #333333;">${record.taxtotal@label} (${record.taxrate}%)</td>
+	<td align="right">${record.taxtotal}</td>
+	</tr>
+	<tr style="background-color: #e3e3e3; line-height: 200%;">
+	<td background-color="#ffffff" colspan="4">&nbsp;</td>
+	<td align="right" style="font-weight: bold; color: #333333;">${record.total@label}</td>
+	<td align="right">${record.total}</td>
+	</tr></table>
+
+<table><tr>
+	<td style="font-size:15px"><strong>Shipping Instructions</strong></td>
+	</tr>
+	<tr>
+	<td>${record.custbody15}</td>
+	</tr></table>
+</body>
+</pdf>

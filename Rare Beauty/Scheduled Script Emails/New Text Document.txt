@@ -1,0 +1,24 @@
+    //
+    /* ---------------------------- March 16 th Begin --------------------------- */
+    if (type === "Invoice" && transId > 0) {
+      let fieldLookUpInvoice = search.lookupFields({
+        type: search.Type.INVOICE,
+        id: String(transId),
+        columns: ["salesrep"],
+      });
+      let salesRepId = fieldLookUpInvoice.salesrep[0].value;
+      if (salesRepId) {
+        let fieldLookUpEmployee = search.lookupFields({
+          type: search.Type.EMPLOYEE,
+          id: String(salesRepId),
+          coulmns: ["email"],
+        });
+        var employeeEmail = fieldLookUpEmployee['email'];
+      }
+    }
+    /* ---------------------------- March 16 th End--------------------------- */
+    //
+	
+	CASE WHEN {custrecord_ib_item.custrecord_ib_location} = 'North America (Consol) : KJ US - Columbus' AND {inventorylocation} = 'KJ US - Columbus' THEN {custrecord_ib_item.custrecord_ib_current_bo_qty} ELSE 0 END
+	
+	CASE WHEN {custrecord_ib_item.custrecord_ib_location} = 'North America (Consol) : KJ US - Columbus' AND {inventorylocation} = 'KJ US - Columbus' THEN {custrecord_ib_item.custrecord_ib_future_bo_qty} ELSE 0 END

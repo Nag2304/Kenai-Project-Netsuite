@@ -1,0 +1,108 @@
+/**
+ *@NApiVersion 2.0
+ *@NScriptType ClientScript
+ */
+define(["N/currentRecord", "N/log"], function (currentRecord, log) {
+  const exports = {};
+  /* ------------------------ Save Record Begin ------------------------ */
+  function saveRecord() {
+    try {
+      /* --------------------------- Purchase Order Begin --------------------------- */
+      var rec = currentRecord.get();
+      // * Get Line count
+      const lineItemCount = rec.getLineCount({ sublistId: "item" });
+      var productTotal = 0,
+        tagsTotal = 0,
+        embroideryTotal = 0,
+        totalTagsandEmbrodieryTotal = 0,
+        prepaymentAmount = 0;
+      //
+      /* --------------------------- Item Sublist Begin --------------------------- */
+      for (var i = 0; i < lineItemCount; i++) {
+        var itemType = rec.getSublistValue({
+          sublistId: "item",
+          fieldId: "itemtype",
+          line: i,
+        });
+        var quantity = rec.getSublistValue({
+          sublistId: "item",
+          fieldId: "quantity",
+          line: i,
+        });
+        var itemId = rec.getSublistValue({
+          sublistId: "item",
+          fieldId: "item",
+          line: i,
+        });
+        //*log.debug({ title: "Item ID", details: itemId });
+
+        if (itemType == "InvtPart") {
+          productTotal += quantity;
+        } else if (itemType == "NonInvtPart" && itemId == 2524) {
+          tagsTotal += quantity;
+        } else if (itemType == "NonInvtPart" && itemId == 2525) {
+          embroideryTotal += quantity;
+        }
+      }
+      /* --------------------------- Item Sublist End --------------------------- */
+      //
+      totalTagsandEmbrodieryTotal = tagsTotal + embroideryTotal;
+      prepaymentAmount = totalTagsandEmbrodieryTotal + productTotal / 2;
+
+      //Product Total
+      rec.setValue({
+        fieldId: "custbody_bbb_product_total",
+        value: productTotal,
+        ignoreFieldChange: true,
+        forceSyncSourcing: false,
+      });
+
+      //Tags Total
+      rec.setValue({
+        fieldId: "custbody_bbb_total_tags",
+        value: tagsTotal,
+        ignoreFieldChange: true,
+        forceSyncSourcing: false,
+      });
+
+      //Embroidery
+      rec.setValue({
+        fieldId: "custbody_bbb_embroidery_total",
+        value: embroideryTotal,
+        ignoreFieldChange: true,
+        forceSyncSourcing: false,
+      });
+
+      //Total Tags and Embroidery
+      rec.setValue({
+        fieldId: "custbody_bbb_total_tag_emb",
+        value: totalTagsandEmbrodieryTotal,
+        ignoreFieldChange: true,
+        forceSyncSourcing: false,
+      });
+
+      //Prepayment Amount
+      rec.setValue({
+        fieldId: "custbody_bbb_prepayment_amount",
+        value: prepaymentAmount,
+        ignoreFieldChange: true,
+        forceSyncSourcing: false,
+      });
+
+      /* --------------------------- Purchase Order End --------------------------- */
+    } catch (err) {
+      //!Error
+      log.debug({
+        title: "Calculate Square Feet Script Failed to Execute",
+        details: err,
+      });
+    }
+    return true;
+  }
+  /* ------------------------ Save Record End ------------------------ */
+  //
+  /* ------------------------------ Exports Begin ----------------------------- */
+  exports.saveRecord = saveRecord;
+  return exports;
+  /* ------------------------------ Exports End ----------------------------- */
+});

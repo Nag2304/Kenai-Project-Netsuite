@@ -1,0 +1,5 @@
+The script consists how to read csv file.
+How to split contents of the file.
+Grabbing the individual columns.
+How to create sales order record
+How to create search

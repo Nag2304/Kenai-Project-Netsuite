@@ -1,0 +1,17 @@
+Summary Batch Pick Table
+_summarybatchpicktbl
+Summary Records for the Batch Pick Table
+Item ID _summary_itemid Item Name Column for the Summary Batch Pick Table
+Quantity _summary_qty Summary of Quantity for Summary Batch Pick Table
+Batch Pick _summary_batchpick Batch Pick Value Column (Integer)
+
+
+
+
+Detail Batch Pick Table
+_detailbatchpicktbl
+Order # _detail_orderno Sales Order # for detail batch pick table
+Order ID _detail_orderid Sales Order Internal ID(Integer Number)
+Item Number _detail_itemno Item InternalID(Integer Number)
+Item ID _detail_itemid Stores Item Name
+Quantity _detail_qty stores SO qty(Integer Number)

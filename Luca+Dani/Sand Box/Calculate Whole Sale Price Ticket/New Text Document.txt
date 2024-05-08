@@ -1,0 +1,4 @@
+              rec.setValue({
+                fieldId: "custbody_ld_pick_ticket_notes",
+                value: noteType,
+              });

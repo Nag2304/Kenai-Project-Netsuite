@@ -1,0 +1,162 @@
+<?xml version="1.0"?><!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+<pdf>
+<head>
+	<link name="NotoSans" type="font" subtype="truetype" src="${nsfont.NotoSans_Regular}" src-bold="${nsfont.NotoSans_Bold}" src-italic="${nsfont.NotoSans_Italic}" src-bolditalic="${nsfont.NotoSans_BoldItalic}" bytes="2" />
+	<#if .locale == "zh_CN">
+		<link name="NotoSansCJKsc" type="font" subtype="opentype" src="${nsfont.NotoSansCJKsc_Regular}" src-bold="${nsfont.NotoSansCJKsc_Bold}" bytes="2" />
+	<#elseif .locale == "zh_TW">
+		<link name="NotoSansCJKtc" type="font" subtype="opentype" src="${nsfont.NotoSansCJKtc_Regular}" src-bold="${nsfont.NotoSansCJKtc_Bold}" bytes="2" />
+	<#elseif .locale == "ja_JP">
+		<link name="NotoSansCJKjp" type="font" subtype="opentype" src="${nsfont.NotoSansCJKjp_Regular}" src-bold="${nsfont.NotoSansCJKjp_Bold}" bytes="2" />
+	<#elseif .locale == "ko_KR">
+		<link name="NotoSansCJKkr" type="font" subtype="opentype" src="${nsfont.NotoSansCJKkr_Regular}" src-bold="${nsfont.NotoSansCJKkr_Bold}" bytes="2" />
+	<#elseif .locale == "th_TH">
+		<link name="NotoSansThai" type="font" subtype="opentype" src="${nsfont.NotoSansThai_Regular}" src-bold="${nsfont.NotoSansThai_Bold}" bytes="2" />
+	</#if>
+    <macrolist>
+        <macro id="nlheader">
+            <table style="width: 100%; font-size: 10pt;"><tr>
+	<td rowspan="3" style="padding: 0;"><img src="https://4679706.secure.netsuite.com/core/media/media.nl?id=3800&amp;c=4679706&amp;h=aY3U4Yt2bjSajWaeNeeHR3WUsPDzEIG9j6PkT7QPS-XIXhoE" style="float: left; width: 150px;" /></td>
+	<td align="right" style="padding: 0;"><br /><span style="font-size: 20pt;">Commercial Invoice</span></td>
+	</tr></table>
+        </macro>
+        <macro id="nlfooter">
+            <table style="width: 100%; font-size: 9pt;"><tr>
+	<td align="center" style="padding: 0;"><b>Pitusa</b> 6105 NW 6th CT, Miami, FL, 33127, US <b>Phone</b> 7864094237 <b>Email</b> production@pitusa.co</td>
+	</tr></table>
+        </macro>
+    </macrolist>
+    <style type="text/css">* {
+		<#if .locale == "zh_CN">
+			font-family: NotoSans, NotoSansCJKsc, sans-serif;
+		<#elseif .locale == "zh_TW">
+			font-family: NotoSans, NotoSansCJKtc, sans-serif;
+		<#elseif .locale == "ja_JP">
+			font-family: NotoSans, NotoSansCJKjp, sans-serif;
+		<#elseif .locale == "ko_KR">
+			font-family: NotoSans, NotoSansCJKkr, sans-serif;
+		<#elseif .locale == "th_TH">
+			font-family: NotoSans, NotoSansThai, sans-serif;
+		<#else>
+			font-family: NotoSans, sans-serif;
+		</#if>
+		}
+		table {
+			font-size: 9pt;
+			table-layout: fixed;
+		}
+        th {
+            font-weight: bold;
+            font-size: 8pt;
+            vertical-align: middle;
+            padding: 5px 6px 3px;
+            color: #333333;
+        }
+        td {
+            padding: 4px 6px;
+        }
+		td p { align:left }
+      .b1{
+        border-bottom:0.5px solid #D3D3D3;
+      }
+      .b2{
+        text-decoration:none;
+      }
+            .b3{
+        border-bottom:0.5px solid #D3D3D3;
+      }
+	  hr{
+		color:#D3D3D3;
+	  }
+</style>
+</head>
+<body header="nlheader" header-height="15%" footer="nlfooter" footer-height="20pt" padding="0.5in 0.5in 0.5in 0.5in" size="Letter">
+ <table style="width: 100%; margin-top: 10px;"><tr>
+	<td style="width: 236px;"><strong>Shipper</strong></td>
+	<td style="width: 215px;"><strong>Recipient</strong></td>
+	<td class="b1" style="width: 131px;"><strong>Invoice Number</strong></td>
+	<td align="right" class="b1" style="width: 124px;">${record.tranid}</td>
+	</tr>
+	<tr>
+	<td style="width: 236px;">${record.shipaddress}</td>
+	<td style="width: 215px;">${record.billaddress}</td>
+	<td class="b1" style="width: 131px;"><strong>Order Number</strong></td>
+	<td class="b1" align="right" style="width: 124px;">${record.tranid}</td>
+	</tr></table>
+
+<table style="width: 100%; margin-top: 10px;"><tr>
+	<td style="width: 236px;"><strong>Email</strong> production@pitusa.co</td>
+	<td style="width: 210px;"><strong>Email</strong> ${record.entity.email}</td>
+	<td style="width: 130px;">&nbsp;</td>
+	<td style="width: 125px;">&nbsp;</td>
+	</tr>
+	<tr>
+	<td style="width: 236px;"><strong>Phone</strong> 7864094237</td>
+	<td style="width: 210px;">&nbsp;</td>
+	<td style="width: 130px;">&nbsp;</td>
+	<td style="width: 125px;">&nbsp;</td>
+	</tr>
+	<tr>
+	<td style="width: 236px;"><strong>VAT</strong> #FR26828555219</td>
+	<td style="width: 210px;">&nbsp;</td>
+	<td style="width: 130px;">&nbsp;</td>
+	<td style="width: 125px;">&nbsp;</td>
+	</tr></table>
+	<br/>
+<#if record.item?has_content><#assign totalquantity = 0>
+
+<table style="width: 100%; margin-top: 10px;"><!-- start items --><#list record.item as item><#if item_index==0>
+<thead>
+	<tr class="b3">
+	<th colspan="4">SKU</th>
+	<th colspan="6">NAME</th>
+	<th colspan ="3">ORIGIN</th>
+	<th colspan ="4">HIS CODE</th>
+	<th colspan="2">QTY</th>
+	<th colspan="3">PRICE</th>
+	<th colspan="2">TAX</th>
+	<th colspan="4">TOTAL (USD)</th>
+	</tr>
+</thead>
+</#if><tr class="b3">
+	<td colspan="4">${item.custcol_itemsku}</td>
+	<td colspan="6">${item.custcol_pitusa_itmdisplayname}<br/>
+	<b>Description</b><br/>${item.description}</td>
+    <td colspan ="3">&nbsp;</td>
+	<td colspan ="4">${item.custcol_pitusa_itemupc}</td>
+	<td colspan="2">${item.quantity}</td>
+	<#assign totalquantity = (item.quantity + totalquantity)>
+	<td colspan="3">${item.costestimate}</td>
+	<td colspan="2">&nbsp;</td>
+	<td colspan="4">${item.amount}</td>
+	</tr>
+	</#list><!-- end items --></table>
+
+</#if>
+<table style="page-break-inside: avoid; width: 100%; margin-top: 10px;"><tr>
+	<td colspan="4">&nbsp;</td>
+	<td class="b1" align="right" style="font-weight: bold; ">Total Quantity</td>
+	<td class="b1" align="right">${totalquantity}</td>
+	</tr>
+	<tr>
+	<td colspan="4">&nbsp;</td>
+	<td class="b1" align="right" style="font-weight: bold; color: #333333;">${record.subtotal@label}</td>
+	<td class="b1" align="right">${record.subtotal}</td>
+	</tr>
+	<tr>
+	<td background-color="#ffffff" colspan="4">&nbsp;</td>
+	<td class="b1" align="right" style="font-weight: bold; color: #333333;">${record.total@label}</td>
+	<td class="b1" align="right">${record.total}</td>
+	</tr></table>
+<br/>
+<p style="font-size: 8pt;">I hereby certify that the information on this invoice is correct and the contents and value of this shipment are as stated.
+Pitusa 6105</p>
+<hr/>
+<table style="width: 100%; margin-top: 10px;"><tr>
+	<td style="width: 214px;"><b>Shipper&#39;s Signature</b></td>
+	<td style="width: 268px;">&nbsp;</td>
+	<td style="width: 128px;"><b>Date</b></td>
+	<td style="width: 270px;">&nbsp;</td>
+	</tr></table>
+</body>
+</pdf>
