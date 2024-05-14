@@ -87,6 +87,12 @@ define(['N/record'], (record) => {
             invoiceRecord.setValue({ fieldId: 'customform', value: '186' });
           }
         }
+        // Currency is CAD
+        else if (currency === '3') {
+          if (customForm !== '196') {
+            invoiceRecord.setValue({ fieldId: 'customform', value: '196' });
+          }
+        }
       }
       //
     } catch (error) {
