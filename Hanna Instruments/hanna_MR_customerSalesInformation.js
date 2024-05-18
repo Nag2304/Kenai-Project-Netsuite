@@ -69,6 +69,17 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       //
       if (environmentType === 'PRODUCTION') {
         // ! TODO: Once Code will be written when moved to production.
+        if (savedToSearchProcess == '92373850') {
+          processCustomerSalesRecords(reduceContext);
+        }
+        // Suite Script MR Load Customers
+        else if (savedToSearchProcess == '92374050') {
+          loadCustomerRecords(reduceContext);
+        }
+        // Suitescript MR Delete Customers Sales Records
+        else if (savedToSearchProcess == '92373950') {
+          deleteCustomerRecords(reduceContext);
+        }
       } else if (environmentType === 'SANDBOX') {
         // Suite Script MR Customer Sales
         if (savedToSearchProcess == '92372361') {
