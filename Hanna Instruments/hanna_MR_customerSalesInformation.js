@@ -226,51 +226,88 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
-    //
+
     try {
-      // Retrieve Key & values.
       const key = reduceContext.key;
       log.debug(loggerTitle, 'Key: ' + key);
       const results = JSON.parse(reduceContext.values[0]);
       log.debug(loggerTitle + ' Values', results);
-      //
-      // Retrieve Customer ID
+
       const customerId =
         results.values['internalid.CUSTRECORD_HANNA_CUSTOMER_ID'].value;
       const customRecordId = results.id;
-      //
-      /* ---------------- Call the functions and set Values - Begin --------------- */
-      // Orders Years To Date
+
+      const customerSalesInformationRecordValues =
+        getCustomerSalesInformationRecordValues(customRecordId);
+
+      const salesData = calculateSalesData(
+        customerId,
+        customerSalesInformationRecordValues
+      );
+
+      log.debug(loggerTitle + ' Values', salesData);
+
+      submitCustomerSalesRecord(customRecordId, salesData);
+
+      log.audit(
+        loggerTitle,
+        'Hanna Customer Sales Information Saved Successfully: ' + customRecordId
+      );
+    } catch (error) {
+      log.error(loggerTitle + ' caught with an exception', error);
+    }
+
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
+    );
+  };
+  /* *********************** Process Customer Sales Records - End*********************** */
+  //
+  /* *********************** Get Customer SalesInformation RecordValues- Begin *********************** */
+  const getCustomerSalesInformationRecordValues = (customRecordId) => {
+    const loggerTitle = 'Get Customer Sales Information Record Values';
+    try {
+      return search.lookupFields({
+        type: 'customrecord_hanna_customer_sales',
+        id: customRecordId,
+        columns: [
+          'custrecord_hanna_totalactivites_lifetime',
+          'custrecord_hanna_sum_lifetime_sales',
+          'custrecord_hanna_lifetime_orders',
+        ],
+      });
+    } catch (error) {
+      log.error(loggerTitle + ' caught with an exception', error);
+    }
+  };
+  /* *********************** Get Customer SalesInformation RecordValues - End *********************** */
+  //
+  /* *********************** Calculate Sales Data - Begin *********************** */
+  const calculateSalesData = (
+    customerId,
+    customerSalesInformationRecordValues
+  ) => {
+    const loggerTitle = 'Calculate Sales Data';
+    try {
       const ordersYearToDateValue = ordersYearToDate(customerId);
-      //
-      // Prior Years Sale
       const priorYearsSales = priorYearsSale(customerId);
-      //
-      // Last Years To Sale
       const lastYearSaleTotalValue = lastYearSalesTotal(customerId);
-      //
-      // TOTAL VALUE OF INVOICES
       const totalValueOfInvoicesValue = totalValueOfInvoices(customerId);
-      //
-      // SUM OF LIFETIME SALES
-      const sumLifeTimeSalesValue = sumOfLifeTimeSales(customerId);
-      //
-      // LIFE TIME ORDERS
-      const lifeTimeOrdersValue = lifeTimeOrders(customerId);
-      //
-      // ACTIVITES OF CUSTOMERS
-      const customerActivites = activitesOfCustomers(customerId);
-      //
-      // COUNT OF SKU's THIS YEAR
+      const sumLifeTimeSalesValue =
+        sumOfLifeTimeSales(customerId) +
+        customerSalesInformationRecordValues.custrecord_hanna_sum_lifetime_sales;
+      const lifeTimeOrdersValue =
+        lifeTimeOrders(customerId) +
+        customerSalesInformationRecordValues.custrecord_hanna_lifetime_orders;
+      const customerActivites =
+        activitesOfCustomers(customerId) +
+        customerSalesInformationRecordValues.custrecord_hanna_totalactivites_lifetime;
       const countOfItemsThisYear = countOfSKUsThisYear(customerId);
-      //
-      // COUNT OF SKU's LAST YEAR
       const countOfItemsLastYear = countOfSKUsLastYear(customerId);
-      //
-      // COUNT OF SKU's TWO YEARS AGO
       const countOfItemsTwoYearsAgo = countOfSKUsTwoYearsAgo(customerId);
-      //
-      log.debug(loggerTitle + ' Values', {
+
+      return {
         ordersYearToDateValue,
         priorYearsSales,
         lastYearSaleTotalValue,
@@ -281,49 +318,47 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
         countOfItemsThisYear,
         countOfItemsLastYear,
         countOfItemsTwoYearsAgo,
-      });
-      /* ---------------- Call the functions and set Values - End --------------- */
-      //
-      /* ------------------- Submit - the Custom record - Begin ------------------- */
+      };
+    } catch (error) {
+      log.error(loggerTitle + ' caught with an exception', error);
+    }
+  };
+  /* *********************** Calculate Sales Data - End *********************** */
+  //
+  /* *********************** Submit CustomerSales Record - Begin *********************** */
+  const submitCustomerSalesRecord = (customRecordId, salesData) => {
+    const loggerTitle = 'Submit Customer Sales Record';
+    try {
       record.submitFields({
         type: 'customrecord_hanna_customer_sales',
         id: customRecordId,
         values: {
-          custrecord_hanna_orderstodate: ordersYearToDateValue,
-          custrecord_hanna_prioryearssales: priorYearsSales,
-          custrecord_hanna_lastyears_salestotal: lastYearSaleTotalValue,
-          custrecord_hanna_total_value_invoices: totalValueOfInvoicesValue,
-          custrecord_hanna_sum_lifetime_sales: sumLifeTimeSalesValue,
-          custrecord_hanna_lifetime_orders: lifeTimeOrdersValue,
-          custrecord_hanna_calls_currentyear: customerActivites.phoneCall,
-          custrecord_hanna_tasks_currentyear: customerActivites.tasks,
+          custrecord_hanna_orderstodate: salesData.ordersYearToDateValue,
+          custrecord_hanna_prioryearssales: salesData.priorYearsSales,
+          custrecord_hanna_lastyears_salestotal:
+            salesData.lastYearSaleTotalValue,
+          custrecord_hanna_total_value_invoices:
+            salesData.totalValueOfInvoicesValue,
+          custrecord_hanna_sum_lifetime_sales: salesData.sumLifeTimeSalesValue,
+          custrecord_hanna_lifetime_orders: salesData.lifeTimeOrdersValue,
+          custrecord_hanna_calls_currentyear:
+            salesData.customerActivites.phoneCall,
+          custrecord_hanna_tasks_currentyear: salesData.customerActivites.tasks,
           custrecord_hanna_virtual_meetings_cyear:
-            customerActivites.virtualMeetings,
+            salesData.customerActivites.virtualMeetings,
           custrecord_hanna_totalactivites_lifetime:
-            customerActivites.totalActivites,
-          custrecord_hanna_codes_sku_currentyear: countOfItemsThisYear,
-          custrecord_hanna_codes_sku_2023: countOfItemsLastYear,
-          custrecord_hanna_codes_sku_2022: countOfItemsTwoYearsAgo,
+            salesData.customerActivites.totalActivites,
+          custrecord_hanna_codes_sku_currentyear:
+            salesData.countOfItemsThisYear,
+          custrecord_hanna_codes_sku_2023: salesData.countOfItemsLastYear,
+          custrecord_hanna_codes_sku_2022: salesData.countOfItemsTwoYearsAgo,
         },
       });
-      log.audit(
-        loggerTitle,
-        ' Hanna Customer Sales Information Saved Successfully: ' +
-          customRecordId
-      );
-      /* ------------------- Submit - the Custom record - End ------------------- */
-      //
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
-    //
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
-    );
   };
-  /* *********************** Process Customer Sales Records - End*********************** */
-  //
+  /* *********************** Submit CustomerSales Record - End *********************** */
   //
   /* *********************** Orders Year To Date - Begin *********************** */
   /**
@@ -729,6 +764,8 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           ],
           'AND',
           ['customer.internalidnumber', 'equalto', customerId],
+          'AND',
+          ['trandate', 'within', 'yesterday'],
         ],
         columns: [
           search.createColumn({
@@ -792,6 +829,8 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           ['status', 'noneof', 'SalesOrd:C'],
           'AND',
           ['customer.internalidnumber', 'equalto', customerId],
+          'AND',
+          ['trandate', 'within', 'yesterday'],
         ],
         columns: [
           search.createColumn({
@@ -859,6 +898,8 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           ['status', 'anyof', '18'],
           'AND',
           ['internalidnumber', 'equalto', customerId],
+          'AND',
+          ['trandate', 'within', 'yesterday'],
         ],
         columns: [
           search.createColumn({
