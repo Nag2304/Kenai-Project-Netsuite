@@ -219,6 +219,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
   /**
    *
    * @param {object} reduceContext
+   * @returns {boolean}
    */
   const processCustomerSalesRecords = (reduceContext) => {
     const loggerTitle = 'Process Customer Sales Records';
@@ -261,14 +262,27 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
     );
+    return true;
   };
   /* *********************** Process Customer Sales Records - End*********************** */
   //
   /* *********************** Get Customer SalesInformation RecordValues- Begin *********************** */
+  /**
+   *
+   * @param {Number} customRecordId
+   * @returns {Object}
+   */
   const getCustomerSalesInformationRecordValues = (customRecordId) => {
     const loggerTitle = 'Get Customer Sales Information Record Values';
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+    );
+    //
+    let cleanedResult = {};
+
     try {
-      return search.lookupFields({
+      const result = search.lookupFields({
         type: 'customrecord_hanna_customer_sales',
         id: customRecordId,
         columns: [
@@ -277,36 +291,68 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           'custrecord_hanna_lifetime_orders',
         ],
       });
+
+      // Set default values for empty, null, or undefined fields
+      const defaultValue = 0;
+      cleanedResult = {
+        custrecord_hanna_totalactivites_lifetime:
+          result.custrecord_hanna_totalactivites_lifetime || defaultValue,
+        custrecord_hanna_sum_lifetime_sales:
+          result.custrecord_hanna_sum_lifetime_sales || defaultValue,
+        custrecord_hanna_lifetime_orders:
+          result.custrecord_hanna_lifetime_orders || defaultValue,
+      };
+      log.debug(loggerTitle + ' Cleaned Result', cleanedResult);
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
+    //
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
+    );
+
+    return cleanedResult;
   };
+
   /* *********************** Get Customer SalesInformation RecordValues - End *********************** */
   //
   /* *********************** Calculate Sales Data - Begin *********************** */
+  /**
+   *
+   * @param {Number} customerId
+   * @param {Object} customerSalesInformationRecordValues
+   * @returns {Object}
+   */
   const calculateSalesData = (
     customerId,
     customerSalesInformationRecordValues
   ) => {
     const loggerTitle = 'Calculate Sales Data';
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+    );
+    //
     try {
       const ordersYearToDateValue = ordersYearToDate(customerId);
       const priorYearsSales = priorYearsSale(customerId);
       const lastYearSaleTotalValue = lastYearSalesTotal(customerId);
       const totalValueOfInvoicesValue = totalValueOfInvoices(customerId);
       const sumLifeTimeSalesValue =
-        sumOfLifeTimeSales(customerId) +
-        customerSalesInformationRecordValues.custrecord_hanna_sum_lifetime_sales;
-      const lifeTimeOrdersValue =
-        lifeTimeOrders(customerId) +
-        customerSalesInformationRecordValues.custrecord_hanna_lifetime_orders;
-      const customerActivites =
-        activitesOfCustomers(customerId) +
+        sumOfLifeTimeSales(customerId, true) +
         customerSalesInformationRecordValues.custrecord_hanna_totalactivites_lifetime;
+      const lifeTimeOrdersValue =
+        lifeTimeOrders(customerId, true) +
+        customerSalesInformationRecordValues.custrecord_hanna_sum_lifetime_sales;
+      const customerActivites = activitesOfCustomers(customerId);
       const countOfItemsThisYear = countOfSKUsThisYear(customerId);
       const countOfItemsLastYear = countOfSKUsLastYear(customerId);
       const countOfItemsTwoYearsAgo = countOfSKUsTwoYearsAgo(customerId);
-
+      const totalActivites =
+        Number(
+          customerSalesInformationRecordValues.custrecord_hanna_totalactivites_lifetime
+        ) + Number(customerActivites.totalActivites);
       return {
         ordersYearToDateValue,
         priorYearsSales,
@@ -318,16 +364,32 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
         countOfItemsThisYear,
         countOfItemsLastYear,
         countOfItemsTwoYearsAgo,
+        totalActivites,
       };
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
+    //
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
+    );
   };
   /* *********************** Calculate Sales Data - End *********************** */
   //
   /* *********************** Submit CustomerSales Record - Begin *********************** */
+  /**
+   *
+   * @param {Number} customRecordId
+   * @param {Object} salesData
+   */
   const submitCustomerSalesRecord = (customRecordId, salesData) => {
     const loggerTitle = 'Submit Customer Sales Record';
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+    );
+    //
     try {
       record.submitFields({
         type: 'customrecord_hanna_customer_sales',
@@ -346,17 +408,26 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           custrecord_hanna_tasks_currentyear: salesData.customerActivites.tasks,
           custrecord_hanna_virtual_meetings_cyear:
             salesData.customerActivites.virtualMeetings,
-          custrecord_hanna_totalactivites_lifetime:
-            salesData.customerActivites.totalActivites,
+          custrecord_hanna_totalactivites_lifetime: salesData.totalActivites,
           custrecord_hanna_codes_sku_currentyear:
             salesData.countOfItemsThisYear,
           custrecord_hanna_codes_sku_2023: salesData.countOfItemsLastYear,
           custrecord_hanna_codes_sku_2022: salesData.countOfItemsTwoYearsAgo,
         },
       });
+      log.debug(
+        loggerTitle,
+        ' Submitted Record Successfully: ' + customRecordId
+      );
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
+    //
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
+    );
+    return true;
   };
   /* *********************** Submit CustomerSales Record - End *********************** */
   //
@@ -375,6 +446,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
     //
     let ordersYearToDateValue = 0;
     try {
+      // Create Search
       const transactionSearchObj = search.create({
         type: 'transaction',
         filters: [
@@ -441,6 +513,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
     //
     let amount = 0;
     try {
+      // Create Search
       const transactionSearchObj = search.create({
         type: 'transaction',
         settings: [
@@ -541,6 +614,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
     let total = 0;
     //
     try {
+      // Create Search
       // Subsidiary - 1 - "Hanna Instruments Inc"
       // Hanna Entity - 2 - "Hanna Instruments US"
       const transactionSearchObj = search.create({
@@ -631,6 +705,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
     let totalValueOfInvoices = 0;
     //
     try {
+      // Create Search
       const transactionSearchObj = search.create({
         type: 'transaction',
         settings: [
@@ -709,7 +784,13 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
   /* *********************** Total Value of Invoices - End *********************** */
   //
   /* *********************** Sum of Lifetime Sales - Begin *********************** */
-  const sumOfLifeTimeSales = (customerId) => {
+  /**
+   *
+   * @param {Number} customerId
+   * @param {Boolean} includeYesterdayFilter
+   * @returns {Number}
+   */
+  const sumOfLifeTimeSales = (customerId, includeYesterdayFilter = false) => {
     const loggerTitle = ' Total Value of Invoices ';
     log.debug(
       loggerTitle,
@@ -718,68 +799,134 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
     let sumLifeTimeSales = 0;
     //
     try {
-      const transactionSearchObj = search.create({
-        type: 'transaction',
-        settings: [
-          {
-            name: 'consolidationtype',
-            value: 'ACCTTYPE',
-          },
-        ],
-        filters: [
-          ['subsidiary', 'anyof', '1'],
-          'AND',
-          [
-            'type',
-            'anyof',
-            'CustInvc',
-            'CashRfnd',
-            'CashSale',
-            'CustCred',
-            'CustRfnd',
-            'Journal',
+      // Create Search
+      let transactionSearchObj;
+      if (!includeYesterdayFilter) {
+        transactionSearchObj = search.create({
+          type: 'transaction',
+          settings: [
+            {
+              name: 'consolidationtype',
+              value: 'ACCTTYPE',
+            },
           ],
-          'AND',
-          ['cseg_hi_hannaentity', 'anyof', '2'],
-          'AND',
-          ['customer.custentity_hanna_department', 'anyof', '282'],
-          'AND',
-          ['account', 'noneof', '1190'],
-          'AND',
-          [
-            'item.type',
-            'anyof',
-            'Assembly',
-            'Description',
-            'Discount',
-            'InvtPart',
-            'Group',
-            'Kit',
-            'Markup',
-            'NonInvtPart',
-            'OthCharge',
-            'Payment',
-            'Service',
-            'Subtotal',
+          filters: [
+            ['subsidiary', 'anyof', '1'],
+            'AND',
+            [
+              'type',
+              'anyof',
+              'CustInvc',
+              'CashRfnd',
+              'CashSale',
+              'CustCred',
+              'CustRfnd',
+              'Journal',
+            ],
+            'AND',
+            ['cseg_hi_hannaentity', 'anyof', '2'],
+            'AND',
+            ['customer.custentity_hanna_department', 'anyof', '282'],
+            'AND',
+            ['account', 'noneof', '1190'],
+            'AND',
+            [
+              'item.type',
+              'anyof',
+              'Assembly',
+              'Description',
+              'Discount',
+              'InvtPart',
+              'Group',
+              'Kit',
+              'Markup',
+              'NonInvtPart',
+              'OthCharge',
+              'Payment',
+              'Service',
+              'Subtotal',
+            ],
+            'AND',
+            ['customer.internalidnumber', 'equalto', customerId],
           ],
-          'AND',
-          ['customer.internalidnumber', 'equalto', customerId],
-          'AND',
-          ['trandate', 'within', 'yesterday'],
-        ],
-        columns: [
-          search.createColumn({
-            name: 'amount',
-            summary: 'SUM',
-            label: 'Amount',
-          }),
-          search.createColumn({
-            name: 'entity',
-            summary: 'GROUP',
-            label: 'Name',
-          }),
-        ],
-      });
+          columns: [
+            search.createColumn({
+              name: 'amount',
+              summary: 'SUM',
+              label: 'Amount',
+            }),
+            search.createColumn({
+              name: 'entity',
+              summary: 'GROUP',
+              label: 'Name',
+            }),
+          ],
+        });
+      } else {
+        transactionSearchObj = search.create({
+          type: 'transaction',
+          settings: [
+            {
+              name: 'consolidationtype',
+              value: 'ACCTTYPE',
+            },
+          ],
+          filters: [
+            ['subsidiary', 'anyof', '1'],
+            'AND',
+            [
+              'type',
+              'anyof',
+              'CustInvc',
+              'CashRfnd',
+              'CashSale',
+              'CustCred',
+              'CustRfnd',
+              'Journal',
+            ],
+            'AND',
+            ['cseg_hi_hannaentity', 'anyof', '2'],
+            'AND',
+            ['customer.custentity_hanna_department', 'anyof', '282'],
+            'AND',
+            ['account', 'noneof', '1190'],
+            'AND',
+            [
+              'item.type',
+              'anyof',
+              'Assembly',
+              'Description',
+              'Discount',
+              'InvtPart',
+              'Group',
+              'Kit',
+              'Markup',
+              'NonInvtPart',
+              'OthCharge',
+              'Payment',
+              'Service',
+              'Subtotal',
+            ],
+            'AND',
+            ['customer.internalidnumber', 'equalto', customerId],
+            'AND',
+            ['trandate', 'within', 'yesterday'],
+          ],
+          columns: [
+            search.createColumn({
+              name: 'amount',
+              summary: 'SUM',
+              label: 'Amount',
+            }),
+            search.createColumn({
+              name: 'entity',
+              summary: 'GROUP',
+              label: 'Name',
+            }),
+          ],
+        });
+      }
+
       //
       log.debug(loggerTitle, ' Search Called Successfully ');
       const searchResultCount = transactionSearchObj.runPaged().count;
@@ -806,7 +953,13 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
   /* *********************** Sum of Lifetime Sales - End *********************** */
   //
   /* *********************** Life Time Orders - Begin *********************** */
-  const lifeTimeOrders = (customerId) => {
+  /**
+   *
+   * @param {Number} customerId
+   * @param {Boolean} includeYesterdayFilter
+   * @returns
+   */
+  const lifeTimeOrders = (customerId, includeYesterdayFilter = false) => {
     const loggerTitle = ' Life Time Orders ';
     log.debug(
       loggerTitle,
@@ -815,36 +968,69 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
     let lifeTimeOrdersValue = 0;
     //
     try {
-      const transactionSearchObj = search.create({
-        type: 'transaction',
-        settings: [
-          {
-            name: 'consolidationtype',
-            value: 'ACCTTYPE',
-          },
-        ],
-        filters: [
-          ['account', 'anyof', '123'],
-          'AND',
-          ['status', 'noneof', 'SalesOrd:C'],
-          'AND',
-          ['customer.internalidnumber', 'equalto', customerId],
-          'AND',
-          ['trandate', 'within', 'yesterday'],
-        ],
-        columns: [
-          search.createColumn({
-            name: 'tranid',
-            summary: 'COUNT',
-            label: 'Document Number',
-          }),
-          search.createColumn({
-            name: 'entity',
-            summary: 'GROUP',
-            label: 'Name',
-          }),
-        ],
-      });
+      // Create Search
+      let transactionSearchObj;
+      if (!includeYesterdayFilter) {
+        transactionSearchObj = search.create({
+          type: 'transaction',
+          settings: [
+            {
+              name: 'consolidationtype',
+              value: 'ACCTTYPE',
+            },
+          ],
+          filters: [
+            ['account', 'anyof', '123'],
+            'AND',
+            ['status', 'noneof', 'SalesOrd:C'],
+            'AND',
+            ['customer.internalidnumber', 'equalto', customerId],
+          ],
+          columns: [
+            search.createColumn({
+              name: 'tranid',
+              summary: 'COUNT',
+              label: 'Document Number',
+            }),
+            search.createColumn({
+              name: 'entity',
+              summary: 'GROUP',
+              label: 'Name',
+            }),
+          ],
+        });
+      } else {
+        transactionSearchObj = search.create({
+          type: 'transaction',
+          settings: [
+            {
+              name: 'consolidationtype',
+              value: 'ACCTTYPE',
+            },
+          ],
+          filters: [
+            ['account', 'anyof', '123'],
+            'AND',
+            ['status', 'noneof', 'SalesOrd:C'],
+            'AND',
+            ['customer.internalidnumber', 'equalto', customerId],
+            'AND',
+            ['trandate', 'within', 'yesterday'],
+          ],
+          columns: [
+            search.createColumn({
+              name: 'tranid',
+              summary: 'COUNT',
+              label: 'Document Number',
+            }),
+            search.createColumn({
+              name: 'entity',
+              summary: 'GROUP',
+              label: 'Name',
+            }),
+          ],
+        });
+      }
       //
       log.debug(loggerTitle, ' Search Called Successfully ');
       const searchResultCount = transactionSearchObj.runPaged().count;
@@ -876,8 +1062,8 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
    * @param {number} customerId
    * @returns {object}  customerActivites
    */
-  const activitesOfCustomers = (customerId) => {
-    const loggerTitle = ' Life Time Orders ';
+  const activitesOfCustomers = (customerId, includeYesterdayFilter = false) => {
+    const loggerTitle = ' Activites Of Customers ';
     log.debug(
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
@@ -890,44 +1076,86 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
     customerActivites.totalActivites = 0;
     //
     try {
-      const customerSearchObj = search.create({
-        type: 'customer',
-        filters: [
-          ['isinactive', 'is', 'F'],
-          'AND',
-          ['status', 'anyof', '18'],
-          'AND',
-          ['internalidnumber', 'equalto', customerId],
-          'AND',
-          ['trandate', 'within', 'yesterday'],
-        ],
-        columns: [
-          search.createColumn({
-            name: 'formulanumeric',
-            formula:
-              "CASE WHEN {activity.type} = 'Phone Call' AND TO_CHAR({activity.createddate},'YYYY') = TO_CHAR(CURRENT_DATE, 'YYYY') THEN 1 ELSE 0 END",
-            label: 'Calls (current year)',
-          }),
-          search.createColumn({
-            name: 'formulanumeric',
-            formula:
-              "CASE WHEN {activity.type} = 'Task' AND TO_CHAR({activity.createddate},'YYYY') = TO_CHAR(CURRENT_DATE, 'YYYY') THEN 1 ELSE 0 END",
-            label: 'Tasks (current year)',
-          }),
-          search.createColumn({
-            name: 'formulanumeric',
-            formula:
-              "CASE WHEN {activity.type} = 'Virtual Meeting or In Person Visit' AND TO_CHAR({activity.createddate},'YYYY') = TO_CHAR(CURRENT_DATE, 'YYYY') THEN 1 ELSE 0 END",
-            label: 'Virtual Meetings (current year)',
-          }),
-          search.createColumn({
-            name: 'formulanumeric',
-            formula:
-              "CASE WHEN {activity.type} = 'Virtual Meeting or In Person Visit' OR {activity.type} = 'Task' OR {activity.type} = 'Phone Call'  THEN 1 ELSE 0 END",
-            label: 'Total Activities',
-          }),
-        ],
-      });
+      // Create Search
+      let customerSearchObj;
+      if (!includeYesterdayFilter) {
+        customerSearchObj = search.create({
+          type: 'customer',
+          filters: [
+            ['isinactive', 'is', 'F'],
+            'AND',
+            ['status', 'anyof', '18'],
+            'AND',
+            ['internalidnumber', 'equalto', customerId],
+          ],
+          columns: [
+            search.createColumn({
+              name: 'formulanumeric',
+              formula:
+                "CASE WHEN {activity.type} = 'Phone Call' AND TO_CHAR({activity.createddate},'YYYY') = TO_CHAR(CURRENT_DATE, 'YYYY') THEN 1 ELSE 0 END",
+              label: 'Calls (current year)',
+            }),
+            search.createColumn({
+              name: 'formulanumeric',
+              formula:
+                "CASE WHEN {activity.type} = 'Task' AND TO_CHAR({activity.createddate},'YYYY') = TO_CHAR(CURRENT_DATE, 'YYYY') THEN 1 ELSE 0 END",
+              label: 'Tasks (current year)',
+            }),
+            search.createColumn({
+              name: 'formulanumeric',
+              formula:
+                "CASE WHEN {activity.type} = 'Virtual Meeting or In Person Visit' AND TO_CHAR({activity.createddate},'YYYY') = TO_CHAR(CURRENT_DATE, 'YYYY') THEN 1 ELSE 0 END",
+              label: 'Virtual Meetings (current year)',
+            }),
+            search.createColumn({
+              name: 'formulanumeric',
+              formula:
+                "CASE WHEN {activity.type} = 'Virtual Meeting or In Person Visit' OR {activity.type} = 'Task' OR {activity.type} = 'Phone Call'  THEN 1 ELSE 0 END",
+              label: 'Total Activities',
+            }),
+          ],
+        });
+      } else {
+        customerSearchObj = search.create({
+          type: 'customer',
+          filters: [
+            ['isinactive', 'is', 'F'],
+            'AND',
+            ['status', 'anyof', '18'],
+            'AND',
+            ['internalidnumber', 'equalto', customerId],
+            'AND',
+            ['datecreated', 'within', 'yesterday'],
+          ],
+          columns: [
+            search.createColumn({
+              name: 'formulanumeric',
+              formula:
+                "CASE WHEN {activity.type} = 'Phone Call' AND TO_CHAR({activity.createddate},'YYYY') = TO_CHAR(CURRENT_DATE, 'YYYY') THEN 1 ELSE 0 END",
+              label: 'Calls (current year)',
+            }),
+            search.createColumn({
+              name: 'formulanumeric',
+              formula:
+                "CASE WHEN {activity.type} = 'Task' AND TO_CHAR({activity.createddate},'YYYY') = TO_CHAR(CURRENT_DATE, 'YYYY') THEN 1 ELSE 0 END",
+              label: 'Tasks (current year)',
+            }),
+            search.createColumn({
+              name: 'formulanumeric',
+              formula:
+                "CASE WHEN {activity.type} = 'Virtual Meeting or In Person Visit' AND TO_CHAR({activity.createddate},'YYYY') = TO_CHAR(CURRENT_DATE, 'YYYY') THEN 1 ELSE 0 END",
+              label: 'Virtual Meetings (current year)',
+            }),
+            search.createColumn({
+              name: 'formulanumeric',
+              formula:
+                "CASE WHEN {activity.type} = 'Virtual Meeting or In Person Visit' OR {activity.type} = 'Task' OR {activity.type} = 'Phone Call'  THEN 1 ELSE 0 END",
+              label: 'Total Activities',
+            }),
+          ],
+        });
+      }
+
       //
       log.debug(loggerTitle, ' Search Called Successfully ');
       //
@@ -947,6 +1175,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           eachResult.formulanumeric_3
         );
       }
+      log.debug(loggerTitle + ' Customer Activites', customerActivites);
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
