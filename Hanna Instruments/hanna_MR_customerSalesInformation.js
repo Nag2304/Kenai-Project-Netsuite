@@ -68,9 +68,15 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       log.debug(loggerTitle, 'Environment Type: ' + environmentType);
       //
       if (environmentType === 'PRODUCTION') {
-        // ! TODO: Once Code will be written when moved to production.
         if (savedToSearchProcess == '92373850') {
-          processCustomerSalesRecords(reduceContext);
+          const nightlyRunConfig = scriptObj.getParameter({
+            name: 'custscript_nightly_run_config',
+          });
+          if (nightlyRunConfig) {
+            processNightlyRunConfiguration(nightlyRunConfig, reduceContext);
+          } else {
+            processCustomerSalesRecords(reduceContext);
+          }
         }
         // Suite Script MR Load Customers
         else if (savedToSearchProcess == '92374050') {
@@ -83,7 +89,14 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       } else if (environmentType === 'SANDBOX') {
         // Suite Script MR Customer Sales
         if (savedToSearchProcess == '92372361') {
-          processCustomerSalesRecords(reduceContext);
+          const nightlyRunConfig = scriptObj.getParameter({
+            name: 'custscript_nightly_run_config',
+          });
+          if (nightlyRunConfig) {
+            processNightlyRunConfiguration(nightlyRunConfig, reduceContext);
+          } else {
+            processCustomerSalesRecords(reduceContext);
+          }
         }
         // Suite Script MR Load Customers
         else if (savedToSearchProcess == '92372362') {
@@ -238,17 +251,10 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
         results.values['internalid.CUSTRECORD_HANNA_CUSTOMER_ID'].value;
       const customRecordId = results.id;
 
-      const customerSalesInformationRecordValues =
-        getCustomerSalesInformationRecordValues(customRecordId);
-
-      const salesData = calculateSalesData(
-        customerId,
-        customerSalesInformationRecordValues
-      );
-
+      const salesData = calculateSalesData(customerId);
       log.debug(loggerTitle + ' Values', salesData);
 
-      submitCustomerSalesRecord(customRecordId, salesData);
+      submitCustomerSalesRecord(customRecordId, salesData, null);
 
       log.audit(
         loggerTitle,
@@ -265,6 +271,67 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
     return true;
   };
   /* *********************** Process Customer Sales Records - End*********************** */
+  //
+  /* *********************** Process Nightly Run Configuration - Begin *********************** */
+  /**
+   * Processes the nightly run configuration based on the provided parameter.
+   *
+   * @param {string} configuration - The configuration value indicating the type of nightly run.
+   * @param {object} reduceContext - The context of the reduce operation.
+   */
+  const processNightlyRunConfiguration = (configuration, reduceContext) => {
+    const loggerTitle = ' Process Nightly Run Configuration ';
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+    );
+    //
+    try {
+      log.debug(loggerTitle, 'Configuration Nightly Run: ' + configuration);
+      //
+      const key = reduceContext.key;
+      log.debug(loggerTitle, 'Key: ' + key);
+      const results = JSON.parse(reduceContext.values[0]);
+      log.debug(loggerTitle + ' Values', results);
+
+      const customerId =
+        results.values['internalid.CUSTRECORD_HANNA_CUSTOMER_ID'].value;
+      const customRecordId = results.id;
+
+      const customerSalesInformationRecordValues =
+        getCustomerSalesInformationRecordValues(customRecordId);
+
+      let salesData;
+      // Nightly Incremental Run
+      if (configuration === '1') {
+        salesData = calculateSalesData(
+          customerId,
+          customerSalesInformationRecordValues,
+          configuration
+        );
+      }
+      // Nightly Comprehensive Run
+      else if (configuration === '2') {
+        salesData = calculateSalesData(customerId, null, configuration);
+      }
+
+      submitCustomerSalesRecord(customRecordId, salesData, configuration);
+
+      log.audit(
+        loggerTitle,
+        'Hanna Customer Sales Information Saved Successfully: ' + customRecordId
+      );
+    } catch (error) {
+      log.error(loggerTitle + ' caught with an exception', error);
+    }
+    //
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
+    );
+    return true;
+  };
+  /* *********************** Process Nightly Run Configuration - End *********************** */
   //
   /* *********************** Get Customer SalesInformation RecordValues- Begin *********************** */
   /**
@@ -321,12 +388,12 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
   /**
    *
    * @param {Number} customerId
-   * @param {Object} customerSalesInformationRecordValues
    * @returns {Object}
    */
   const calculateSalesData = (
     customerId,
-    customerSalesInformationRecordValues
+    customerSalesInformationRecordValues = null,
+    config = null
   ) => {
     const loggerTitle = 'Calculate Sales Data';
     log.debug(
@@ -334,38 +401,46 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
     //
+    let calculatedData = {};
     try {
-      const ordersYearToDateValue = ordersYearToDate(customerId);
-      const priorYearsSales = priorYearsSale(customerId);
-      const lastYearSaleTotalValue = lastYearSalesTotal(customerId);
-      const totalValueOfInvoicesValue = totalValueOfInvoices(customerId);
-      const sumLifeTimeSalesValue =
-        sumOfLifeTimeSales(customerId, true) +
-        customerSalesInformationRecordValues.custrecord_hanna_totalactivites_lifetime;
-      const lifeTimeOrdersValue =
-        lifeTimeOrders(customerId, true) +
-        customerSalesInformationRecordValues.custrecord_hanna_sum_lifetime_sales;
-      const customerActivites = activitesOfCustomers(customerId);
-      const countOfItemsThisYear = countOfSKUsThisYear(customerId);
-      const countOfItemsLastYear = countOfSKUsLastYear(customerId);
-      const countOfItemsTwoYearsAgo = countOfSKUsTwoYearsAgo(customerId);
-      const totalActivites =
-        Number(
-          customerSalesInformationRecordValues.custrecord_hanna_totalactivites_lifetime
-        ) + Number(customerActivites.totalActivites);
-      return {
-        ordersYearToDateValue,
-        priorYearsSales,
-        lastYearSaleTotalValue,
-        totalValueOfInvoicesValue,
-        sumLifeTimeSalesValue,
-        lifeTimeOrdersValue,
-        customerActivites,
-        countOfItemsThisYear,
-        countOfItemsLastYear,
-        countOfItemsTwoYearsAgo,
-        totalActivites,
-      };
+      if (config === '1') {
+        calculatedData = {
+          sumLifeTimeSalesValue:
+            sumOfLifeTimeSales(customerId, true) +
+            (customerSalesInformationRecordValues
+              ? customerSalesInformationRecordValues.custrecord_hanna_sum_lifetime_sales
+              : 0),
+          lifeTimeOrdersValue:
+            lifeTimeOrders(customerId, true) +
+            (customerSalesInformationRecordValues
+              ? customerSalesInformationRecordValues.custrecord_hanna_lifetime_orders
+              : 0),
+          customerActivites:
+            activitesOfCustomers(customerId, true) +
+            (customerSalesInformationRecordValues
+              ? customerSalesInformationRecordValues.custrecord_hanna_totalactivites_lifetime
+              : 0),
+        };
+      } else if (config === '2') {
+        calculatedData = {
+          ordersYearToDateValue: ordersYearToDate(customerId),
+          totalValueOfInvoicesValue: totalValueOfInvoices(customerId),
+          customerActivites: activitesOfCustomers(customerId),
+        };
+      } else {
+        calculatedData = {
+          ordersYearToDateValue: ordersYearToDate(customerId),
+          priorYearsSales: priorYearsSale(customerId),
+          lastYearSaleTotalValue: lastYearSalesTotal(customerId),
+          totalValueOfInvoicesValue: totalValueOfInvoices(customerId),
+          customerActivites: activitesOfCustomers(customerId),
+          countOfItemsThisYear: countOfSKUsThisYear(customerId),
+          countOfItemsLastYear: countOfSKUsLastYear(customerId),
+          countOfItemsTwoYearsAgo: countOfSKUsTwoYearsAgo(customerId),
+          sumLifeTimeSalesValue: sumOfLifeTimeSales(customerId),
+          lifeTimeOrdersValue: lifeTimeOrders(customerId),
+        };
+      }
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
@@ -374,16 +449,23 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
     );
+    return calculatedData;
   };
   /* *********************** Calculate Sales Data - End *********************** */
   //
   /* *********************** Submit CustomerSales Record - Begin *********************** */
   /**
+   * Submits customer sales record.
    *
-   * @param {Number} customRecordId
-   * @param {Object} salesData
+   * @param {Number} customRecordId - The ID of the custom record.
+   * @param {Object} salesData - The sales data object.
+   * @param {string} [config=null] - The configuration type ('1' for incremental, '2' for comprehensive).
    */
-  const submitCustomerSalesRecord = (customRecordId, salesData) => {
+  const submitCustomerSalesRecord = (
+    customRecordId,
+    salesData,
+    config = null
+  ) => {
     const loggerTitle = 'Submit Customer Sales Record';
     log.debug(
       loggerTitle,
@@ -391,30 +473,51 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
     );
     //
     try {
+      const fieldsToSubmit = {
+        custrecord_hanna_orderstodate: salesData.ordersYearToDateValue,
+        custrecord_hanna_prioryearssales: salesData.priorYearsSales,
+        custrecord_hanna_lastyears_salestotal: salesData.lastYearSaleTotalValue,
+        custrecord_hanna_total_value_invoices:
+          salesData.totalValueOfInvoicesValue,
+        custrecord_hanna_sum_lifetime_sales: salesData.sumLifeTimeSalesValue,
+        custrecord_hanna_lifetime_orders: salesData.lifeTimeOrdersValue,
+        custrecord_hanna_calls_currentyear:
+          salesData.customerActivites.phoneCall,
+        custrecord_hanna_tasks_currentyear: salesData.customerActivites.tasks,
+        custrecord_hanna_virtual_meetings_cyear:
+          salesData.customerActivites.virtualMeetings,
+        custrecord_hanna_totalactivites_lifetime:
+          salesData.customerActivites.totalActivites,
+        custrecord_hanna_codes_sku_currentyear: salesData.countOfItemsThisYear,
+        custrecord_hanna_codes_sku_2023: salesData.countOfItemsLastYear,
+        custrecord_hanna_codes_sku_2022: salesData.countOfItemsTwoYearsAgo,
+      };
+
+      if (config === '1') {
+        // For incremental run, we only need these fields
+        delete fieldsToSubmit.custrecord_hanna_calls_currentyear;
+        delete fieldsToSubmit.custrecord_hanna_tasks_currentyear;
+        delete fieldsToSubmit.custrecord_hanna_virtual_meetings_cyear;
+        delete fieldsToSubmit.custrecord_hanna_codes_sku_currentyear;
+        delete fieldsToSubmit.custrecord_hanna_codes_sku_2023;
+        delete fieldsToSubmit.custrecord_hanna_codes_sku_2022;
+      } else if (config === '2') {
+        // For comprehensive run, we only need these fields
+        delete fieldsToSubmit.priorYearsSales;
+        delete fieldsToSubmit.lastYearSaleTotalValue;
+        delete fieldsToSubmit.custrecord_hanna_sum_lifetime_sales;
+        delete fieldsToSubmit.custrecord_hanna_lifetime_orders;
+        delete fieldsToSubmit.countOfItemsThisYear;
+        delete fieldsToSubmit.custrecord_hanna_codes_sku_2023;
+        delete fieldsToSubmit.custrecord_hanna_codes_sku_2022;
+      }
+
       record.submitFields({
         type: 'customrecord_hanna_customer_sales',
         id: customRecordId,
-        values: {
-          custrecord_hanna_orderstodate: salesData.ordersYearToDateValue,
-          custrecord_hanna_prioryearssales: salesData.priorYearsSales,
-          custrecord_hanna_lastyears_salestotal:
-            salesData.lastYearSaleTotalValue,
-          custrecord_hanna_total_value_invoices:
-            salesData.totalValueOfInvoicesValue,
-          custrecord_hanna_sum_lifetime_sales: salesData.sumLifeTimeSalesValue,
-          custrecord_hanna_lifetime_orders: salesData.lifeTimeOrdersValue,
-          custrecord_hanna_calls_currentyear:
-            salesData.customerActivites.phoneCall,
-          custrecord_hanna_tasks_currentyear: salesData.customerActivites.tasks,
-          custrecord_hanna_virtual_meetings_cyear:
-            salesData.customerActivites.virtualMeetings,
-          custrecord_hanna_totalactivites_lifetime: salesData.totalActivites,
-          custrecord_hanna_codes_sku_currentyear:
-            salesData.countOfItemsThisYear,
-          custrecord_hanna_codes_sku_2023: salesData.countOfItemsLastYear,
-          custrecord_hanna_codes_sku_2022: salesData.countOfItemsTwoYearsAgo,
-        },
+        values: fieldsToSubmit,
       });
+
       log.debug(
         loggerTitle,
         ' Submitted Record Successfully: ' + customRecordId
@@ -429,6 +532,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
     );
     return true;
   };
+
   /* *********************** Submit CustomerSales Record - End *********************** */
   //
   /* *********************** Orders Year To Date - Begin *********************** */
