@@ -148,6 +148,7 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
           'Days OverDue: ' + daysOverDue + ' Credit Hold:' + creditHold
         );
 
+        // Updated Logic - As Per the Requirement
         if (daysOverDue > 0 || creditHold === 'ON') {
           salesRecord.setValue({
             fieldId: 'custbody_wdym_credit_hold',
