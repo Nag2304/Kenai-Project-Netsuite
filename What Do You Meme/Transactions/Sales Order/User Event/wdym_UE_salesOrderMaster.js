@@ -117,7 +117,8 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
 
         const lineItemCount = salesRecord.getLineCount({ sublistId: 'item' });
 
-        const customerLookUpFields = search.lookupFields({
+        // Lookup necessary fields for the customer using the provided customerId
+        const customerFields = search.lookupFields({
           type: search.Type.CUSTOMER,
           id: String(customerId),
           columns: [
@@ -128,34 +129,70 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
             'custentity_required_deposit_percent',
             'daysoverdue',
             'creditlimit',
+            'balance',
           ],
         });
 
-        //
-        /* ---------------------- Set Credit Hold Field - Begin --------------------- */
-        const daysOverDue = customerLookUpFields.daysoverdue;
+        // Extract the number of days overdue from the customer's lookup fields
+        const daysOverdue = customerFields.daysoverdue;
 
+        // Load the customer record to check the credit hold status
         const customerRecord = record.load({
           type: 'customer',
           id: customerId,
         });
-        const creditHold = customerRecord.getValue({
+
+        // Retrieve the current credit hold status from the customer record
+        const creditHoldStatus = customerRecord.getValue({
           fieldId: 'creditholdoverride',
         });
 
+        // Log the days overdue and the credit hold status for debugging purposes
         log.debug(
           strLoggerTitle,
-          'Days OverDue: ' + daysOverDue + ' Credit Hold:' + creditHold
+          'Days Overdue: ' +
+            daysOverdue +
+            ' Credit Hold Status: ' +
+            creditHoldStatus
         );
 
-        // Updated Logic - As Per the Requirement
-        if (daysOverDue > 0 || creditHold === 'ON') {
+        /* ---------------------- Credit Hold Check Logic - Begin ---------------------- */
+
+        // Check if the credit hold is already ON or if there are overdue days
+        if (creditHoldStatus === 'ON' || daysOverdue > 0) {
+          // If either condition is true, set the credit hold field on the sales record to true
           salesRecord.setValue({
             fieldId: 'custbody_wdym_credit_hold',
             value: true,
           });
+        } else {
+          // If no credit hold and no overdue days, proceed to check the overall balance against the credit limit
+
+          // Get the total amount from the sales record
+          const salesTotalAmount = salesRecord.getValue({ fieldId: 'total' });
+
+          // Retrieve the current balance of the customer from the lookup fields
+          const customerCurrentBalance = customerRecord.getValue({
+            fieldId: 'balance',
+          });
+
+          // Calculate the overall balance by adding the sales amount to the customer's current balance
+          const overallBalance =
+            Number(salesTotalAmount) + Number(customerCurrentBalance);
+
+          // Retrieve the customer's credit limit from the lookup fields
+          const customerCreditLimit = Number(customerFields.creditlimit);
+
+          // Check if the overall balance exceeds the customer's credit limit
+          if (overallBalance > customerCreditLimit) {
+            // If the overall balance exceeds the credit limit, set the credit hold field on the sales record to true
+            salesRecord.setValue({
+              fieldId: 'custbody_wdym_credit_hold',
+              value: true,
+            });
+          }
         }
-        /* ----------------------- Set Credit Hold Field - End ---------------------- */
+        /* ---------------------- Credit Hold Check Logic - End ------------------------ */
         //
         /* ------------------- Required Deposit Percentage - Begin ------------------ */
         if (customerLookUpFields.custentity_required_deposit_percent.length) {
