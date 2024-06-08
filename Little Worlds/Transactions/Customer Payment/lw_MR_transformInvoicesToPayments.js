@@ -309,7 +309,15 @@ define(['N/search', 'N/record', 'N/format', 'N/runtime'], (
         value: invoiceTrandate,
       });
 
-      customerPaymentRecord.setValue({ fieldId: 'account', value: accountId });
+      customerPaymentRecord.setValue({
+        fieldId: 'account',
+        value: accountId,
+      });
+
+      const trandate = customerPaymentRecord.getValue({ fieldId: 'trandate' });
+      log.debug(loggerTitle, ' TranDate Customer Payment Record: ' + trandate);
+      const account = customerPaymentRecord.getValue({ fieldId: 'account' });
+      log.debug(loggerTitle, ' Account After Setting: ' + account);
 
       // In the UI, this can be seen under the APPLY subtab > Invoices Sublist when creating a new CUSTOMER PAYMENT record.
       const linecount = customerPaymentRecord.getLineCount({
@@ -334,12 +342,12 @@ define(['N/search', 'N/record', 'N/format', 'N/runtime'], (
           fieldId: 'amount',
           line: i,
         });
-        log.debug(
-          loggerTitle,
-          `Index:${i}, RefNum: ${refnum} Total: ${total} Amount: ${amount}`
-        );
+        // log.debug(
+        //   loggerTitle,
+        //   `Index:${i}, RefNum: ${refnum} Total: ${total} Amount: ${amount}`
+        // );
         // This will compare if the invoice that was saved can be seen on the list of INVOICES on the Customer Payment when the same Customer was selected.
-        if (refnum == invoiceRefnum) {
+        if (refnum == invoiceRefnum && amount == invoiceAmount) {
           customerPaymentRecord.selectLine({
             sublistId: 'apply',
             line: i,
@@ -367,6 +375,10 @@ define(['N/search', 'N/record', 'N/format', 'N/runtime'], (
           customerPaymentRecord.commitLine({
             sublistId: 'apply',
           });
+          log.debug(
+            loggerTitle,
+            'Applied to Invoice Ref Num: ' + refnum + ' Index: ' + i
+          );
         }
         //
       }
@@ -390,6 +402,17 @@ define(['N/search', 'N/record', 'N/format', 'N/runtime'], (
     return cpId;
   };
   /* *********************** transformInvoiceToCustomerPayment - End *********************** */
+  //
+  /* *********************** parseDateString - Begin *********************** */
+  const parseDateString = (dateString) => {
+    // Assuming the format is MM/DD/YYYY
+    var parts = dateString.split('/');
+    var month = parseInt(parts[0], 10) - 1; // Months are 0-based in JavaScript Date
+    var day = parseInt(parts[1], 10);
+    var year = parseInt(parts[2], 10);
+    return new Date(year, month, day);
+  };
+  /* *********************** parseDateString - End *********************** */
   //
   /* ----------------------- Helper Functions - End ----------------------- */
   //
