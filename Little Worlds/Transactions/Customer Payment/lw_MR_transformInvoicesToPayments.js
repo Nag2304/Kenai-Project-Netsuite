@@ -30,7 +30,11 @@ define(['N/search', 'N/record', 'N/format', 'N/runtime'], (
   //
   /* ------------------------- Get Input Data - Begin ------------------------- */
   const getInputData = () => {
-    return { type: 'file', id: '306475' };
+    const scriptObj = runtime.getCurrentScript();
+    const fileId = scriptObj.getParameter({
+      name: 'custscript_lw_file_id',
+    });
+    return { type: 'file', id: fileId };
   };
   /* ------------------------- Get Input Data - End ------------------------- */
   //
