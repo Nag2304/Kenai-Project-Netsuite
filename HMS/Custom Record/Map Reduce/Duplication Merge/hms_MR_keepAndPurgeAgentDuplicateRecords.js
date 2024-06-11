@@ -151,6 +151,11 @@ define(['N/search', 'N/record'], (search, record) => {
     let previousAgentId;
     let previousCrmCount;
     let previousSoldPropertiesCount;
+    const updateObject = {
+      agentUpdate: false,
+      CRM: false,
+      soldProperties: false,
+    };
     try {
       customAgentUpdateProjectSearchObj = search.create({
         type: 'customrecord_hms_agent_upd_project',
@@ -205,22 +210,37 @@ define(['N/search', 'N/record'], (search, record) => {
           // If Previous NRDS ID is Null and Current NRDS ID has value && Purge is true
           if (!previousNrdsId && nrdsId && purge) {
             if (previousKeep && previousInternalId) {
-              updateAgentUpdateProject(previousInternalId, nrdsId);
+              updateObject.agentUpdate = updateAgentUpdateProject(
+                previousInternalId,
+                nrdsId,
+                'A'
+              );
             }
           }
           //
 
           // CRM Count
           if (crmCount > 0 && purge) {
-            updateAgentCRMRecords(previousAgentId, agentId);
+            updateObject.CRM = updateAgentCRMRecords(previousAgentId, agentId);
           }
           //
 
           // Sold Properties Count
           if (soldPropertiesCount > 0 && purge) {
-            updateAgentSoldProperties(previousAgentId, agentId);
+            updateObject.soldProperties = updateAgentSoldProperties(
+              previousAgentId,
+              agentId
+            );
           }
           //
+
+          if (Object.values(updateObject).some((val) => val) && purge) {
+            updateOriginalAgentRecord(agentId);
+            log.debug(
+              loggerTitle,
+              ` Marked the Original Agent Id to Inactive ${agentId}`
+            );
+          }
 
           log.debug(loggerTitle, {
             internalId,
@@ -256,6 +276,41 @@ define(['N/search', 'N/record'], (search, record) => {
   };
   /* *********************** getAgentRelatedRecords - End *********************** */
   //
+  /* *********************** updateOriginalAgentRecord - Begin *********************** */
+  /**
+   *
+   * @param {Number} agentId
+   */
+  const updateOriginalAgentRecord = (agentId) => {
+    const loggerTitle = ' Update Original Agent Record ';
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+    );
+    //
+    try {
+      if (agentId) {
+        record.submitFields({
+          type: 'customrecord_agent',
+          id: agentId,
+          values: {
+            isinactive: true,
+            custrecord_hms_marked_dup: true,
+          },
+        });
+        log.debug(loggerTitle, `Updated ID: ${agentId} `);
+      }
+    } catch (error) {
+      log.error(loggerTitle + ' caught with an exception', error);
+    }
+    //
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
+    );
+  };
+  /* *********************** updateOriginalAgentRecord - End *********************** */
+  //
   /* *********************** updateAgentUpdateProject - Begin *********************** */
   /**
    *
@@ -271,6 +326,7 @@ define(['N/search', 'N/record'], (search, record) => {
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
     //
+    let updateFlag = false;
     try {
       if (flag == 'A') {
         record.submitFields({
@@ -281,6 +337,7 @@ define(['N/search', 'N/record'], (search, record) => {
           },
         });
         log.debug(loggerTitle, `Updated ID: ${id} with NRDS ID:${nrdsId}`);
+        updateFlag = true;
       } else if (flag == 'I') {
         record.submitFields({
           type: 'customrecord_hms_agent_upd_project',
@@ -290,6 +347,7 @@ define(['N/search', 'N/record'], (search, record) => {
           },
         });
         log.debug(loggerTitle, `Updated ID: ${id} and set to inactive`);
+        updateFlag = true;
       }
       //
     } catch (error) {
@@ -300,7 +358,7 @@ define(['N/search', 'N/record'], (search, record) => {
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
     );
-    return true;
+    return updateFlag;
   };
   /* *********************** updateAgentUpdateProject - End *********************** */
   //
@@ -361,6 +419,7 @@ define(['N/search', 'N/record'], (search, record) => {
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
     //
+    let updateFlag = false;
     try {
       const customAgentSearchObj = search.create({
         type: 'customrecord_agent',
@@ -398,8 +457,10 @@ define(['N/search', 'N/record'], (search, record) => {
           //
           if (crmType == 'CASE' && crmId > 0) {
             updateSupportCaseRecord(crmId, pId);
+            updateFlag = true;
           } else if (crmType == 'CALL' && crmId > 0) {
             updatePhoneCallRecord(crmId, pId);
+            updateFlag = true;
           }
           //
           return true;
@@ -413,7 +474,7 @@ define(['N/search', 'N/record'], (search, record) => {
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
     );
-    return true;
+    return updateFlag;
   };
   /* *********************** updateAgentCRMRecords - End *********************** */
   //
@@ -431,6 +492,7 @@ define(['N/search', 'N/record'], (search, record) => {
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
     //
+    let updateFlag = false;
     try {
       const customAgentSearchObj = search.create({
         type: 'customrecord_agent',
@@ -456,6 +518,7 @@ define(['N/search', 'N/record'], (search, record) => {
           });
           if (propertyRecordId > 0) {
             updatePropertyRecord(propertyRecordId, pId);
+            updateFlag = true;
           }
         });
       }
@@ -467,7 +530,7 @@ define(['N/search', 'N/record'], (search, record) => {
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
     );
-    return true;
+    return updateFlag;
   };
   /* *********************** updateAgentSoldProperties - End *********************** */
   //
