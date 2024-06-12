@@ -319,6 +319,12 @@ define(['N/search', 'N/record', 'N/format', 'N/runtime'], (
       const account = customerPaymentRecord.getValue({ fieldId: 'account' });
       log.debug(loggerTitle, ' Account After Setting: ' + account);
 
+      const postingPeriodId = getRelatedPostingPeriod(trandate);
+      customerPaymentRecord.setValue({
+        fieldId: 'postingperiod',
+        value: postingPeriodId,
+      });
+
       // In the UI, this can be seen under the APPLY subtab > Invoices Sublist when creating a new CUSTOMER PAYMENT record.
       const linecount = customerPaymentRecord.getLineCount({
         sublistId: 'apply',
@@ -403,16 +409,85 @@ define(['N/search', 'N/record', 'N/format', 'N/runtime'], (
   };
   /* *********************** transformInvoiceToCustomerPayment - End *********************** */
   //
-  /* *********************** parseDateString - Begin *********************** */
-  const parseDateString = (dateString) => {
-    // Assuming the format is MM/DD/YYYY
-    var parts = dateString.split('/');
-    var month = parseInt(parts[0], 10) - 1; // Months are 0-based in JavaScript Date
-    var day = parseInt(parts[1], 10);
-    var year = parseInt(parts[2], 10);
-    return new Date(year, month, day);
+  /* *********************** getRelatedPostingPeriod - Begin *********************** */
+  /**
+   *
+   * @param {string} date
+   * @returns {number} postingPeriodId
+   */
+  const getRelatedPostingPeriod = (date) => {
+    const loggerTitle = ' Get Related Posting Period ';
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+    );
+    //
+    let postingPeriodId;
+    try {
+      const accountingperiodSearchObj = search.create({
+        type: 'accountingperiod',
+        filters: [],
+        columns: [search.createColumn({ name: 'periodname', label: 'Name' })],
+      });
+      const searchResultCount = accountingperiodSearchObj.runPaged().count;
+      log.debug(loggerTitle, ' Account Period Search: ' + searchResultCount);
+      //
+      const formattedDate = formatDate(date);
+      log.debug(loggerTitle, `Formatted Date: ${formattedDate}`);
+      //
+      accountingperiodSearchObj.run().each((result) => {
+        const name = result.getValue('periodname');
+        if (name == formattedDate) {
+          postingPeriodId = result.id;
+        }
+        return true;
+      });
+    } catch (error) {
+      log.error(loggerTitle + ' caught with an exception', error);
+    }
+    //
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
+    );
+    return postingPeriodId;
   };
-  /* *********************** parseDateString - End *********************** */
+  /* *********************** getRelatedPostingPeriod - End *********************** */
+  //
+  /* *********************** formatDate - Begin *********************** */
+  /**
+   *
+   * @param {string} dateString
+   * @returns {string}
+   */
+  const formatDate = (dateString) => {
+    // Parse the input date string
+    const date = new Date(dateString);
+
+    // Define an array of month names
+    const monthNames = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+
+    // Get the month and year from the Date object
+    const month = monthNames[date.getMonth()];
+    const year = date.getFullYear();
+
+    // Combine month and year in the desired format
+    return `${month} ${year}`;
+  };
+  /* *********************** formatDate - End *********************** */
   //
   /* ----------------------- Helper Functions - End ----------------------- */
   //
