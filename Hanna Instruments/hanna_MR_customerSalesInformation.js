@@ -72,10 +72,12 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           const nightlyRunConfig = scriptObj.getParameter({
             name: 'custscript_nightly_run_config',
           });
-          if (nightlyRunConfig) {
+          if (nightlyRunConfig == '1') {
             processNightlyRunConfiguration(nightlyRunConfig, reduceContext);
-          } else {
+          } else if (nightlyRunConfig == '2') {
             processCustomerSalesRecords(reduceContext);
+          } else {
+            updateLifeTimeOrdersOneTime(reduceContext);
           }
         }
         // Suite Script MR Load Customers
@@ -155,6 +157,54 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
   /* ------------------------- Summarize Phase - End ------------------------ */
   //
   /* ------------------------- Helper Functions - Begin ------------------------ */
+  //
+  /* *********************** Update LifeTime Orders One Time - Begin *********************** */
+  /**
+   *
+   * @param {Object} reduceContext
+   */
+  const updateLifeTimeOrdersOneTime = (reduceContext) => {
+    const loggerTitle = ' Update LifeTime Orders One Time ';
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+    );
+    //
+    try {
+      const key = reduceContext.key;
+      log.debug(loggerTitle, 'Key: ' + key);
+      const results = JSON.parse(reduceContext.values[0]);
+      log.debug(loggerTitle + ' Values', results);
+
+      const customerId =
+        results.values['internalid.CUSTRECORD_HANNA_CUSTOMER_ID'].value;
+      const customRecordId = results.id;
+      //
+      const lifeTimeOrdersValue = lifeTimeOrders(customerId);
+
+      record.submitFields({
+        type: 'customrecord_hanna_customer_sales',
+        id: customRecordId,
+        values: { custrecord_hanna_lifetime_orders: lifeTimeOrdersValue },
+      });
+      log.audit(
+        loggerTitle,
+        'Saved Successfully ' +
+          customRecordId +
+          ' and life time orders is' +
+          lifeTimeOrdersValue
+      );
+      //
+    } catch (error) {
+      log.error(loggerTitle + ' caught with an exception', error);
+    }
+    //
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
+    );
+  };
+  /* *********************** Update LifeTime Orders One Time - End *********************** */
   //
   /* *********************** Delete Customer Records - Begin *********************** */
   /**
@@ -363,11 +413,12 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       const defaultValue = 0;
       cleanedResult = {
         custrecord_hanna_totalactivites_lifetime:
-          result.custrecord_hanna_totalactivites_lifetime || defaultValue,
+          Number(result.custrecord_hanna_totalactivites_lifetime) ||
+          defaultValue,
         custrecord_hanna_sum_lifetime_sales:
-          result.custrecord_hanna_sum_lifetime_sales || defaultValue,
+          Number(result.custrecord_hanna_sum_lifetime_sales) || defaultValue,
         custrecord_hanna_lifetime_orders:
-          result.custrecord_hanna_lifetime_orders || defaultValue,
+          parseInt(result.custrecord_hanna_lifetime_orders) || defaultValue,
       };
       log.debug(loggerTitle + ' Cleaned Result', cleanedResult);
     } catch (error) {
@@ -408,17 +459,23 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           sumLifeTimeSalesValue:
             sumOfLifeTimeSales(customerId, true) +
             (customerSalesInformationRecordValues
-              ? customerSalesInformationRecordValues.custrecord_hanna_sum_lifetime_sales
+              ? Number(
+                  customerSalesInformationRecordValues.custrecord_hanna_sum_lifetime_sales
+                )
               : 0),
           lifeTimeOrdersValue:
             lifeTimeOrders(customerId, true) +
             (customerSalesInformationRecordValues
-              ? customerSalesInformationRecordValues.custrecord_hanna_lifetime_orders
+              ? parseInt(
+                  customerSalesInformationRecordValues.custrecord_hanna_lifetime_orders
+                )
               : 0),
           customerActivites:
             activitesOfCustomers(customerId, true) +
             (customerSalesInformationRecordValues
-              ? customerSalesInformationRecordValues.custrecord_hanna_totalactivites_lifetime
+              ? Number(
+                  customerSalesInformationRecordValues.custrecord_hanna_totalactivites_lifetime
+                )
               : 0),
         };
       } else if (config === '2') {
@@ -1037,11 +1094,13 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       log.debug(loggerTitle, ' Search Result Count: ' + searchResultCount);
       //
       transactionSearchObj.run().each((result) => {
-        sumLifeTimeSales = result.getValue({
-          name: 'amount',
-          summary: 'SUM',
-          label: 'Amount',
-        });
+        sumLifeTimeSales = Number(
+          result.getValue({
+            name: 'amount',
+            summary: 'SUM',
+            label: 'Amount',
+          })
+        );
         return true;
       });
     } catch (error) {
@@ -1061,7 +1120,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
    *
    * @param {Number} customerId
    * @param {Boolean} includeYesterdayFilter
-   * @returns
+   * @returns {Number}
    */
   const lifeTimeOrders = (customerId, includeYesterdayFilter = false) => {
     const loggerTitle = ' Life Time Orders ';
@@ -1141,11 +1200,13 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       log.debug(loggerTitle, ' Search Result Count: ' + searchResultCount);
       //
       transactionSearchObj.run().each((result) => {
-        lifeTimeOrdersValue = result.getValue({
-          name: 'tranid',
-          summary: 'COUNT',
-          label: 'Document Number',
-        });
+        lifeTimeOrdersValue = parseInt(
+          result.getValue({
+            name: 'tranid',
+            summary: 'COUNT',
+            label: 'Document Number',
+          })
+        );
         return true;
       });
     } catch (error) {
