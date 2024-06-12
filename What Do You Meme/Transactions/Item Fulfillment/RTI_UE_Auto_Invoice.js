@@ -19,6 +19,7 @@
  * @NScriptType UserEventScript
  * @NModuleScope Public
  */
+/*global define,log*/
 define(['N/record', 'N/runtime', 'N/search'], function (
   record,
   runtime,
@@ -38,6 +39,20 @@ define(['N/record', 'N/runtime', 'N/search'], function (
       var stLogTitle = 'beforeSubmit';
 
       var newRecord = scriptContext.newRecord;
+
+      var intCreatedFrom = newRecord.getValue({ fieldId: 'createdfrom' });
+      var salesOrderFields = search.lookupFields({
+        type: 'salesorder',
+        id: String(intCreatedFrom),
+        columns: ['custbody_document_date'],
+      });
+      var documentDate = salesOrderFields.custbody_document_date;
+      if (documentDate) {
+        newRecord.setValue({
+          fieldId: 'custbody_wdym_if_doc_date',
+          value: documentDate,
+        });
+      }
 
       var lineItemCount = newRecord.getLineCount({ sublistId: 'item' });
 
