@@ -3,17 +3,18 @@
  * @NScriptType UserEventScript
  */
 /*global define,log*/
-define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
-  record,
-  runtime,
-  search,
-  serverWidget,
-  email
-) => {
+define([
+  'N/record',
+  'N/runtime',
+  'N/search',
+  'N/ui/serverWidget',
+  'N/email',
+  'N/format',
+], (record, runtime, search, serverWidget, email, format) => {
   const exports = {};
   /* --------------------------- before Load - Begin -------------------------- */
   const beforeLoad = (scriptContext) => {
-    const strLoggerTitle = 'Before Load';
+    const loggerTitle = 'Before Load';
     try {
       // Warning: This approach requires direct DOM manipulation which NetSuite
       // may deprecate in a future release, possibly causing this code to break (see Answer Id: 10085).
@@ -55,32 +56,53 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
         label: 'Print Deposit',
         functionName: 'CallforSuiteletSO()',
       });
+
+      const salesOrderRecord = scriptContext.newRecord;
+
+      // Retrieve the transaction date
+      const trandate = salesOrderRecord.getValue({
+        fieldId: 'trandate',
+      });
+      log.debug(loggerTitle, { trandate });
+
+      // Get today's date
+      const today = new Date();
+
+      // Format the dates for comparison
+      const trandateFormatted = format.format({
+        value: trandate,
+        type: format.Type.DATE,
+      });
+
+      const todayFormatted = format.format({
+        value: today,
+        type: format.Type.DATE,
+      });
+
+      log.debug(loggerTitle, { trandateFormatted, todayFormatted });
+
+      // Compare dates
+      //if (trandateFormatted === todayFormatted) {
+      const commercialInvoicePrinted = salesOrderRecord.getValue({
+        fieldId: 'custbody_wdym_comm_inv_printed',
+      });
+      const shipToCountry = salesOrderRecord.getValue({
+        fieldId: 'shipcountry',
+      });
+      log.debug(loggerTitle, { commercialInvoicePrinted, shipToCountry });
+      //
+      if (!commercialInvoicePrinted && shipToCountry !== 'US') {
+        objForm.addButton({
+          id: 'custpage_commercial_invoice_btn',
+          label: 'Commercial Invoice',
+          functionName: 'callCommercialInvoiceSuitelet()',
+        });
+      }
+      //}
     } catch (error) {
-      log.error(strLoggerTitle + ' caught an exception', error);
+      log.error(loggerTitle + ' caught an exception', error);
     }
   };
-  /*
-	Note #1: We set the z-index to ensure that the header row stays above 
-	the floating action bar and any selected dropdown field in edit mode. 
-	In reality, a z-index of 1 is sufficient for this particular scenario.
-	However, we use a "very large" value just in case NetSuite changes something 
-	in the future with the z-indices of other elements.
-	
-	Strangely, if we apply the same CSS style to ".uir-machine-headerrow" 
-	instead of ".uir-machine-headerrow > td", it does not work as desired!
-	In that case, the transform operation overrules the z-index, causing it 
-	to default to 0. However, for unclear reason, when the exact same CSS 
-	is applied to the "td" elements, the z-index is preserved, hence the current solution.
-	
-	z-index is quite an involved topic. For more information, visit:
-	* https://philipwalton.com/articles/what-no-one-told-you-about-z-index/
-	* https://coder-coder.com/z-index-isnt-working/
-	* https://stackoverflow.com/questions/20851452/z-index-is-canceled-by-setting-transformrotate
-	
-	"z-context" is an an excellent Chrome extension for debugging the 
-	actual stacking context/stacking order: 
-	https://chrome.google.com/webstore/detail/z-context/jigamimbjojkdgnlldajknogfgncplbh?hl=en
-*/
   /* ---------------------------- before Load - End --------------------------- */
   //
   /* ------------------------ Before Submit Script Begin ------------------------ */
@@ -195,9 +217,9 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
         /* ---------------------- Credit Hold Check Logic - End ------------------------ */
         //
         /* ------------------- Required Deposit Percentage - Begin ------------------ */
-        if (customerLookUpFields.custentity_required_deposit_percent.length) {
+        if (customerFields.custentity_required_deposit_percent.length) {
           const requiredDepositPercent = parseFloat(
-            customerLookUpFields.custentity_required_deposit_percent[0].text
+            customerFields.custentity_required_deposit_percent[0].text
           );
 
           log.debug(
@@ -214,19 +236,18 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
         }
         /* ------------------- Required Deposit Percentage - End ------------------ */
         //
-        const exceptionCheckBox =
-          customerLookUpFields.custentity_wdym_exception;
+        const exceptionCheckBox = customerFields.custentity_wdym_exception;
 
         let priceLevelCustomerRecord;
-        if (customerLookUpFields.pricelevel.length) {
-          priceLevelCustomerRecord = customerLookUpFields.pricelevel[0].text;
+        if (customerFields.pricelevel.length) {
+          priceLevelCustomerRecord = customerFields.pricelevel[0].text;
         }
 
         log.debug({
           title: 'Exception Box',
           details: [
             customerId,
-            customerLookUpFields,
+            customerFields,
             exceptionCheckBox,
             priceLevelCustomerRecord,
           ],
@@ -298,13 +319,12 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
               ],
             });
             //
-            const itemIdText = itemFields['itemid'];
-            const newItemFlag = itemFields['custitem_wdym_new_item'];
+            const itemIdText = itemFields.itemid;
+            const newItemFlag = itemFields.custitem_wdym_new_item;
             //
 
             // Master Carton GTIN Number
-            const masterCarton =
-              itemFields['custitem_master_carton_gtin_number'];
+            const masterCarton = itemFields.custitem_master_carton_gtin_number;
             log.debug(strLoggerTitle, ' Master Carton: ' + masterCarton);
             if (masterCarton) {
               salesRecord.setSublistValue({
@@ -360,7 +380,7 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
             });
           }
           const masterCartonPackQty =
-            itemFields['custitem_master_carton_pack_qty'];
+            itemFields.custitem_master_carton_pack_qty;
           salesRecord.setSublistValue({
             sublistId: 'item',
             fieldId: 'custcol_case_pack',
@@ -368,8 +388,7 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
             line: i,
           });
 
-          const innerCartonPackQty =
-            itemFields['custitem_inner_carton_pack_qty'];
+          const innerCartonPackQty = itemFields.custitem_inner_carton_pack_qty;
           salesRecord.setSublistValue({
             sublistId: 'item',
             fieldId: 'custcol_wdym_inner',
@@ -417,10 +436,10 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
         //
         /* ---------------- Populate Customer Specific Price - Begin ---------------- */
         if (runtime.executionContext !== runtime.ContextType.USER_INTERFACE) {
-          const category = customerLookUpFields.category[0].value;
+          const category = customerFields.category[0].value;
 
           if (priceLevelCustomerRecord) {
-            let companyName = customerLookUpFields.companyname;
+            let companyName = customerFields.companyname;
 
             companyName = companyName.toUpperCase();
             for (let i = 0; i < lineItemCount; i++) {
@@ -571,7 +590,7 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
         /* ----------------------- Auto Release Orders - Begin ---------------------- */
         log.audit(strLoggerTitle, 'Auto Release Orders-Begin');
 
-        const newCompanyName = customerLookUpFields.companyname.toUpperCase();
+        const newCompanyName = customerFields.companyname.toUpperCase();
 
         const status = salesRecord.getValue({ fieldId: 'status' });
 
