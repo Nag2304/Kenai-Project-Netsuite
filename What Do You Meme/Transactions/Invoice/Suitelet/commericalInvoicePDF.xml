@@ -190,12 +190,12 @@
 </#if><tr>
 	<td align="center" colspan="3" line-height="150%">${item.quantity}</td>
 	<td colspan="5"><span class="itemname">${item.item}</span><br />${item.description}</td>
-	<#if record.entity.id == 6655>
+	<#if record.entity.id == "6655">
      <td align="right" colspan="4">${item.rate}</td>
     <#else>
     <td align="right" colspan="4">${item.custcol_wdym_customs_rate}</td>
     </#if>
-    <#if record.entity.id == 6655>
+    <#if record.entity.id == "6655">
 	<td align="right" colspan="4">${item.amount}</td>
     <#else>
     <td align="right" colspan="4">${item.custcol_wdym_customs_amount}</td>
