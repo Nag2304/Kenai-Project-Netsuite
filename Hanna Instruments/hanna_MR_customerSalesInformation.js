@@ -76,8 +76,6 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
             processNightlyRunConfiguration(nightlyRunConfig, reduceContext);
           } else if (nightlyRunConfig == '2') {
             processCustomerSalesRecords(reduceContext);
-          } else {
-            updateLifeTimeOrdersOneTime(reduceContext);
           }
         }
         // Suite Script MR Load Customers
@@ -661,7 +659,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
   //
   /* *********************** Prior Years Sale - Begin *********************** */
   /**
-   *
+   * SALES TWO YEARS AGO
    * @param {number} customerId
    * @returns {number} amount
    */
@@ -687,23 +685,6 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           ['trandate', 'within', 'lastyear'],
           'AND',
           [
-            'item.type',
-            'anyof',
-            'Assembly',
-            'Discount',
-            'Description',
-            'InvtPart',
-            'Group',
-            'Kit',
-            'Markup',
-            'NonInvtPart',
-            'OthCharge',
-            'Payment',
-            'Service',
-            'Subtotal',
-          ],
-          'AND',
-          [
             'type',
             'anyof',
             'CustInvc',
@@ -722,13 +703,16 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           'AND',
           ['account', 'noneof', '1190'],
           'AND',
+          ['mainline', 'is', 'T'],
+          'AND',
           ['customer.internalidnumber', 'equalto', customerId],
         ],
         columns: [
           search.createColumn({
-            name: 'amount',
+            name: 'formulacurrency',
             summary: 'SUM',
-            label: 'Amount',
+            formula: '{netamountnotax}-nvl({shippingamount},0)',
+            label: 'Formula (Currency)',
           }),
         ],
       });
@@ -739,9 +723,10 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       //
       transactionSearchObj.run().each((result) => {
         amount = result.getValue({
-          name: 'amount',
+          name: 'formulacurrency',
           summary: 'SUM',
-          label: 'Amount',
+          formula: '{netamountnotax}-nvl({shippingamount},0)',
+          label: 'Formula (Currency)',
         });
 
         return true;
@@ -762,7 +747,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
   //
   /* *********************** Last Year Sales Total - Begin *********************** */
   /**
-   *
+   * LAST YEARS SALES TOTAL
    * @param {number} customerId
    * @returns {number}
    */
@@ -821,8 +806,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           search.createColumn({
             name: 'formulacurrency',
             summary: 'SUM',
-            formula:
-              '(NVL({totalamount},0)-NVL({taxtotal},0)-NVL({shippingamount},0))',
+            formula: '{netamountnotax}-nvl({shippingamount},0)',
             label: 'Formula (Currency)',
           }),
         ],
@@ -836,8 +820,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
         total = result.getValue({
           name: 'formulacurrency',
           summary: 'SUM',
-          formula:
-            '(NVL({totalamount},0)-NVL({taxtotal},0)-NVL({shippingamount},0))',
+          formula: '{netamountnotax}-nvl({shippingamount},0)',
           label: 'Formula (Currency)',
         });
         return true;
@@ -857,6 +840,11 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
   /* *********************** Last Year Sales Total - End *********************** */
   //
   /* *********************** Total Value of Invoices - Begin *********************** */
+  /**
+   * THIS IS YEAR SALES
+   * @param {Number} customerId
+   * @returns {Number} totalValueOfInvoices
+   */
   const totalValueOfInvoices = (customerId) => {
     const loggerTitle = ' Total Value of Invoices ';
     log.debug(
@@ -876,26 +864,28 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           },
         ],
         filters: [
-          ['subsidiary', 'anyof', '1'],
-          'AND',
-          ['cseg_hi_hannaentity', 'anyof', '2'],
+          ['trandate', 'within', 'thisyear'],
           'AND',
           [
             'type',
             'anyof',
             'CustInvc',
+            'Journal',
             'CashRfnd',
             'CashSale',
             'CustCred',
             'CustRfnd',
-            'Journal',
           ],
           'AND',
-          ['trandate', 'within', 'thisyear'],
+          ['subsidiary', 'anyof', '1'],
+          'AND',
+          ['cseg_hi_hannaentity', 'anyof', '2'],
           'AND',
           ['customer.custentity_hanna_department', 'anyof', '282'],
           'AND',
           ['account', 'noneof', '1190'],
+          'AND',
+          ['mainline', 'is', 'T'],
           'AND',
           ['customer.internalidnumber', 'equalto', customerId],
         ],
@@ -908,7 +898,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           search.createColumn({
             name: 'formulacurrency',
             summary: 'SUM',
-            formula: '{grossamount}-nvl({shippingamount},0)-nvl({taxamount},0)',
+            formula: '{netamountnotax}-nvl({shippingamount},0)',
             label: 'Formula (Currency)',
           }),
         ],
@@ -922,7 +912,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
         totalValueOfInvoices = result.getValue({
           name: 'formulacurrency',
           summary: 'SUM',
-          formula: '{grossamount}-nvl({shippingamount},0)-nvl({taxamount},0)',
+          formula: '{netamountnotax}-nvl({shippingamount},0)',
           label: 'Formula (Currency)',
         });
         return true;
@@ -972,18 +962,18 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
             },
           ],
           filters: [
-            ['subsidiary', 'anyof', '1'],
-            'AND',
             [
               'type',
               'anyof',
               'CustInvc',
+              'Journal',
               'CashRfnd',
               'CashSale',
               'CustCred',
               'CustRfnd',
-              'Journal',
             ],
+            'AND',
+            ['subsidiary', 'anyof', '1'],
             'AND',
             ['cseg_hi_hannaentity', 'anyof', '2'],
             'AND',
@@ -991,30 +981,16 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
             'AND',
             ['account', 'noneof', '1190'],
             'AND',
-            [
-              'item.type',
-              'anyof',
-              'Assembly',
-              'Description',
-              'Discount',
-              'InvtPart',
-              'Group',
-              'Kit',
-              'Markup',
-              'NonInvtPart',
-              'OthCharge',
-              'Payment',
-              'Service',
-              'Subtotal',
-            ],
+            ['mainline', 'is', 'T'],
             'AND',
             ['customer.internalidnumber', 'equalto', customerId],
           ],
           columns: [
             search.createColumn({
-              name: 'amount',
+              name: 'formulacurrency',
               summary: 'SUM',
-              label: 'Amount',
+              formula: '{netamountnotax}-nvl({shippingamount},0)',
+              label: 'Formula (Currency)',
             }),
             search.createColumn({
               name: 'entity',
@@ -1033,18 +1009,18 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
             },
           ],
           filters: [
-            ['subsidiary', 'anyof', '1'],
-            'AND',
             [
               'type',
               'anyof',
               'CustInvc',
+              'Journal',
               'CashRfnd',
               'CashSale',
               'CustCred',
               'CustRfnd',
-              'Journal',
             ],
+            'AND',
+            ['subsidiary', 'anyof', '1'],
             'AND',
             ['cseg_hi_hannaentity', 'anyof', '2'],
             'AND',
@@ -1052,22 +1028,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
             'AND',
             ['account', 'noneof', '1190'],
             'AND',
-            [
-              'item.type',
-              'anyof',
-              'Assembly',
-              'Description',
-              'Discount',
-              'InvtPart',
-              'Group',
-              'Kit',
-              'Markup',
-              'NonInvtPart',
-              'OthCharge',
-              'Payment',
-              'Service',
-              'Subtotal',
-            ],
+            ['mainline', 'is', 'T'],
             'AND',
             ['customer.internalidnumber', 'equalto', customerId],
             'AND',
@@ -1075,9 +1036,10 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           ],
           columns: [
             search.createColumn({
-              name: 'amount',
+              name: 'formulacurrency',
               summary: 'SUM',
-              label: 'Amount',
+              formula: '{netamountnotax}-nvl({shippingamount},0)',
+              label: 'Formula (Currency)',
             }),
             search.createColumn({
               name: 'entity',
@@ -1096,9 +1058,10 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       transactionSearchObj.run().each((result) => {
         sumLifeTimeSales = Number(
           result.getValue({
-            name: 'amount',
+            name: 'formulacurrency',
             summary: 'SUM',
-            label: 'Amount',
+            formula: '{netamountnotax}-nvl({shippingamount},0)',
+            label: 'Formula (Currency)',
           })
         );
         return true;
