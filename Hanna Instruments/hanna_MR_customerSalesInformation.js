@@ -68,13 +68,14 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       log.debug(loggerTitle, 'Environment Type: ' + environmentType);
       //
       if (environmentType === 'PRODUCTION') {
+        // Suitescript MR Customer Sales
         if (savedToSearchProcess == '92373850') {
           const nightlyRunConfig = scriptObj.getParameter({
             name: 'custscript_nightly_run_config',
           });
-          if (nightlyRunConfig == '1') {
+          if (nightlyRunConfig) {
             processNightlyRunConfiguration(nightlyRunConfig, reduceContext);
-          } else if (nightlyRunConfig == '2') {
+          } else {
             processCustomerSalesRecords(reduceContext);
           }
         }
@@ -616,6 +617,8 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           ['status', 'noneof', 'SalesOrd:C'],
           'AND',
           ['customer.internalidnumber', 'equalto', customerId],
+          'AND',
+          ['mainline', 'is', 'T'],
         ],
         columns: [
           search.createColumn({
