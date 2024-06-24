@@ -155,7 +155,7 @@ define([
           ],
         });
 
-        // Extract the number of days overdue from the customer's lookup fields
+        // Extract the number of days overdue and past due amount from the customer's lookup fields
         const daysOverdue = customerFields.daysoverdue;
 
         // Load the customer record to check the credit hold status
@@ -179,39 +179,55 @@ define([
         );
 
         /* ---------------------- Credit Hold Check Logic - Begin ---------------------- */
-
-        // Check if the credit hold is already ON or if there are overdue days
-        if (creditHoldStatus === 'ON' || daysOverdue > 0) {
-          // If either condition is true, set the credit hold field on the sales record to true
+        // Check if the credit hold is "off"
+        if (creditHoldStatus === 'off') {
+          // Do nothing, customer is excluded from the credit hold report
+          log.debug(
+            strLoggerTitle,
+            'Credit hold is off, customer excluded from report.'
+          );
+        } else if (creditHoldStatus === 'on') {
+          // If credit hold is "on", set the credit hold field on the sales record to true
           salesRecord.setValue({
             fieldId: 'custbody_wdym_credit_hold',
             value: true,
           });
-        } else {
-          // If no credit hold and no overdue days, proceed to check the overall balance against the credit limit
+        } else if (creditHoldStatus === 'AUTO') {
+          // For "auto" credit hold status, check past due amount and overall balance against credit limit
 
-          // Get the total amount from the sales record
-          const salesTotalAmount = salesRecord.getValue({ fieldId: 'total' });
-
-          // Retrieve the current balance of the customer from the lookup fields
-          const customerCurrentBalance = customerRecord.getValue({
-            fieldId: 'balance',
-          });
-
-          // Calculate the overall balance by adding the sales amount to the customer's current balance
-          const overallBalance =
-            Number(salesTotalAmount) + Number(customerCurrentBalance);
-
-          // Retrieve the customer's credit limit from the lookup fields
-          const customerCreditLimit = Number(customerFields.creditlimit);
-
-          // Check if the overall balance exceeds the customer's credit limit
-          if (overallBalance > customerCreditLimit) {
-            // If the overall balance exceeds the credit limit, set the credit hold field on the sales record to true
+          // Check if past due amount is greater than 0
+          if (daysOverdue > 0) {
+            // Set the credit hold field on the sales record to true
             salesRecord.setValue({
               fieldId: 'custbody_wdym_credit_hold',
               value: true,
             });
+          } else {
+            // If no past due amount, check overall balance against credit limit
+
+            // Get the total amount from the sales record
+            const salesTotalAmount = salesRecord.getValue({ fieldId: 'total' });
+
+            // Retrieve the current balance of the customer from the lookup fields
+            const customerCurrentBalance = customerRecord.getValue({
+              fieldId: 'balance',
+            });
+
+            // Calculate the overall balance by adding the sales amount to the customer's current balance
+            const overallBalance =
+              Number(salesTotalAmount) + Number(customerCurrentBalance);
+
+            // Retrieve the customer's credit limit from the lookup fields
+            const customerCreditLimit = Number(customerFields.creditlimit);
+
+            // Check if the overall balance exceeds the customer's credit limit
+            if (overallBalance > customerCreditLimit) {
+              // If the overall balance exceeds the credit limit, set the credit hold field on the sales record to true
+              salesRecord.setValue({
+                fieldId: 'custbody_wdym_credit_hold',
+                value: true,
+              });
+            }
           }
         }
         /* ---------------------- Credit Hold Check Logic - End ------------------------ */
