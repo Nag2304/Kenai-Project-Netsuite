@@ -685,7 +685,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           },
         ],
         filters: [
-          ['trandate', 'within', 'lastyear'],
+          ['trandate', 'within', 'fiscalyearbeforelast'],
           'AND',
           [
             'type',
@@ -779,7 +779,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           'AND',
           ['cseg_hi_hannaentity', 'anyof', '2'],
           'AND',
-          ['trandate', 'within', 'fiscalyearbeforelast'],
+          ['trandate', 'within', 'lastfiscalyear'],
           'AND',
           ['mainline', 'is', 'T'],
           'AND',
