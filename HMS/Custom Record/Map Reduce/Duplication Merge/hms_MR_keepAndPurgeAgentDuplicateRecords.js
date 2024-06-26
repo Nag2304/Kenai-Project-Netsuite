@@ -159,7 +159,13 @@ define(['N/search', 'N/record'], (search, record) => {
     try {
       customAgentUpdateProjectSearchObj = search.create({
         type: 'customrecord_hms_agent_upd_project',
-        filters: [['custrecord_hms_agent_id_number', 'is', agentIdNumber]],
+        filters: [
+          ['custrecord_hms_agent_id_number', 'is', agentIdNumber],
+          'AND',
+          ['custrecord_hms_agent_id_dupe', 'is', 'T'],
+          'AND',
+          ['isinactive', 'is', 'F'],
+        ],
         columns: [
           search.createColumn({
             name: 'custrecord_hms_agent_id_number',
