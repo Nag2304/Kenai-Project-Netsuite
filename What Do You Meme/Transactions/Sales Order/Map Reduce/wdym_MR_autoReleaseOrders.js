@@ -12,12 +12,19 @@ define(['N/record', 'N/search'], (record, search) => {
   //
   /* ------------------------- Get Input Data - Begin ------------------------- */
   const getInputData = () => {
+    // SHOPIFY, ZOLA, AMAZON US FBM
     return search.create({
       type: 'salesorder',
       filters: [
         ['type', 'anyof', 'SalesOrd'],
         'AND',
-        [['name', 'anyof', '5443'], 'OR', ['name', 'anyof', '5440']],
+        [
+          ['name', 'anyof', '5443'],
+          'OR',
+          ['name', 'anyof', '5440'],
+          'OR',
+          ['name', 'anyof', '6570'],
+        ],
         'AND',
         ['mainline', 'is', 'F'],
         'AND',
@@ -26,7 +33,7 @@ define(['N/record', 'N/search'], (record, search) => {
         ['custcol_ready_for_fulfillment', 'is', 'F'],
         'AND',
         [
-          'formulanumeric: CASE        WHEN {quantity} = {quantitycommitted} THEN 1       ELSE 0END',
+          'formulanumeric: case when {quantity} = {quantitycommitted} then 1 else 0 end',
           'equalto',
           '1',
         ],
@@ -36,6 +43,7 @@ define(['N/record', 'N/search'], (record, search) => {
           name: 'lineuniquekey',
           label: 'Line Unique Key',
         }),
+        search.createColumn({ name: 'tranid', label: 'Document Number' }),
       ],
     });
   };
@@ -65,29 +73,35 @@ define(['N/record', 'N/search'], (record, search) => {
         id: key,
       });
 
-      for (let index = 0; index < results.length; index++) {
-        const result = JSON.parse(results[index]);
-        log.debug(strLoggerTitle + ' Individual Result', result);
-        //
-        const lineUniqueKey = result.values.lineuniquekey;
-        log.debug(strLoggerTitle, ' Line Unique Key: ' + lineUniqueKey);
+      const salesOrderLineCount = salesOrderRecord.getLineCount({
+        sublistId: 'item',
+      });
+      const resultsLength = results.length;
 
-        const lineNumber = salesOrderRecord.findSublistLineWithValue({
-          sublistId: 'item',
-          fieldId: 'lineuniquekey',
-          value: lineUniqueKey,
-        });
-        log.debug(strLoggerTitle, 'Sales Order Line Number: ' + lineNumber);
-        if (lineUniqueKey !== -1) {
+      log.debug(strLoggerTitle, {
+        soLineCount: salesOrderLineCount,
+        mapReduceResults: resultsLength,
+      });
+
+      if (salesOrderLineCount === resultsLength) {
+        log.debug(strLoggerTitle, 'Getting to ready set ready to fulfill true');
+        //
+        for (let index = 0; index < salesOrderLineCount; index++) {
+          log.debug(
+            strLoggerTitle,
+            ' Setting ready to fulfill to true:' + index
+          );
+          //
           salesOrderRecord.setSublistValue({
             sublistId: 'item',
             fieldId: 'custcol_ready_for_fulfillment',
             value: true,
             ignoreFieldChange: false,
-            line: lineNumber,
+            line: index,
           });
         }
       }
+
       const salesOrderInternalId = salesOrderRecord.save();
       log.audit(
         strLoggerTitle,
