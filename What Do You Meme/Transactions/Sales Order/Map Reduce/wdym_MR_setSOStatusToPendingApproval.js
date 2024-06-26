@@ -22,7 +22,7 @@ define(['N/record', 'N/search'], (record, search) => {
         'AND',
         ['mainline', 'is', 'T'],
         'AND',
-        ['name', 'anyof', '5443', '5440'],
+        ['name', 'anyof', '5443', '5440', '6570'],
       ],
       columns: [
         search.createColumn({ name: 'internalid', label: 'Internal ID' }),
@@ -51,6 +51,7 @@ define(['N/record', 'N/search'], (record, search) => {
       const salesOrderLineCount = salesOrderRecord.getLineCount({
         sublistId: 'item',
       });
+
       let quantityMatchFlag = true;
       let readyToFulfillFlag = true;
 
@@ -87,6 +88,14 @@ define(['N/record', 'N/search'], (record, search) => {
       log.debug(strLoggerTitle, 'Quantity Match Flag: ' + quantityMatchFlag);
 
       if (!quantityMatchFlag) {
+        salesOrderRecord.setValue({ fieldId: 'orderstatus', value: 'A' });
+        log.debug(
+          strLoggerTitle,
+          'Order has quantitycommitted != quantity. Aborting the order.'
+        );
+      } else {
+        salesOrderRecord.setValue({ fieldId: 'orderstatus', value: 'B' });
+
         for (let index = 0; index < salesOrderLineCount; index++) {
           const itemType = salesOrderRecord.getSublistValue({
             sublistId: 'item',
@@ -94,13 +103,7 @@ define(['N/record', 'N/search'], (record, search) => {
             line: index,
           });
 
-          const isClosed = salesOrderRecord.getSublistValue({
-            sublistId: 'item',
-            fieldId: 'isclosed',
-            line: index,
-          });
-
-          if (itemType === 'InvtPart' && isClosed === 'F') {
+          if (itemType === 'InvtPart') {
             const lineQuantity = parseInt(
               salesOrderRecord.getSublistValue({
                 sublistId: 'item',
@@ -133,18 +136,7 @@ define(['N/record', 'N/search'], (record, search) => {
               line: index1,
             });
 
-            const isClosed = salesOrderRecord.getSublistValue({
-              sublistId: 'item',
-              fieldId: 'isclosed',
-              line: index1,
-            });
-
-            log.debug(strLoggerTitle + ' Ready To Fulfill Flag True', {
-              itemType,
-              isClosed,
-            });
-
-            if (itemType === 'InvtPart' && isClosed === false) {
+            if (itemType === 'InvtPart') {
               const lineQuantity = parseInt(
                 salesOrderRecord.getSublistValue({
                   sublistId: 'item',
@@ -174,18 +166,7 @@ define(['N/record', 'N/search'], (record, search) => {
               line: index1,
             });
 
-            const isClosed = salesOrderRecord.getSublistValue({
-              sublistId: 'item',
-              fieldId: 'isclosed',
-              line: index1,
-            });
-
-            log.debug(strLoggerTitle + ' Ready To Fulfill Flag True', {
-              itemType,
-              isClosed,
-            });
-
-            if (itemType === 'InvtPart' && isClosed === false) {
+            if (itemType === 'InvtPart') {
               const lineQuantity = parseInt(
                 salesOrderRecord.getSublistValue({
                   sublistId: 'item',
@@ -208,8 +189,9 @@ define(['N/record', 'N/search'], (record, search) => {
             }
           }
         }
+        //
       }
-      //
+
       salesOrderRecord.save();
       log.audit(strLoggerTitle, 'Sales Order Record Updated Successfully');
       //
