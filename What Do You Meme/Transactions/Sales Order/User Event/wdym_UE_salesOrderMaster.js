@@ -63,7 +63,7 @@ define([
       const trandate = salesOrderRecord.getValue({
         fieldId: 'trandate',
       });
-      log.debug(loggerTitle, { trandate });
+      log.debug(loggerTitle + ' Tran Date', { trandate });
 
       // Get today's date
       const today = new Date();
@@ -79,7 +79,7 @@ define([
         type: format.Type.DATE,
       });
 
-      log.debug(loggerTitle, { trandateFormatted, todayFormatted });
+      log.debug(loggerTitle + ' Dates', { trandateFormatted, todayFormatted });
 
       // Compare dates
       //if (trandateFormatted === todayFormatted) {
@@ -91,7 +91,12 @@ define([
       });
       log.debug(loggerTitle, { commercialInvoicePrinted, shipToCountry });
       //
-      if (!commercialInvoicePrinted && shipToCountry !== 'US') {
+      if (
+        !commercialInvoicePrinted &&
+        shipToCountry !== 'US' &&
+        trandateFormatted === todayFormatted
+      ) {
+        log.debug(loggerTitle, ' Triggered Commercial Invoice Logic');
         objForm.addButton({
           id: 'custpage_commercial_invoice_btn',
           label: 'Commercial Invoice',
@@ -395,8 +400,9 @@ define([
               ],
             });
           }
-          const masterCartonPackQty =
-            itemFields.custitem_master_carton_pack_qty;
+          const masterCartonPackQty = itemFields.custitem_master_carton_pack_qty
+            ? itemFields.custitem_master_carton_pack_qty
+            : '';
           salesRecord.setSublistValue({
             sublistId: 'item',
             fieldId: 'custcol_case_pack',
@@ -404,7 +410,9 @@ define([
             line: i,
           });
 
-          const innerCartonPackQty = itemFields.custitem_inner_carton_pack_qty;
+          const innerCartonPackQty = itemFields.custitem_inner_carton_pack_qty
+            ? itemFields.custitem_inner_carton_pack_qty
+            : '';
           salesRecord.setSublistValue({
             sublistId: 'item',
             fieldId: 'custcol_wdym_inner',
@@ -422,7 +430,9 @@ define([
                 id: String(itemId),
                 columns: ['custitem_wdym_do_not_sell_to'],
               });
-              const doNotSellTo = itemLookUpFields.custitem_wdym_do_not_sell_to;
+              const doNotSellTo = itemLookUpFields.custitem_wdym_do_not_sell_to
+                ? itemLookUpFields.custitem_wdym_do_not_sell_to
+                : '';
               /* --------------------------- Multi Select Begin --------------------------- */
               for (let j = 0; j < doNotSellTo.length; j++) {
                 if (doNotSellTo[j].value == customerId) {
