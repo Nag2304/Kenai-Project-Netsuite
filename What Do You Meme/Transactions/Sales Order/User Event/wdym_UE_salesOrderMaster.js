@@ -174,67 +174,41 @@ define([
           fieldId: 'creditholdoverride',
         });
 
+        // Credit Limit
+        const creditLimit = customerRecord.getValue({
+          fieldId: 'creditlimit',
+        });
         // Log the days overdue and the credit hold status for debugging purposes
         log.debug(
           strLoggerTitle,
           'Days Overdue: ' +
             daysOverdue +
             ' Credit Hold Status: ' +
-            creditHoldStatus
+            creditHoldStatus +
+            ' Credit Limit: ' +
+            creditLimit
         );
 
         /* ---------------------- Credit Hold Check Logic - Begin ---------------------- */
-        // Check if the credit hold is "off"
-        if (creditHoldStatus === 'off') {
-          // Do nothing, customer is excluded from the credit hold report
-          log.debug(
-            strLoggerTitle,
-            'Credit hold is off, customer excluded from report.'
-          );
-        } else if (creditHoldStatus === 'on') {
-          // If credit hold is "on", set the credit hold field on the sales record to true
+        if (
+          creditHoldStatus === 'ON' ||
+          (creditHoldStatus === 'AUTO' && !creditLimit)
+        ) {
           salesRecord.setValue({
             fieldId: 'custbody_wdym_credit_hold',
             value: true,
           });
         } else if (creditHoldStatus === 'AUTO') {
-          // For "auto" credit hold status, check past due amount and overall balance against credit limit
-
-          // Check if past due amount is greater than 0
-          if (daysOverdue > 0) {
-            // Set the credit hold field on the sales record to true
+          const transactionAmount =
+            creditHoldCalculationforSOAndInv(customerId);
+          if (transactionAmount > Number(creditLimit)) {
             salesRecord.setValue({
               fieldId: 'custbody_wdym_credit_hold',
               value: true,
             });
-          } else {
-            // If no past due amount, check overall balance against credit limit
-
-            // Get the total amount from the sales record
-            const salesTotalAmount = salesRecord.getValue({ fieldId: 'total' });
-
-            // Retrieve the current balance of the customer from the lookup fields
-            const customerCurrentBalance = customerRecord.getValue({
-              fieldId: 'balance',
-            });
-
-            // Calculate the overall balance by adding the sales amount to the customer's current balance
-            const overallBalance =
-              Number(salesTotalAmount) + Number(customerCurrentBalance);
-
-            // Retrieve the customer's credit limit from the lookup fields
-            const customerCreditLimit = Number(customerFields.creditlimit);
-
-            // Check if the overall balance exceeds the customer's credit limit
-            if (overallBalance > customerCreditLimit) {
-              // If the overall balance exceeds the credit limit, set the credit hold field on the sales record to true
-              salesRecord.setValue({
-                fieldId: 'custbody_wdym_credit_hold',
-                value: true,
-              });
-            }
           }
         }
+
         /* ---------------------- Credit Hold Check Logic - End ------------------------ */
         //
         /* ------------------- Required Deposit Percentage - Begin ------------------ */
@@ -829,6 +803,72 @@ define([
     );
   };
   /* --------------------------- After Submit - End --------------------------- */
+  //
+  /* --------------------------- Helper Functions - Begin --------------------------- */
+  //
+  /* ************************** creditHoldCalculationforSOAndInv - Begin ************************** */
+  /**
+   *
+   * @param {Number} customerId
+   * @returns {Number}
+   */
+  const creditHoldCalculationforSOAndInv = (customerId) => {
+    const loggerTitle = ' Credit Hold Calculations for SO and INV ';
+    log.debug(
+      loggerTitle,
+      '|>----------------' + loggerTitle + '- Begin ----------------<|'
+    );
+    //
+    let total = 0;
+    try {
+      const transactionSearchObj = search.create({
+        type: 'transaction',
+        settings: [
+          { name: 'consolidationtype', value: 'ACCTTYPE' },
+          { name: 'includeperiodendtransactions', value: 'F' },
+        ],
+        filters: [
+          ['type', 'anyof', 'SalesOrd', 'CustInvc'],
+          'AND',
+          ['mainline', 'is', 'T'],
+          'AND',
+          ['customer.internalidnumber', 'equalto', customerId],
+          'AND',
+          ['status', 'anyof', 'SalesOrd:A', 'SalesOrd:B', 'CustInvc:A'],
+        ],
+        columns: [
+          search.createColumn({
+            name: 'amount',
+            summary: 'SUM',
+            label: 'Amount',
+          }),
+        ],
+      });
+      const searchResultCount = transactionSearchObj.runPaged().count;
+      log.debug('transactionSearchObj result count', searchResultCount);
+      //
+      transactionSearchObj.run().each(function (result) {
+        total = Number(
+          result.getValue({
+            name: 'amount',
+            summary: 'SUM',
+            label: 'Amount',
+          })
+        );
+      });
+    } catch (error) {
+      log.error(loggerTitle + ' caught with an exception', error);
+    }
+    //
+    log.debug(
+      loggerTitle,
+      '|>----------------' + loggerTitle + '- End ----------------<|'
+    );
+    return total ? total : 0;
+  };
+  /* ************************** creditHoldCalculationforSOAndInv - End ************************** */
+  //
+  /* --------------------------- Helper Functions - End --------------------------- */
   //
   /* ------------------------ Exports Begin ------------------------ */
   exports.beforeLoad = beforeLoad;
