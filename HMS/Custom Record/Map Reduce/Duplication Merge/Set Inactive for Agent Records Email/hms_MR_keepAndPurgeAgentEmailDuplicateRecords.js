@@ -52,13 +52,20 @@ define(['N/search', 'N/record'], (search, record) => {
       //
 
       // Read the Count
-      const crmCount =
-        reduceContextValues.values['SUM(custrecord_hms_crm_record_count)'];
-      const surveyCount =
-        reduceContextValues.values['SUM(custrecord_hms_survery_count)'];
-      const soldPropertiesCount =
-        reduceContextValues.values['SUM(custrecord_hms_sold_properties)'];
+      const crmCount = parseInt(
+        reduceContextValues.values['SUM(custrecord_hms_crm_record_count)']
+      );
+      const surveyCount = parseInt(
+        reduceContextValues.values['SUM(custrecord_hms_survery_count)']
+      );
+      const soldPropertiesCount = parseInt(
+        reduceContextValues.values['SUM(custrecord_hms_sold_properties)']
+      );
       //
+
+      if (crmCount === 0 && surveyCount === 0 && soldPropertiesCount === 0) {
+        keepPurgeRecords(agentIdNumber);
+      }
       if (agentIdNumber) {
       }
     } catch (error) {
@@ -152,6 +159,60 @@ define(['N/search', 'N/record'], (search, record) => {
     });
   };
   /* *********************** searchAgentEmailDuplicateswithTwoRecords - End *********************** */
+  //
+  /* *********************** keepPurgeRecords - Begin *********************** */
+  /**
+   *
+   * @param {string} agentIdNumber
+   * @returns {boolean}
+   */
+  const keepPurgeRecords = (agentIdNumber) => {
+    const loggerTitle = ' Keep Purge Records ';
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+    );
+    //
+    try {
+      const customAgentUpdateProjectSearchObj = search.create({
+        type: 'customrecord_hms_agent_upd_project',
+        filters: [
+          ['custrecord_hms_agent_id_number', 'is', agentIdNumber],
+          'AND',
+          ['custrecord_hms_email_dupe', 'is', 'T'],
+          'AND',
+          ['isinactive', 'is', 'F'],
+        ],
+        columns: [
+          search.createColumn({
+            name: 'custrecord_hms_agent_id_number',
+            label: 'Agent ID Number',
+          }),
+          search.createColumn({
+            name: 'custrecord_hms_agent_name',
+            label: 'Name',
+          }),
+        ],
+      });
+      const searchResultCount =
+        customAgentUpdateProjectSearchObj.runPaged().count;
+      log.debug(loggerTitle, ' Search Result Count: ' + searchResultCount);
+      //
+      if (searchResultCount === 2) {
+        customAgentUpdateProjectSearchObj.run().each((result) => {
+          const internalId = result.id;
+        });
+      }
+    } catch (error) {
+      log.error(loggerTitle + ' caught with an exception', error);
+    }
+    //
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
+    );
+  };
+  /* *********************** keepPurgeRecords - End *********************** */
   //
   /* ----------------------- Helper Functions - End ----------------------- */
   //
