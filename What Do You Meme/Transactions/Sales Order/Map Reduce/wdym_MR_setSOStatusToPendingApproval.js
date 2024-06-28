@@ -61,8 +61,13 @@ define(['N/record', 'N/search'], (record, search) => {
           fieldId: 'itemtype',
           line: index,
         });
+        const isClosed = salesOrderRecord.getSublistValue({
+          sublistId: 'item',
+          fieldId: 'isclosed',
+          line: index,
+        });
         //
-        if (itemType === 'InvtPart') {
+        if (itemType === 'InvtPart' && isClosed === false) {
           const quantity = parseInt(
             salesOrderRecord.getSublistValue({
               sublistId: 'item',
@@ -103,7 +108,13 @@ define(['N/record', 'N/search'], (record, search) => {
             line: index,
           });
 
-          if (itemType === 'InvtPart') {
+          const isClosed = salesOrderRecord.getSublistValue({
+            sublistId: 'item',
+            fieldId: 'isclosed',
+            line: index,
+          });
+
+          if (itemType === 'InvtPart' && isClosed === false) {
             const lineQuantity = parseInt(
               salesOrderRecord.getSublistValue({
                 sublistId: 'item',
@@ -136,7 +147,13 @@ define(['N/record', 'N/search'], (record, search) => {
               line: index1,
             });
 
-            if (itemType === 'InvtPart') {
+            const isClosed = salesOrderRecord.getSublistValue({
+              sublistId: 'item',
+              fieldId: 'isclosed',
+              line: index1,
+            });
+
+            if (itemType === 'InvtPart' && isClosed === false) {
               const lineQuantity = parseInt(
                 salesOrderRecord.getSublistValue({
                   sublistId: 'item',
@@ -166,7 +183,13 @@ define(['N/record', 'N/search'], (record, search) => {
               line: index1,
             });
 
-            if (itemType === 'InvtPart') {
+            const isClosed = salesOrderRecord.getSublistValue({
+              sublistId: 'item',
+              fieldId: 'isclosed',
+              line: index1,
+            });
+
+            if (itemType === 'InvtPart' && isClosed === false) {
               const lineQuantity = parseInt(
                 salesOrderRecord.getSublistValue({
                   sublistId: 'item',
