@@ -28,8 +28,6 @@ define(['N/record', 'N/search'], (record, search) => {
         'AND',
         ['mainline', 'is', 'F'],
         'AND',
-        ['location', 'anyof', '1'],
-        'AND',
         ['custcol_ready_for_fulfillment', 'is', 'F'],
         'AND',
         [
