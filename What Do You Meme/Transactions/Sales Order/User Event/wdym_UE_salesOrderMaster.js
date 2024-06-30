@@ -198,14 +198,26 @@ define([
             fieldId: 'custbody_wdym_credit_hold',
             value: true,
           });
+          log.debug(
+            strLoggerTitle,
+            ' Credit Hold Check Box set to true for credit limit ON OR AUTO'
+          );
         } else if (creditHoldStatus === 'AUTO') {
           const transactionAmount =
             creditHoldCalculationforSOAndInv(customerId);
+          log.debug(
+            strLoggerTitle,
+            ' Transaction amount: ' + transactionAmount
+          );
           if (transactionAmount > Number(creditLimit)) {
             salesRecord.setValue({
               fieldId: 'custbody_wdym_credit_hold',
               value: true,
             });
+            log.debug(
+              strLoggerTitle,
+              ' Credit Hold Check Box set to true for credit limit AUTO'
+            );
           }
         }
 
