@@ -188,39 +188,40 @@ define([
             ' Credit Limit: ' +
             creditLimit
         );
-
+        //
         /* ---------------------- Credit Hold Check Logic - Begin ---------------------- */
-        if (
-          creditHoldStatus === 'ON' ||
-          (creditHoldStatus === 'AUTO' && !creditLimit)
-        ) {
-          salesRecord.setValue({
-            fieldId: 'custbody_wdym_credit_hold',
-            value: true,
-          });
-          log.debug(
-            strLoggerTitle,
-            ' Credit Hold Check Box set to true for credit limit ON OR AUTO'
-          );
-        } else if (creditHoldStatus === 'AUTO') {
-          const transactionAmount =
-            creditHoldCalculationforSOAndInv(customerId);
-          log.debug(
-            strLoggerTitle,
-            ' Transaction amount: ' + transactionAmount
-          );
-          if (transactionAmount > Number(creditLimit)) {
+        if (context.type === context.UserEventType.CREATE) {
+          if (
+            creditHoldStatus === 'ON' ||
+            (creditHoldStatus === 'AUTO' && !creditLimit)
+          ) {
             salesRecord.setValue({
               fieldId: 'custbody_wdym_credit_hold',
               value: true,
             });
             log.debug(
               strLoggerTitle,
-              ' Credit Hold Check Box set to true for credit limit AUTO'
+              ' Credit Hold Check Box set to true for credit limit ON OR AUTO'
             );
+          } else if (creditHoldStatus === 'AUTO') {
+            const transactionAmount =
+              creditHoldCalculationforSOAndInv(customerId);
+            log.debug(
+              strLoggerTitle,
+              ' Transaction amount: ' + transactionAmount
+            );
+            if (transactionAmount > Number(creditLimit)) {
+              salesRecord.setValue({
+                fieldId: 'custbody_wdym_credit_hold',
+                value: true,
+              });
+              log.debug(
+                strLoggerTitle,
+                ' Credit Hold Check Box set to true for credit limit AUTO'
+              );
+            }
           }
         }
-
         /* ---------------------- Credit Hold Check Logic - End ------------------------ */
         //
         /* ------------------- Required Deposit Percentage - Begin ------------------ */
