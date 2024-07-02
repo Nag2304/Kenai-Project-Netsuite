@@ -178,6 +178,23 @@ define([
         const creditLimit = customerRecord.getValue({
           fieldId: 'creditlimit',
         });
+
+        // Balance
+        const balance =
+          Number(
+            customerRecord.getValue({
+              fieldId: 'balance',
+            })
+          ) > 0 || 0;
+
+        //Unbilled Orders
+        const unBilledOrders =
+          Number(
+            customerRecord.getValue({
+              fieldId: 'unbilledorders',
+            })
+          ) || 0;
+
         // Log the days overdue and the credit hold status for debugging purposes
         log.debug(
           strLoggerTitle,
@@ -186,7 +203,11 @@ define([
             ' Credit Hold Status: ' +
             creditHoldStatus +
             ' Credit Limit: ' +
-            creditLimit
+            creditLimit +
+            ' Balance: ' +
+            balance +
+            ' Un-billed Orders: ' +
+            unBilledOrders
         );
         //
         /* ---------------------- Credit Hold Check Logic - Begin ---------------------- */
@@ -205,7 +226,9 @@ define([
             );
           } else if (creditHoldStatus === 'AUTO') {
             const transactionAmount =
-              creditHoldCalculationforSOAndInv(customerId);
+              creditHoldCalculationforSOAndInv(customerId) +
+              balance +
+              unBilledOrders;
             log.debug(
               strLoggerTitle,
               ' Transaction amount: ' + transactionAmount
@@ -841,13 +864,13 @@ define([
           { name: 'includeperiodendtransactions', value: 'F' },
         ],
         filters: [
-          ['type', 'anyof', 'SalesOrd', 'CustInvc'],
+          ['type', 'anyof', 'SalesOrd'],
           'AND',
           ['mainline', 'is', 'T'],
           'AND',
           ['customer.internalidnumber', 'equalto', customerId],
           'AND',
-          ['status', 'anyof', 'SalesOrd:A', 'SalesOrd:B', 'CustInvc:A'],
+          ['status', 'anyof', 'SalesOrd:A', 'SalesOrd:B'],
         ],
         columns: [
           search.createColumn({
