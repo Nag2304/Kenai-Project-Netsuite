@@ -185,7 +185,7 @@ define([
             customerRecord.getValue({
               fieldId: 'balance',
             })
-          ) > 0 || 0;
+          ) || 0;
 
         //Unbilled Orders
         const unBilledOrders =
@@ -211,7 +211,7 @@ define([
         );
         //
         /* ---------------------- Credit Hold Check Logic - Begin ---------------------- */
-        if (context.type === context.UserEventType.CREATE) {
+        if (scriptContext.type === scriptContext.UserEventType.CREATE) {
           if (
             creditHoldStatus === 'ON' ||
             (creditHoldStatus === 'AUTO' && !creditLimit)
