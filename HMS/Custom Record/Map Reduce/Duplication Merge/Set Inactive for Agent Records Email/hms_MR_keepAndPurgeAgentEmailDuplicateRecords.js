@@ -64,9 +64,9 @@ define(['N/search', 'N/record'], (search, record) => {
       //
 
       if (crmCount === 0 && surveyCount === 0 && soldPropertiesCount === 0) {
-        keepPurgeRecords(agentIdNumber);
-      }
-      if (agentIdNumber) {
+        markRecordsAsPurge(agentIdNumber);
+      } else if (crmCount > 0 || surveyCount > 0 || soldPropertiesCount > 0) {
+        markRecordsAsKeepAndPurge(agentIdNumber);
       }
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
@@ -132,6 +132,12 @@ define(['N/search', 'N/record'], (search, record) => {
         'AND',
         ['isinactive', 'is', 'F'],
         'AND',
+        [
+          ['custrecord_hms_keep', 'is', 'T'],
+          'OR',
+          ['custrecord_hms_purge', 'is', 'T'],
+        ],
+        'AND',
         ['count(internalid)', 'equalto', '2'],
       ],
       columns: [
@@ -160,14 +166,14 @@ define(['N/search', 'N/record'], (search, record) => {
   };
   /* *********************** searchAgentEmailDuplicateswithTwoRecords - End *********************** */
   //
-  /* *********************** keepPurgeRecords - Begin *********************** */
+  /* *********************** markRecordsAsPurge - Begin *********************** */
   /**
    *
    * @param {string} agentIdNumber
    * @returns {boolean}
    */
-  const keepPurgeRecords = (agentIdNumber) => {
-    const loggerTitle = ' Keep Purge Records ';
+  const markRecordsAsPurge = (agentIdNumber) => {
+    const loggerTitle = ' Mark Records As Purge ';
     log.debug(
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
@@ -201,6 +207,7 @@ define(['N/search', 'N/record'], (search, record) => {
       if (searchResultCount === 2) {
         customAgentUpdateProjectSearchObj.run().each((result) => {
           const internalId = result.id;
+          updateAgentUpdateProjectRecord(internalId);
         });
       }
     } catch (error) {
@@ -212,7 +219,116 @@ define(['N/search', 'N/record'], (search, record) => {
       '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
     );
   };
-  /* *********************** keepPurgeRecords - End *********************** */
+  /* *********************** markRecordsAsPurge - End *********************** */
+  //
+  /* *********************** updateAgentUpdateProjectRecord - Begin *********************** */
+  /**
+   *
+   * @param {Number} customRecordId
+   * @param {string} flag
+   * @returns {boolean}
+   */
+  const updateAgentUpdateProjectRecord = (customRecordId, flag) => {
+    const loggerTitle = ' Update Agent Update Project Record ';
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+    );
+    //
+    try {
+      if (customRecordId && flag == 'purge') {
+        record.submitFields({
+          type: 'customrecord_hms_agent_upd_project',
+          id: customRecordId,
+          values: {
+            custrecord_hms_purge: true,
+          },
+        });
+        log.debug(loggerTitle, `Updated ID: ${customRecordId} for ${flag}`);
+      } else if (customRecordId && flag == 'keep') {
+        record.submitFields({
+          type: 'customrecord_hms_agent_upd_project',
+          id: customRecordId,
+          values: {
+            custrecord_hms_keep: true,
+          },
+        });
+        log.debug(loggerTitle, `Updated ID: ${customRecordId} for ${flag}`);
+      }
+    } catch (error) {
+      log.error(loggerTitle + ' caught with an exception', error);
+    }
+    //
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
+    );
+    return true;
+  };
+  /* *********************** updateAgentUpdateProjectRecord - End *********************** */
+  //
+  /* *********************** markRecordsAsKeepAndPurge - Begin *********************** */
+  const markRecordsAsKeepAndPurge = (agentIdNumber) => {
+    const loggerTitle = ' Mark Records As Keep And Purge';
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+    );
+    //
+    try {
+      const customAgentUpdateProjectSearchObj = search.create({
+        type: 'customrecord_hms_agent_upd_project',
+        filters: [
+          ['custrecord_hms_agent_id_number', 'is', agentIdNumber],
+          'AND',
+          ['custrecord_hms_email_dupe', 'is', 'T'],
+          'AND',
+          ['isinactive', 'is', 'F'],
+        ],
+        columns: [
+          search.createColumn({
+            name: 'custrecord_hms_agent_id_number',
+            label: 'Agent ID Number',
+          }),
+          search.createColumn({
+            name: 'custrecord_hms_agent_name',
+            label: 'Name',
+          }),
+          search.createColumn({
+            name: 'custrecord_hms_verified_from_rets_feed',
+            label: 'VERIFIED FROM RETS FEED',
+          }),
+        ],
+      });
+      const searchResultCount =
+        customAgentUpdateProjectSearchObj.runPaged().count;
+      log.debug(loggerTitle, ' Search Result Count: ' + searchResultCount);
+      //
+      if (searchResultCount === 2) {
+        customAgentUpdateProjectSearchObj.run().each((result) => {
+          const internalId = result.id;
+          const verifiedFromRETSFeeds = result.getValue({
+            name: 'custrecord_hms_verified_from_rets_feed',
+            label: 'VERIFIED FROM RETS FEED',
+          });
+          if (verifiedFromRETSFeeds) {
+            updateAgentUpdateProjectRecord(internalId, 'keep');
+          } else if (!verifiedFromRETSFeeds) {
+            updateAgentUpdateProjectRecord(internalId, 'purge');
+          }
+        });
+      }
+    } catch (error) {
+      log.error(loggerTitle + ' caught with an exception', error);
+    }
+    //
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
+    );
+    return true;
+  };
+  /* *********************** markRecordsAsKeepAndPurge - End *********************** */
   //
   /* ----------------------- Helper Functions - End ----------------------- */
   //
