@@ -63,11 +63,13 @@ define(['N/search', 'N/record'], (search, record) => {
       );
       //
 
+      // Keep & Purge Records
       if (crmCount === 0 && surveyCount === 0 && soldPropertiesCount === 0) {
         markRecordsAsPurge(agentIdNumber);
       } else if (crmCount > 0 || surveyCount > 0 || soldPropertiesCount > 0) {
         markRecordsAsKeepAndPurge(agentIdNumber);
       }
+      //
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
