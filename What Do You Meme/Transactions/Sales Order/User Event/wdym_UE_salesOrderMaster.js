@@ -225,10 +225,15 @@ define([
               ' Credit Hold Check Box set to true for credit limit ON OR AUTO'
             );
           } else if (creditHoldStatus === 'AUTO') {
-            const transactionAmount =
-              creditHoldCalculationforSOAndInv(customerId) +
-              balance +
-              unBilledOrders;
+            // Transaction Amount
+            let transactionAmount =
+              (creditHoldCalculationforSOAndInv(customerId) || 0) +
+              (balance || 0) +
+              (unBilledOrders || 0);
+            if (!transactionAmount) {
+              transactionAmount = salesRecord.getValue({ fieldId: 'total' });
+            }
+            //
             log.debug(
               strLoggerTitle,
               ' Transaction amount: ' + transactionAmount
