@@ -28,6 +28,55 @@ define(['N/search', 'N/record'], (search, record) => {
   };
   /* ------------------------- Get Input Data - End ------------------------- */
   //
+  /* -------------------------- Map Phase - Begin -------------------------- */
+  const map = (mapContext) => {
+    const loggerTitle = 'Map Phase';
+    log.audit(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+    );
+    //
+    try {
+      // Parse the Values
+      const mapContextValues = JSON.parse(mapContext.value);
+      log.debug(loggerTitle, mapContextValues);
+      //
+
+      // Key
+      const email =
+        mapContextValues.values['GROUP(custrecord_hms_agent_email)'];
+      //
+
+      // Values
+      const reduceValues = {};
+      reduceValues.crmCount = parseInt(
+        mapContextValues.values['SUM(custrecord_hms_crm_record_count)']
+      );
+      reduceValues.surveyCount = parseInt(
+        mapContextValues.values['SUM(custrecord_hms_survery_count)']
+      );
+      reduceValues.soldPropertiesCount = parseInt(
+        mapContextValues.values['SUM(custrecord_hms_sold_properties)']
+      );
+      //
+
+      // Form Key Values
+      mapContext.write({
+        key: email,
+        value: reduceValues,
+      });
+      //
+    } catch (error) {
+      log.error(loggerTitle + ' caught an exception', error);
+    }
+    //
+    log.audit(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit------------------<|'
+    );
+  };
+  /* -------------------------- Map Phase- End-------------------------- */
+  //
   /* -------------------------- Reduce Phase - Begin -------------------------- */
   /**
    *
@@ -41,33 +90,42 @@ define(['N/search', 'N/record'], (search, record) => {
     );
     //
     try {
-      // Parse the Values
-      const reduceContextValues = JSON.parse(reduceContext.values[0]);
-      log.debug(loggerTitle, reduceContextValues);
+      // Key
+      const key = reduceContext.key;
+      log.debug(loggerTitle, `Key: ${key}`);
       //
-      // Read the Values
-      const agentIdNumber =
-        reduceContextValues.values['GROUP(custrecord_hms_agent_id_number)'];
-      log.debug(loggerTitle, `Agent ID:${agentIdNumber}`);
-      //
-
-      // Read the Count
-      const crmCount = parseInt(
-        reduceContextValues.values['SUM(custrecord_hms_crm_record_count)']
-      );
-      const surveyCount = parseInt(
-        reduceContextValues.values['SUM(custrecord_hms_survery_count)']
-      );
-      const soldPropertiesCount = parseInt(
-        reduceContextValues.values['SUM(custrecord_hms_sold_properties)']
-      );
+      // Values
+      const results = JSON.parse(reduceContext.values[0]);
+      log.debug(loggerTitle + ' Results', results);
+      const crmCount = results.crmCount;
+      const surveyCount = results.surveyCount;
+      const soldPropertiesCount = results.soldPropertiesCount;
       //
 
-      // Keep & Purge Records
-      if (crmCount === 0 && surveyCount === 0 && soldPropertiesCount === 0) {
-        markRecordsAsPurge(agentIdNumber);
-      } else if (crmCount > 0 || surveyCount > 0 || soldPropertiesCount > 0) {
-        markRecordsAsKeepAndPurge(agentIdNumber);
+      // Retrieve Ids
+      const agentIds = retrieveAgentInternalIds(key);
+      log.debug(loggerTitle + ' Agent Ids ', agentIds);
+      //
+
+      // Loop Through the Ids
+      for (let index = 0; index < agentIds.length; index++) {
+        // internal id
+        const id = parseInt(agentIds[index].id);
+
+        // VerifiedFrom RETS
+        const verifiedFromRets = agentIds[index].verifiedFromRETSFeeds;
+
+        // Keep & Purge Records
+        if (crmCount === 0 && surveyCount === 0 && soldPropertiesCount === 0) {
+          updateAgentUpdateProjectRecord(id, 'purge');
+        } else {
+          if (verifiedFromRets) {
+            updateAgentUpdateProjectRecord(id, 'keep');
+          } else {
+            updateAgentUpdateProjectRecord(id, 'purge');
+          }
+        }
+        //
       }
       //
     } catch (error) {
@@ -119,6 +177,67 @@ define(['N/search', 'N/record'], (search, record) => {
   //
   /* ----------------------- Helper Functions - Begin ----------------------- */
   //
+  /* *********************** retrieveAgentInternalIds - Begin *********************** */
+  /**
+   *
+   * @param {string} email
+   * @returns {object}
+   */
+  const retrieveAgentInternalIds = (email) => {
+    const loggerTitle = ' Retrieve Agent Internal Ids';
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+    );
+    //
+    const resultValuesArr = [];
+    try {
+      // Create Search
+      const customrecord_hms_agent_upd_projectSearchObj = search.create({
+        type: 'customrecord_hms_agent_upd_project',
+        filters: [['custrecord_hms_agent_email', 'is', email]],
+        columns: [
+          search.createColumn({
+            name: 'custrecord_hms_agent_id_number',
+            label: 'Agent ID Number',
+          }),
+          search.createColumn({
+            name: 'custrecord_hms_verified_from_rets_feed',
+            label: 'VERIFIED FROM RETS FEED',
+          }),
+        ],
+      });
+      var searchResultCount =
+        customrecord_hms_agent_upd_projectSearchObj.runPaged().count;
+      log.debug(loggerTitle, `Search Result Count: ${searchResultCount}`);
+      //
+      if (searchResultCount == 2) {
+        customrecord_hms_agent_upd_projectSearchObj.run().each((result) => {
+          let resultObj = {};
+          resultObj.id = result.id;
+          resultObj.agentIdNumber = result.getValue(
+            'custrecord_hms_agent_id_number'
+          );
+          resultObj.verifiedFromRETSFeeds = result.getValue(
+            'custrecord_hms_verified_from_rets_feed'
+          );
+          resultValuesArr.push(resultObj);
+          return true;
+        });
+      }
+    } catch (error) {
+      log.error(loggerTitle + ' caught with an exception', error);
+    }
+    //
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
+    );
+    return resultValuesArr;
+  };
+  /* *********************** retrieveAgentInternalIds - End *********************** */
+  //
+  //
   /* *********************** searchAgentEmailDuplicateswithTwoRecords - Begin *********************** */
   /**
    *
@@ -134,19 +253,22 @@ define(['N/search', 'N/record'], (search, record) => {
         'AND',
         ['isinactive', 'is', 'F'],
         'AND',
-        [
-          ['custrecord_hms_keep', 'is', 'T'],
-          'OR',
-          ['custrecord_hms_purge', 'is', 'T'],
-        ],
+        ['custrecord_hms_keep', 'is', 'F'],
+        'AND',
+        ['custrecord_hms_purge', 'is', 'F'],
         'AND',
         ['count(internalid)', 'equalto', '2'],
       ],
       columns: [
         search.createColumn({
-          name: 'custrecord_hms_agent_id_number',
+          name: 'custrecord_hms_email_dupe',
           summary: 'GROUP',
-          label: 'Agent ID Number',
+          label: 'Email Duplicate',
+        }),
+        search.createColumn({
+          name: 'custrecord_hms_mls_region',
+          summary: 'GROUP',
+          label: 'MLS Region',
         }),
         search.createColumn({
           name: 'custrecord_hms_crm_record_count',
@@ -163,65 +285,15 @@ define(['N/search', 'N/record'], (search, record) => {
           summary: 'SUM',
           label: 'Sold Properties',
         }),
+        search.createColumn({
+          name: 'custrecord_hms_agent_email',
+          summary: 'GROUP',
+          label: 'Email',
+        }),
       ],
     });
   };
   /* *********************** searchAgentEmailDuplicateswithTwoRecords - End *********************** */
-  //
-  /* *********************** markRecordsAsPurge - Begin *********************** */
-  /**
-   *
-   * @param {string} agentIdNumber
-   * @returns {boolean}
-   */
-  const markRecordsAsPurge = (agentIdNumber) => {
-    const loggerTitle = ' Mark Records As Purge ';
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
-    );
-    //
-    try {
-      const customAgentUpdateProjectSearchObj = search.create({
-        type: 'customrecord_hms_agent_upd_project',
-        filters: [
-          ['custrecord_hms_agent_id_number', 'is', agentIdNumber],
-          'AND',
-          ['custrecord_hms_email_dupe', 'is', 'T'],
-          'AND',
-          ['isinactive', 'is', 'F'],
-        ],
-        columns: [
-          search.createColumn({
-            name: 'custrecord_hms_agent_id_number',
-            label: 'Agent ID Number',
-          }),
-          search.createColumn({
-            name: 'custrecord_hms_agent_name',
-            label: 'Name',
-          }),
-        ],
-      });
-      const searchResultCount =
-        customAgentUpdateProjectSearchObj.runPaged().count;
-      log.debug(loggerTitle, ' Search Result Count: ' + searchResultCount);
-      //
-      if (searchResultCount === 2) {
-        customAgentUpdateProjectSearchObj.run().each((result) => {
-          const internalId = result.id;
-          updateAgentUpdateProjectRecord(internalId);
-        });
-      }
-    } catch (error) {
-      log.error(loggerTitle + ' caught with an exception', error);
-    }
-    //
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
-    );
-  };
-  /* *********************** markRecordsAsPurge - End *********************** */
   //
   /* *********************** updateAgentUpdateProjectRecord - Begin *********************** */
   /**
@@ -269,73 +341,11 @@ define(['N/search', 'N/record'], (search, record) => {
   };
   /* *********************** updateAgentUpdateProjectRecord - End *********************** */
   //
-  /* *********************** markRecordsAsKeepAndPurge - Begin *********************** */
-  const markRecordsAsKeepAndPurge = (agentIdNumber) => {
-    const loggerTitle = ' Mark Records As Keep And Purge';
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
-    );
-    //
-    try {
-      const customAgentUpdateProjectSearchObj = search.create({
-        type: 'customrecord_hms_agent_upd_project',
-        filters: [
-          ['custrecord_hms_agent_id_number', 'is', agentIdNumber],
-          'AND',
-          ['custrecord_hms_email_dupe', 'is', 'T'],
-          'AND',
-          ['isinactive', 'is', 'F'],
-        ],
-        columns: [
-          search.createColumn({
-            name: 'custrecord_hms_agent_id_number',
-            label: 'Agent ID Number',
-          }),
-          search.createColumn({
-            name: 'custrecord_hms_agent_name',
-            label: 'Name',
-          }),
-          search.createColumn({
-            name: 'custrecord_hms_verified_from_rets_feed',
-            label: 'VERIFIED FROM RETS FEED',
-          }),
-        ],
-      });
-      const searchResultCount =
-        customAgentUpdateProjectSearchObj.runPaged().count;
-      log.debug(loggerTitle, ' Search Result Count: ' + searchResultCount);
-      //
-      if (searchResultCount === 2) {
-        customAgentUpdateProjectSearchObj.run().each((result) => {
-          const internalId = result.id;
-          const verifiedFromRETSFeeds = result.getValue({
-            name: 'custrecord_hms_verified_from_rets_feed',
-            label: 'VERIFIED FROM RETS FEED',
-          });
-          if (verifiedFromRETSFeeds) {
-            updateAgentUpdateProjectRecord(internalId, 'keep');
-          } else if (!verifiedFromRETSFeeds) {
-            updateAgentUpdateProjectRecord(internalId, 'purge');
-          }
-        });
-      }
-    } catch (error) {
-      log.error(loggerTitle + ' caught with an exception', error);
-    }
-    //
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
-    );
-    return true;
-  };
-  /* *********************** markRecordsAsKeepAndPurge - End *********************** */
-  //
   /* ----------------------- Helper Functions - End ----------------------- */
   //
   /* ----------------------------- Exports - Begin ---------------------------- */
   exports.getInputData = getInputData;
+  exports.map = map;
   exports.reduce = reduce;
   exports.summarize = summarize;
   return exports;
