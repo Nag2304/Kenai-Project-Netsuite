@@ -116,8 +116,6 @@ define(['N/search', 'N/record'], (search, record) => {
         ['custrecord_hms_agent_id_dupe', 'is', 'T'],
         'AND',
         ['isinactive', 'is', 'F'],
-        'AND',
-        ['count(internalid)', 'equalto', '2'],
       ],
       columns: [
         search.createColumn({
@@ -193,77 +191,95 @@ define(['N/search', 'N/record'], (search, record) => {
       searchResultCount = customAgentUpdateProjectSearchObj.runPaged().count;
       log.debug(loggerTitle, ' Search Result Count: ' + searchResultCount);
       //
-      if (searchResultCount === 2) {
-        customAgentUpdateProjectSearchObj.run().each((result) => {
-          const internalId = result.id;
-          // Get Agent ID
-          const name = result.getValue('custrecord_hms_agent_name');
-          const agentId = getAgentRecordId(name);
-          //
-          const keep = result.getValue('custrecord_hms_keep');
-          const purge = result.getValue('custrecord_hms_purge');
-          const nrdsId = result.getValue('custrecord_hms_nrds');
-          const crmCount = result.getValue('custrecord_hms_crm_record_count');
-          const soldPropertiesCount = result.getValue(
-            'custrecord_hms_sold_properties'
-          );
-          // If Previous NRDS ID is Null and Current NRDS ID has value && Purge is true
-          if (!previousNrdsId && nrdsId && purge) {
-            if (previousKeep && previousInternalId) {
-              updateObject.agentUpdate = updateAgentUpdateProject(
-                previousInternalId,
-                nrdsId,
-                'A'
-              );
-            }
-          }
-          //
 
-          // CRM Count
-          if (crmCount > 0 && purge) {
-            updateObject.CRM = updateAgentCRMRecords(previousAgentId, agentId);
-          }
-          //
-
-          // Sold Properties Count
-          if (soldPropertiesCount > 0 && purge) {
-            updateObject.soldProperties = updateAgentSoldProperties(
-              previousAgentId,
-              agentId
-            );
-          }
-          //
-
-          if (Object.values(updateObject).some((val) => val) && purge) {
-            updateOriginalAgentRecord(agentId);
-            log.debug(
-              loggerTitle,
-              ` Marked the Original Agent Id to Inactive ${agentId}`
-            );
-          }
-
-          log.debug(loggerTitle, {
-            internalId,
-            name,
-            keep,
-            purge,
-            nrdsId,
-            agentId,
-            crmCount,
-            soldPropertiesCount,
-          });
-          previousInternalId = internalId;
-          previousKeep = keep;
-          previousNrdsId = nrdsId;
-          previousAgentId = agentId;
-          previousCrmCount = crmCount;
-          previousSoldPropertiesCount = soldPropertiesCount;
-          return true;
-        });
-        // Update the Purge Record
-        updateAgentUpdateProject(previousInternalId, 0, 'I');
+      customAgentUpdateProjectSearchObj.run().each((result) => {
+        const internalId = result.id;
+        // Get Agent ID
+        const name = result.getValue('custrecord_hms_agent_name');
+        const agentId = getAgentRecordId(name);
         //
-      }
+        const keep = result.getValue('custrecord_hms_keep');
+        const purge = result.getValue('custrecord_hms_purge');
+        const nrdsId = result.getValue('custrecord_hms_nrds');
+        const crmCount = result.getValue('custrecord_hms_crm_record_count');
+        const soldPropertiesCount = result.getValue(
+          'custrecord_hms_sold_properties'
+        );
+        // If Previous NRDS ID is Null and Current NRDS ID has value && Purge is true
+        if (!previousNrdsId && nrdsId && purge) {
+          if (previousKeep && previousInternalId) {
+            updateObject.agentUpdate = updateAgentUpdateProject(
+              previousInternalId,
+              nrdsId,
+              'A'
+            );
+          }
+        }
+        //
+
+        // CRM Count
+        if (crmCount > 0 && purge && agentId) {
+          log.debug(
+            loggerTitle,
+            ' Calling the Update Agent CRM Records and Agent ID is ' +
+              agentId +
+              ' Previous Agent ID ' +
+              previousAgentId
+          );
+          updateObject.CRM = updateAgentCRMRecords(previousAgentId, agentId);
+        }
+        //
+
+        // Sold Properties Count
+        if (soldPropertiesCount > 0 && purge && agentId) {
+          log.debug(
+            loggerTitle,
+            ' Calling the Update Agent Sold Properties and Agent ID is ' +
+              agentId +
+              ' Previous Agent ID ' +
+              previousAgentId
+          );
+          updateObject.soldProperties = updateAgentSoldProperties(
+            previousAgentId,
+            agentId
+          );
+        }
+        //
+
+        if (
+          Object.values(updateObject).some((val) => val) &&
+          purge &&
+          agentId
+        ) {
+          log.debug(loggerTitle, ' Calling the Update Original Agent Record ');
+          updateOriginalAgentRecord(agentId);
+          log.debug(
+            loggerTitle,
+            ` Marked the Original Agent Id to Inactive ${agentId}`
+          );
+        }
+
+        log.debug(loggerTitle, {
+          internalId,
+          name,
+          keep,
+          purge,
+          nrdsId,
+          agentId,
+          crmCount,
+          soldPropertiesCount,
+        });
+        previousInternalId = internalId;
+        previousKeep = keep;
+        previousNrdsId = nrdsId;
+        previousAgentId = agentId;
+        previousCrmCount = crmCount;
+        previousSoldPropertiesCount = soldPropertiesCount;
+        return true;
+      });
+      // Update the Purge Record
+      updateAgentUpdateProject(previousInternalId, 0, 'I');
+      //
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
@@ -441,6 +457,7 @@ define(['N/search', 'N/record'], (search, record) => {
       const searchResultCount = customAgentSearchObj.runPaged().count;
       log.debug(loggerTitle, ' Search Count: ' + searchResultCount);
       //
+      log.debug(loggerTitle, `Current ID: ${cId} Previous ID: ${pId}`);
       if (searchResultCount) {
         customAgentSearchObj.run().each((result) => {
           const crmType = result.getValue({
