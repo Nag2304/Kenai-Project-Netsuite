@@ -97,9 +97,9 @@ define(['N/search', 'N/record'], (search, record) => {
       // Values
       const results = JSON.parse(reduceContext.values[0]);
       log.debug(loggerTitle + ' Results', results);
-      const crmCount = results.crmCount;
-      const surveyCount = results.surveyCount;
-      const soldPropertiesCount = results.soldPropertiesCount;
+      let crmCount = results.crmCount;
+      let surveyCount = results.surveyCount;
+      let soldPropertiesCount = results.soldPropertiesCount;
       //
 
       // Retrieve Ids
@@ -119,7 +119,15 @@ define(['N/search', 'N/record'], (search, record) => {
         if (crmCount === 0 && surveyCount === 0 && soldPropertiesCount === 0) {
           updateAgentUpdateProjectRecord(id, 'purge');
         } else {
-          if (verifiedFromRets) {
+          crmCount = agentIds[index].cCount;
+          surveyCount = agentIds[index].sCount;
+          soldPropertiesCount = agentIds[index].spCount;
+          if (
+            verifiedFromRets ||
+            crmCount > 0 ||
+            surveyCount > 0 ||
+            soldPropertiesCount > 0
+          ) {
             updateAgentUpdateProjectRecord(id, 'keep');
           } else {
             updateAgentUpdateProjectRecord(id, 'purge');
@@ -205,6 +213,18 @@ define(['N/search', 'N/record'], (search, record) => {
             name: 'custrecord_hms_verified_from_rets_feed',
             label: 'VERIFIED FROM RETS FEED',
           }),
+          search.createColumn({
+            name: 'custrecord_hms_crm_record_count',
+            label: 'CRM Record Count',
+          }),
+          search.createColumn({
+            name: 'custrecord_hms_survery_count',
+            label: 'Survey Count',
+          }),
+          search.createColumn({
+            name: 'custrecord_hms_sold_properties',
+            label: 'Sold Properties',
+          }),
         ],
       });
       var searchResultCount =
@@ -221,6 +241,9 @@ define(['N/search', 'N/record'], (search, record) => {
           resultObj.verifiedFromRETSFeeds = result.getValue(
             'custrecord_hms_verified_from_rets_feed'
           );
+          resultObj.cCount = result.getValue('custrecord_hms_crm_record_count');
+          resultObj.sCount = result.getValue('custrecord_hms_survery_count');
+          resultObj.spCount = result.getValue('custrecord_hms_sold_properties');
           resultValuesArr.push(resultObj);
           return true;
         });
@@ -316,6 +339,7 @@ define(['N/search', 'N/record'], (search, record) => {
           id: customRecordId,
           values: {
             custrecord_hms_purge: true,
+            custrecord_hms_keep: false,
           },
         });
         log.debug(loggerTitle, `Updated ID: ${customRecordId} for ${flag}`);
@@ -325,6 +349,7 @@ define(['N/search', 'N/record'], (search, record) => {
           id: customRecordId,
           values: {
             custrecord_hms_keep: true,
+            custrecord_hms_purge: false,
           },
         });
         log.debug(loggerTitle, `Updated ID: ${customRecordId} for ${flag}`);
