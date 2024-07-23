@@ -27,6 +27,7 @@ define(['N/record', 'N/format', 'N/search', 'N/url'], (
     'Contract Approval Date',
     'Buyer Name',
     'Primary Agent Name',
+    'Sapphire Address',
   ];
   const lengthOfBodyFields = bodyFields.length;
   const options = {};
@@ -250,8 +251,19 @@ define(['N/record', 'N/format', 'N/search', 'N/url'], (
         });
         options.primaryAgentNameNew = primaryAgentNameNew;
         options.primaryAgentNameOld = primaryAgentNameOld;
-
         //
+
+        //SAPPHIRE ADDRESS
+        const sapphireAddressNew = propertyRecordNew.getValue({
+          fieldId: 'custrecord100',
+        });
+        const sapphireAddressOld = propertyRecordOld.getValue({
+          fieldId: 'custrecord100',
+        });
+        options.sapphireAddressNew = sapphireAddressNew;
+        options.sapphireAddressOld = sapphireAddressOld;
+        //
+
         /* -------------- Call Custom Record Insert - Function - Begin -------------- */
         log.debug(strLoggerTitle + ' Options Object', options);
         insertCustomRecord(options);
@@ -659,6 +671,30 @@ define(['N/record', 'N/format', 'N/search', 'N/url'], (
           insertSaveFlag = 'Y';
         }
         //
+        // Sapphire Address
+        else if (
+          fieldChanged === 'Sapphire Address' &&
+          options.sapphireAddressNew &&
+          options.sapphireAddressOld &&
+          options.sapphireAddressNew !== options.sapphireAddressOld
+        ) {
+          log.debug(
+            strLoggerTitle,
+            ' Sapphire Address New: ' +
+              options.sapphireAddressNew +
+              ' Sapphire Address Old:' +
+              options.sapphireAddressOld
+          );
+          customRec.setValue({
+            fieldId: 'custrecord_hms_oldvalue',
+            value: options.sapphireAddressOld,
+          });
+          customRec.setValue({
+            fieldId: 'custrecord_hms_newvalue',
+            value: options.sapphireAddressNew,
+          });
+          insertSaveFlag = 'Y';
+        }
         /* --------------------- Save the Custom Record - Begin --------------------- */
         // Save the custom record
         if (insertSaveFlag === 'Y') {
@@ -743,7 +779,7 @@ define(['N/record', 'N/format', 'N/search', 'N/url'], (
   //
   /* ----------------------------- Exports - Begin ---------------------------- */
   exports.beforeSubmit = beforeSubmit;
-  exports.afterSubmit = afterSubmit;
+  //exports.afterSubmit = afterSubmit;
   return exports;
   /* ------------------------------ Exports - End ----------------------------- */
 });
