@@ -405,6 +405,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           'custrecord_hanna_totalactivites_lifetime',
           'custrecord_hanna_sum_lifetime_sales',
           'custrecord_hanna_lifetime_orders',
+          'custrecord_hanna_orderstodate',
         ],
       });
 
@@ -418,6 +419,8 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           Number(result.custrecord_hanna_sum_lifetime_sales) || defaultValue,
         custrecord_hanna_lifetime_orders:
           parseInt(result.custrecord_hanna_lifetime_orders) || defaultValue,
+        custrecord_hanna_orderstodate:
+          parseInt(result.custrecord_hanna_orderstodate) || defaultValue,
       };
       log.debug(loggerTitle + ' Cleaned Result', cleanedResult);
     } catch (error) {
@@ -474,6 +477,13 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
             (customerSalesInformationRecordValues
               ? Number(
                   customerSalesInformationRecordValues.custrecord_hanna_totalactivites_lifetime
+                )
+              : 0),
+          ordersYearToDateValue:
+            ordersYearToDate(customerId, true) +
+            (customerSalesInformationRecordValues
+              ? Number(
+                  customerSalesInformationRecordValues.custrecord_hanna_orderstodate
                 )
               : 0),
         };
@@ -557,15 +567,15 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
         delete fieldsToSubmit.custrecord_hanna_codes_sku_currentyear;
         delete fieldsToSubmit.custrecord_hanna_codes_sku_2023;
         delete fieldsToSubmit.custrecord_hanna_codes_sku_2022;
+        delete fieldsToSubmit.custrecord_hanna_prioryearssales;
+        delete fieldsToSubmit.custrecord_hanna_lastyears_salestotal;
+        delete fieldsToSubmit.custrecord_hanna_total_value_invoices;
       } else if (config === '2') {
         // For comprehensive run, we only need these fields
-        delete fieldsToSubmit.priorYearsSales;
-        delete fieldsToSubmit.lastYearSaleTotalValue;
+        delete fieldsToSubmit.custrecord_hanna_orderstodate;
         delete fieldsToSubmit.custrecord_hanna_sum_lifetime_sales;
         delete fieldsToSubmit.custrecord_hanna_lifetime_orders;
-        delete fieldsToSubmit.countOfItemsThisYear;
-        delete fieldsToSubmit.custrecord_hanna_codes_sku_2023;
-        delete fieldsToSubmit.custrecord_hanna_codes_sku_2022;
+        delete fieldsToSubmit.custrecord_hanna_totalactivites_lifetime;
       }
 
       record.submitFields({
@@ -594,10 +604,11 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
   /* *********************** Orders Year To Date - Begin *********************** */
   /**
    *
-   * @param {string} customerId
+   * @param {Number} customerId
+   * @param {Boolean} includeYesterdayFilter
    * @returns {Number} ordersYearToDateValue
    */
-  const ordersYearToDate = (customerId) => {
+  const ordersYearToDate = (customerId, includeYesterdayFilter = false) => {
     const loggerTitle = ' Orders Year To Date ';
     log.debug(
       loggerTitle,
@@ -606,33 +617,64 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
     //
     let ordersYearToDateValue = 0;
     try {
+      let transactionSearchObj;
       // Create Search
-      const transactionSearchObj = search.create({
-        type: 'transaction',
-        filters: [
-          ['datecreated', 'within', 'thisyear'],
-          'AND',
-          ['account', 'anyof', '123'],
-          'AND',
-          ['status', 'noneof', 'SalesOrd:C'],
-          'AND',
-          ['customer.internalidnumber', 'equalto', customerId],
-          'AND',
-          ['mainline', 'is', 'T'],
-        ],
-        columns: [
-          search.createColumn({
-            name: 'tranid',
-            summary: 'COUNT',
-            label: 'Document Number',
-          }),
-          search.createColumn({
-            name: 'entity',
-            summary: 'GROUP',
-            label: 'Name',
-          }),
-        ],
-      });
+      if (!includeYesterdayFilter) {
+        transactionSearchObj = search.create({
+          type: 'transaction',
+          filters: [
+            ['datecreated', 'within', 'thisyear'],
+            'AND',
+            ['account', 'anyof', '123'],
+            'AND',
+            ['status', 'noneof', 'SalesOrd:C'],
+            'AND',
+            ['customer.internalidnumber', 'equalto', customerId],
+            'AND',
+            ['mainline', 'is', 'T'],
+          ],
+          columns: [
+            search.createColumn({
+              name: 'tranid',
+              summary: 'COUNT',
+              label: 'Document Number',
+            }),
+            search.createColumn({
+              name: 'entity',
+              summary: 'GROUP',
+              label: 'Name',
+            }),
+          ],
+        });
+      } else {
+        transactionSearchObj = search.create({
+          type: 'transaction',
+          filters: [
+            ['trandate', 'within', 'yesterday'],
+            'AND',
+            ['account', 'anyof', '123'],
+            'AND',
+            ['status', 'noneof', 'SalesOrd:C'],
+            'AND',
+            ['customer.internalidnumber', 'equalto', customerId],
+            'AND',
+            ['mainline', 'is', 'T'],
+          ],
+          columns: [
+            search.createColumn({
+              name: 'tranid',
+              summary: 'COUNT',
+              label: 'Document Number',
+            }),
+            search.createColumn({
+              name: 'entity',
+              summary: 'GROUP',
+              label: 'Name',
+            }),
+          ],
+        });
+      }
+
       log.debug(loggerTitle, ' Search Called Successfully ');
       const searchResultCount = transactionSearchObj.runPaged().count;
       log.debug(loggerTitle, ' Search Result Count: ' + searchResultCount);
