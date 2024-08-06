@@ -5,10 +5,10 @@
  */
 
 /**
- * File name:diverse_UE_vendorBillMaster.js
- * Script: DIV | UE Vend Bill Master
+ * File name:div_UE_invoiceMaster.js
+ * Script: DIV | UE Invoice Master
  * Author           Date        Version               Remarks
- * nagendrababu  01st Aug 2024  1.00           Initial creation of the script.
+ * nagendrababu  08th Aug 2024  1.00           Initial creation of the script.
  *
  */
 
