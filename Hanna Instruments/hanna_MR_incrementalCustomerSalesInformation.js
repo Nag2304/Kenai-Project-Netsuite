@@ -64,6 +64,10 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       const results = JSON.parse(reduceContext.values[0]);
       log.debug(loggerTitle + ' Values', results);
       //
+
+      // Retrieve Customer ID
+      const customerID = results.values['GROUP(entityid.customer)'];
+      //
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
@@ -110,6 +114,111 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
     );
   };
   /* ------------------------- Summarize Phase - End ------------------------ */
+  //
+  /* ------------------------- Helper Functions - Begin ------------------------ */
+  //
+  /* *********************** Retrieve Customer Sales Info - Begin *********************** */
+  const retrieveCustomerSalesInfo = (customerName) => {
+    const loggerTitle = ' Retrieve Customer Sales Info ';
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+    );
+    //
+    const customerSalesInfoResultObj = {};
+    try {
+      const customrecord_hanna_customer_salesSearchObj = search.create({
+        type: 'customrecord_hanna_customer_sales',
+        filters: [['custrecord_hanna_customer_id', 'anyof', customerName]],
+        columns: [
+          search.createColumn({
+            name: 'custrecord_hanna_customer_id',
+            label: 'Customer ID',
+          }),
+          search.createColumn({
+            name: 'custrecord_hanna_orderstodate',
+            label: 'Orders Year to Date',
+          }),
+          search.createColumn({
+            name: 'custrecord_hanna_total_value_invoices',
+            label: 'This Years Sales',
+          }),
+          search.createColumn({
+            name: 'custrecord_hanna_sum_lifetime_sales',
+            label: 'Sum of Lifetime Sales',
+          }),
+          search.createColumn({
+            name: 'custrecord_hanna_lifetime_orders',
+            label: 'Lifetime Orders',
+          }),
+          search.createColumn({
+            name: 'custrecord_hanna_calls_currentyear',
+            label: 'Calls (current year)',
+          }),
+          search.createColumn({
+            name: 'custrecord_hanna_tasks_currentyear',
+            label: 'Tasks (current year)',
+          }),
+          search.createColumn({
+            name: 'custrecord_hanna_virtual_meetings_cyear',
+            label: 'Virtual Meetings (current year)',
+          }),
+          search.createColumn({
+            name: 'custrecord_hanna_totalactivites_lifetime',
+            label: 'Total Activities (lifetime)',
+          }),
+          search.createColumn({
+            name: 'custrecord_hanna_codes_sku_currentyear',
+            label: 'Codes (SKU) Sold in Current Year Quantity',
+          }),
+        ],
+      });
+      const searchResultCount =
+        customrecord_hanna_customer_salesSearchObj.runPaged().count;
+      //
+      customrecord_hanna_customer_salesSearchObj.run().each((result) => {
+        customerSalesInfoResultObj.ordersYearToDate = result.getValue(
+          'custrecord_hanna_orderstodate'
+        );
+        customerSalesInfoResultObj.thisYearSales = result.getValue(
+          'custrecord_hanna_total_value_invoices'
+        );
+        customerSalesInfoResultObj.sumofLifeTimeSales = result.getValue(
+          'custrecord_hanna_sum_lifetime_sales'
+        );
+        customerSalesInfoResultObj.lifeTimeOrders = result.getValue(
+          'custrecord_hanna_lifetime_orders'
+        );
+        customerSalesInfoResultObj.callsCurrentYear = result.getValue(
+          'custrecord_hanna_calls_currentyear'
+        );
+        customerSalesInfoResultObj.tasksCurrentYear = result.getValue(
+          'custrecord_hanna_tasks_currentyear'
+        );
+        customerSalesInfoResultObj.virtualMeetingsCurrentYear = result.getValue(
+          'custrecord_hanna_virtual_meetings_cyear'
+        );
+        customerSalesInfoResultObj.totalActivitesLifeTime = result.getValue(
+          'custrecord_hanna_totalactivites_lifetime'
+        );
+        customerSalesInfoResultObj.skuSoldInCurrentYear = result.getValue(
+          'Codes (SKU) Sold in Current Year Quantity'
+        );
+        return true;
+      });
+    } catch (error) {
+      log.error(loggerTitle + ' caught with an exception', error);
+    }
+    //
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
+    );
+    return customerSalesInfoResultObj;
+  };
+  /* *********************** Retrieve Customer Sales Info - End *********************** */
+  //
+  /* ------------------------- Helper Functions  - End ------------------------ */
   //
   /* ----------------------------- Exports - Begin ---------------------------- */
   exports.getInputData = getInputData;
