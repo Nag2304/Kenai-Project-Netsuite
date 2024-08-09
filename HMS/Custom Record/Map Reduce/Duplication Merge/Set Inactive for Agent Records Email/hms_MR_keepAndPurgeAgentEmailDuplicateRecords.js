@@ -88,7 +88,7 @@ define(['N/search', 'N/record'], (search, record) => {
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
-    //
+
     try {
       // Key
       const key = reduceContext.key;
@@ -100,46 +100,66 @@ define(['N/search', 'N/record'], (search, record) => {
       let crmCount = results.crmCount;
       let surveyCount = results.surveyCount;
       let soldPropertiesCount = results.soldPropertiesCount;
-      //
 
       // Retrieve Ids
       const agentIds = retrieveAgentInternalIds(key);
       log.debug(loggerTitle + ' Agent Ids ', agentIds);
-      //
 
-      // Loop Through the Ids
-      for (let index = 0; index < agentIds.length; index++) {
-        // internal id
-        const id = parseInt(agentIds[index].id);
+      // Ensure we have exactly two records
+      if (agentIds.length !== 2) {
+        return true;
+      }
 
-        // VerifiedFrom RETS
-        const verifiedFromRets = agentIds[index].verifiedFromRETSFeeds;
+      const [record1, record2] = agentIds;
 
-        // Keep & Purge Records
-        if (crmCount === 0 && surveyCount === 0 && soldPropertiesCount === 0) {
-          updateAgentUpdateProjectRecord(id, 'purge');
-        } else {
-          crmCount = agentIds[index].cCount;
-          surveyCount = agentIds[index].sCount;
-          soldPropertiesCount = agentIds[index].spCount;
-          if (
-            verifiedFromRets ||
-            crmCount > 0 ||
-            surveyCount > 0 ||
-            soldPropertiesCount > 0
-          ) {
-            updateAgentUpdateProjectRecord(id, 'keep');
+      // Define comparison logic
+      const determineKeepPurge = (rec1, rec2) => {
+        const rec1Verified = rec1.verifiedFromRETSFeeds === true;
+        const rec2Verified = rec2.verifiedFromRETSFeeds === true;
+
+        const rec1HasRelatedRecords =
+          rec1.cCount > 0 || rec1.sCount > 0 || rec1.spCount > 0;
+        const rec2HasRelatedRecords =
+          rec2.cCount > 0 || rec2.sCount > 0 || rec2.spCount > 0;
+
+        if (rec1Verified && !rec2Verified) {
+          return { keep: rec1, purge: rec2 };
+        } else if (!rec1Verified && rec2Verified) {
+          return { keep: rec2, purge: rec1 };
+        } else if (rec1Verified && rec2Verified) {
+          if (rec1HasRelatedRecords && !rec2HasRelatedRecords) {
+            return { keep: rec1, purge: rec2 };
+          } else if (!rec1HasRelatedRecords && rec2HasRelatedRecords) {
+            return { keep: rec2, purge: rec1 };
           } else {
-            updateAgentUpdateProjectRecord(id, 'purge');
+            return { purge1: rec1, purge2: rec2 }; // Both Verified but neither has related records
+          }
+        } else {
+          if (rec1HasRelatedRecords && !rec2HasRelatedRecords) {
+            return { keep: rec1, purge: rec2 };
+          } else if (!rec1HasRelatedRecords && rec2HasRelatedRecords) {
+            return { keep: rec2, purge: rec1 };
+          } else {
+            return { purge1: rec1, purge2: rec2 }; // Neither Verified and neither has related records
           }
         }
-        //
-      }
-      //
+      };
+
+      // Get the keep and purge records
+      const { keep, purge, purge1, purge2 } = determineKeepPurge(
+        record1,
+        record2
+      );
+
+      // Update records based on determination
+      if (keep) updateAgentUpdateProjectRecord(keep.id, 'keep');
+      if (purge) updateAgentUpdateProjectRecord(purge.id, 'purge');
+      if (purge1) updateAgentUpdateProjectRecord(purge1.id, 'purge');
+      if (purge2) updateAgentUpdateProjectRecord(purge2.id, 'purge');
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
-    //
+
     log.audit(
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
