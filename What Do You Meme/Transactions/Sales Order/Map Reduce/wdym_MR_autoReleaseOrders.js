@@ -35,6 +35,8 @@ define(['N/record', 'N/search'], (record, search) => {
           'equalto',
           '1',
         ],
+        'AND',
+        ['location', 'anyof', '115'],
       ],
       columns: [
         search.createColumn({
