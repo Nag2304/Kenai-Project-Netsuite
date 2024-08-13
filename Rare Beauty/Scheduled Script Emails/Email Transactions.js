@@ -161,7 +161,7 @@ define([
     var customers = [];
     var customrecord_blk_email_contactSearchObj = search.create({
       type: 'customrecord_blk_email_contact',
-      filters: [],
+      filters: [['custrecord_ec_customer', 'noneof', '4393', '14825']],
       columns: [
         search.createColumn({
           name: 'custrecord_ec_customer',
