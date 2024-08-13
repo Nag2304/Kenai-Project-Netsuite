@@ -353,6 +353,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
     );
     //
     let ordersYearToDateValue = 0;
+    const updateInternalIds = [];
     try {
       const transactionSearchObj = search.create({
         type: 'transaction',
@@ -366,6 +367,8 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           ['customer.internalidnumber', 'equalto', id],
           'AND',
           ['mainline', 'is', 'T'],
+          'AND',
+          ['custbody_hanna_tran_prcs_by_cust_sales', 'is', 'F'],
         ],
         columns: [
           search.createColumn({
@@ -378,6 +381,16 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
             summary: 'GROUP',
             label: 'Name',
           }),
+          search.createColumn({
+            name: 'internalid',
+            summary: 'GROUP',
+            label: 'Internal ID',
+          }),
+          search.createColumn({
+            name: 'type',
+            summary: 'GROUP',
+            label: 'Type',
+          }),
         ],
       });
 
@@ -386,16 +399,38 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       log.debug(loggerTitle, ' Search Result Count: ' + searchResultCount);
       //
       transactionSearchObj.run().each((result) => {
-        ordersYearToDateValue = parseInt(
+        ordersYearToDateValue += parseInt(
           result.getValue({
             name: 'tranid',
             summary: 'COUNT',
             label: 'Document Number',
           })
         );
+        // Push Internal Ids
+        updateInternalIds.push(
+          result.getValue({
+            name: 'internalid',
+            summary: 'GROUP',
+          })
+        );
+        //
         return true;
       });
-      log.debug(loggerTitle, ' Orders Year To Date: ' + ordersYearToDateValue);
+      log.audit(loggerTitle, ' Orders Year To Date: ' + ordersYearToDateValue);
+      //
+
+      // Update Internal ID
+      updateInternalIds.forEach((value) => {
+        record.submitFields({
+          type: record.Type.SALES_ORDER,
+          id: value,
+          values: {
+            custbody_hanna_tran_prcs_by_cust_sales: true,
+          },
+        });
+        log.audit(loggerTitle, ' Updated Internal ID: ' + value);
+      });
+      //
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
@@ -422,6 +457,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
     );
     //
     let thisYearsSalesValue = 0.0;
+    const updateInternalIds = [];
     try {
       const transactionSearchObj = search.create({
         type: 'transaction',
@@ -456,6 +492,8 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           ['mainline', 'is', 'T'],
           'AND',
           ['customer.internalidnumber', 'equalto', customerId],
+          'AND',
+          ['custbody_hanna_tran_prcs_by_cust_sales', 'is', 'F'],
         ],
         columns: [
           search.createColumn({
@@ -469,6 +507,16 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
             formula: '{netamountnotax}-nvl({shippingamount},0)',
             label: 'Formula (Currency)',
           }),
+          search.createColumn({
+            name: 'internalid',
+            summary: 'GROUP',
+            label: 'Internal ID',
+          }),
+          search.createColumn({
+            name: 'type',
+            summary: 'GROUP',
+            label: 'Type',
+          }),
         ],
       });
       //
@@ -477,7 +525,8 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       log.debug(loggerTitle, ' Search Result Count: ' + searchResultCount);
       //
       transactionSearchObj.run().each((result) => {
-        thisYearsSalesValue = parseFloat(
+        const tranObj = {};
+        thisYearsSalesValue += parseFloat(
           result.getValue({
             name: 'formulacurrency',
             summary: 'SUM',
@@ -485,10 +534,53 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
             label: 'Formula (Currency)',
           })
         );
+        tranObj.type = result.getValue({
+          name: 'type',
+          summary: 'GROUP',
+          label: 'Type',
+        });
+        tranObj.id = result.getValue({
+          name: 'internalid',
+          summary: 'GROUP',
+          label: 'Internal ID',
+        });
+        // Push the internal Ids
+        updateInternalIds.push(tranObj);
         return true;
       });
       //
-      log.debug(loggerTitle, ' This Year Sales: ' + thisYearsSalesValue);
+      log.audit(loggerTitle, ' This Year Sales: ' + thisYearsSalesValue);
+      //
+      // Update Internal Ids
+      updateInternalIds.forEach((val) => {
+        let tranType;
+
+        if (val.type === 'CustInvc') {
+          tranType = record.Type.INVOICE;
+        } else if (val.type === 'Journal') {
+          tranType = record.Type.JOURNAL_ENTRY;
+        } else if (val.type === 'CashRfnd') {
+          tranType = record.Type.CASH_REFUND;
+        } else if (val.type === 'CashSale') {
+          tranType = record.Type.CASH_SALE;
+        } else if (val.type === 'CustCred') {
+          tranType = record.Type.CREDIT_MEMO;
+        } else if (val.type === 'CustRfnd') {
+          tranType = record.Type.CUSTOMER_REFUND;
+        }
+
+        if (tranType) {
+          record.submitFields({
+            type: tranType,
+            id: val.id,
+            values: {
+              custbody_hanna_tran_prcs_by_cust_sales: true,
+            },
+          });
+        }
+      });
+
+      //
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
@@ -515,6 +607,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
     );
     //
     let sumLifeTimeSalesValue = 0.0;
+    const updateInternalIds = [];
     try {
       const transactionSearchObj = search.create({
         type: 'transaction',
@@ -549,6 +642,8 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           ['customer.internalidnumber', 'equalto', customerId],
           'AND',
           ['trandate', 'within', 'yesterday'],
+          'AND',
+          ['custbody_hanna_tran_prcs_by_cust_sales', 'is', 'F'],
         ],
         columns: [
           search.createColumn({
@@ -562,6 +657,16 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
             summary: 'GROUP',
             label: 'Name',
           }),
+          search.createColumn({
+            name: 'internalid',
+            summary: 'GROUP',
+            label: 'Internal ID',
+          }),
+          search.createColumn({
+            name: 'type',
+            summary: 'GROUP',
+            label: 'Type',
+          }),
         ],
       });
       //
@@ -570,7 +675,8 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       log.debug(loggerTitle, ' Search Result Count: ' + searchResultCount);
       //
       transactionSearchObj.run().each((result) => {
-        sumLifeTimeSalesValue = parseFloat(
+        const tranObj = {};
+        sumLifeTimeSalesValue += parseFloat(
           result.getValue({
             name: 'formulacurrency',
             summary: 'SUM',
@@ -578,8 +684,55 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
             label: 'Formula (Currency)',
           })
         );
+        tranObj.type = result.getValue({
+          name: 'type',
+          summary: 'GROUP',
+          label: 'Type',
+        });
+        tranObj.id = result.getValue({
+          name: 'internalid',
+          summary: 'GROUP',
+          label: 'Internal ID',
+        });
+        // Push the internal Ids
+        updateInternalIds.push(tranObj);
         return true;
       });
+      //
+      log.audit(
+        loggerTitle,
+        ' Sum of Life Time Sales Value: ' + sumLifeTimeSalesValue
+      );
+      // Update Internal Ids
+      updateInternalIds.forEach((val) => {
+        let tranType;
+
+        if (val.type === 'CustInvc') {
+          tranType = record.Type.INVOICE;
+        } else if (val.type === 'Journal') {
+          tranType = record.Type.JOURNAL_ENTRY;
+        } else if (val.type === 'CashRfnd') {
+          tranType = record.Type.CASH_REFUND;
+        } else if (val.type === 'CashSale') {
+          tranType = record.Type.CASH_SALE;
+        } else if (val.type === 'CustCred') {
+          tranType = record.Type.CREDIT_MEMO;
+        } else if (val.type === 'CustRfnd') {
+          tranType = record.Type.CUSTOMER_REFUND;
+        }
+
+        if (tranType) {
+          record.submitFields({
+            type: tranType,
+            id: val.id,
+            values: {
+              custbody_hanna_tran_prcs_by_cust_sales: true,
+            },
+          });
+        }
+      });
+
+      //
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
@@ -606,6 +759,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
     );
     //
     let lifeTimeOrdersValue = 0;
+    const updateInternalIds = [];
     try {
       const transactionSearchObj = search.create({
         type: 'transaction',
@@ -623,6 +777,8 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           ['customer.internalidnumber', 'equalto', customerId],
           'AND',
           ['trandate', 'within', 'yesterday'],
+          'AND',
+          ['custbody_hanna_tran_prcs_by_cust_sales', 'is', 'F'],
         ],
         columns: [
           search.createColumn({
@@ -635,6 +791,11 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
             summary: 'GROUP',
             label: 'Name',
           }),
+          search.createColumn({
+            name: 'internalid',
+            summary: 'GROUP',
+            label: 'Internal ID',
+          }),
         ],
       });
       //
@@ -643,14 +804,36 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       log.debug(loggerTitle, ' Search Result Count: ' + searchResultCount);
       //
       transactionSearchObj.run().each((result) => {
-        lifeTimeOrdersValue = parseFloat(
+        lifeTimeOrdersValue += parseFloat(
           result.getValue({
             name: 'tranid',
             summary: 'COUNT',
             label: 'Document Number',
           })
         );
+        // Push Internal Ids
+        updateInternalIds.push(
+          result.getValue({
+            name: 'internalid',
+            summary: 'GROUP',
+          })
+        );
+        //
         return true;
+      });
+      //
+      log.audit(loggerTitle, 'Life Time Orders Value: ' + lifeTimeOrdersValue);
+      //
+      // Update Internal ID
+      updateInternalIds.forEach((value) => {
+        record.submitFields({
+          type: record.Type.SALES_ORDER,
+          id: value,
+          values: {
+            custbody_hanna_tran_prcs_by_cust_sales: true,
+          },
+        });
+        log.audit(loggerTitle, ' Updated Internal ID: ' + value);
       });
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
@@ -768,6 +951,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
     );
     //
     let result = 0;
+    const updateInternalIds = [];
     try {
       const transactionSearchObj = search.create({
         type: 'transaction',
@@ -792,6 +976,8 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           ['mainline', 'is', 'F'],
           'AND',
           ['customer.internalidnumber', 'equalto', customerId],
+          'AND',
+          ['custbody_hanna_tran_prcs_by_cust_sales', 'is', 'F'],
         ],
         columns: [
           search.createColumn({
@@ -804,12 +990,69 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
             summary: 'GROUP',
             label: 'Item',
           }),
+          search.createColumn({
+            name: 'internalid',
+            summary: 'GROUP',
+            label: 'Internal ID',
+          }),
+          search.createColumn({
+            name: 'type',
+            summary: 'GROUP',
+            label: 'Type',
+          }),
         ],
       });
       const searchResultCount = transactionSearchObj.runPaged().count;
       if (searchResultCount) {
         result = searchResultCount;
       }
+      //
+      transactionSearchObj.run().each((result) => {
+        const tranObj = {};
+        tranObj.type = result.getValue({
+          name: 'type',
+          summary: 'GROUP',
+          label: 'Type',
+        });
+        tranObj.id = result.getValue({
+          name: 'internalid',
+          summary: 'GROUP',
+          label: 'Internal ID',
+        });
+        // Push the internal Ids
+        updateInternalIds.push(tranObj);
+        return true;
+      });
+      //
+      // Update Internal Ids
+      updateInternalIds.forEach((val) => {
+        let tranType;
+
+        if (val.type === 'CustInvc') {
+          tranType = record.Type.INVOICE;
+        } else if (val.type === 'Journal') {
+          tranType = record.Type.JOURNAL_ENTRY;
+        } else if (val.type === 'CashRfnd') {
+          tranType = record.Type.CASH_REFUND;
+        } else if (val.type === 'CashSale') {
+          tranType = record.Type.CASH_SALE;
+        } else if (val.type === 'CustCred') {
+          tranType = record.Type.CREDIT_MEMO;
+        } else if (val.type === 'CustRfnd') {
+          tranType = record.Type.CUSTOMER_REFUND;
+        }
+
+        if (tranType) {
+          record.submitFields({
+            type: tranType,
+            id: val.id,
+            values: {
+              custbody_hanna_tran_prcs_by_cust_sales: true,
+            },
+          });
+        }
+      });
+
       //
       log.debug(loggerTitle, ' Count of SKUs 1 year: ' + result);
     } catch (error) {
