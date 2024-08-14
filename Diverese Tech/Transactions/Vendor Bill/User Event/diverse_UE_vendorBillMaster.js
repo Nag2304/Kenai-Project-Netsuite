@@ -9,7 +9,7 @@
  * Script: DIV | UE Vend Bill Master
  * Author           Date        Version               Remarks
  * nagendrababu  01st Aug 2024  1.00           Initial creation of the script.
- *
+ * nagendrababu  14th Aug 2024  1.01           Set Payment Method
  */
 
 /* -------------------------- Script Usage - Begin -------------------------- */
@@ -20,9 +20,10 @@
 
 /* global define,log*/
 
-define(['SuiteScripts/Transactions/Modules/div_Module_setLineLevelLocation'], (
-  setLineLevelLocation
-) => {
+define([
+  'SuiteScripts/Transactions/Modules/div_Module_setLineLevelLocation',
+  'SuiteScripts/Transactions/Vendor Bill/Modules/diverse_Module_setPaymentMethod',
+], (setLineLevelLocation, setPaymentMethod) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -65,6 +66,7 @@ define(['SuiteScripts/Transactions/Modules/div_Module_setLineLevelLocation'], (
       //
       if (scriptContext.type !== scriptContext.UserEventType.DELETE) {
         setLineLevelLocation.beforeSubmit(scriptContext);
+        setPaymentMethod.beforeSubmit(scriptContext);
       }
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
