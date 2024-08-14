@@ -389,7 +389,11 @@ define([
   function getEmailAuthor() {
     var employeeSearchObj = search.create({
       type: 'employee',
-      filters: [['custentity_official_email_author', 'is', 'T']],
+      filters: [
+        ['custentity_official_email_author', 'is', 'T'],
+        'AND',
+        ['isinactive', 'is', 'F'],
+      ],
       columns: [
         search.createColumn({
           name: 'entityid',
