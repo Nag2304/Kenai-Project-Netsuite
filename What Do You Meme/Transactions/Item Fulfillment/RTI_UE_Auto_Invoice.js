@@ -79,6 +79,24 @@ define(['N/record', 'N/runtime', 'N/search'], function (
               'custitem_master_carton_gtin_number',
             ],
           });
+        } else if (itemType == 'NonInvtPart') {
+          itemFields = search.lookupFields({
+            type: search.Type.NON_INVENTORY_ITEM,
+            id: itemId,
+            columns: ['custitem_item_weight'],
+          });
+        } else if (itemType == 'Kit') {
+          itemFields = search.lookupFields({
+            type: search.Type.KIT_ITEM,
+            id: itemId,
+            columns: ['custitem_item_weight'],
+          });
+        } else if (itemType == 'Group') {
+          itemFields = search.lookupFields({
+            type: search.Type.ITEM_GROUP,
+            id: itemId,
+            columns: ['custitem_item_weight'],
+          });
         }
 
         var itemWeight = itemFields['custitem_item_weight'];
