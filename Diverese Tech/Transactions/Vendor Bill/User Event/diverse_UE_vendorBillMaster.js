@@ -10,6 +10,7 @@
  * Author           Date        Version               Remarks
  * nagendrababu  01st Aug 2024  1.00           Initial creation of the script.
  * nagendrababu  14th Aug 2024  1.01           Set Payment Method
+ * nagendrababu  19th Aug 2024  1.02           Set Allocate Fields to Null
  */
 
 /* -------------------------- Script Usage - Begin -------------------------- */
@@ -23,7 +24,8 @@
 define([
   'SuiteScripts/Transactions/Modules/div_Module_setLineLevelLocation',
   'SuiteScripts/Transactions/Vendor Bill/Modules/diverse_Module_setPaymentMethod',
-], (setLineLevelLocation, setPaymentMethod) => {
+  'SuiteScripts/Transactions/Vendor Bill/Modules/diverse_Module_setAllocateFieldsToNull',
+], (setLineLevelLocation, setPaymentMethod, setAllocateFieldsToNull) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -67,6 +69,7 @@ define([
       if (scriptContext.type !== scriptContext.UserEventType.DELETE) {
         setLineLevelLocation.beforeSubmit(scriptContext);
         setPaymentMethod.beforeSubmit(scriptContext);
+        setAllocateFieldsToNull.beforeSubmit(scriptContext);
       }
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
