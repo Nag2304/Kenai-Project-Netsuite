@@ -28,11 +28,38 @@ define(['N/search'], function (search) {
 
       var poNumber = currentRecord.getValue('otherrefnum');
       var customerId = currentRecord.getValue('entity');
+      var customerFields = search.lookupFields({
+        type: search.Type.CUSTOMER,
+        id: customerId,
+        columns: ['parent'],
+      });
+
+      var customerParentId = customerFields.parent.length
+        ? customerFields.parent[0].value
+        : '';
 
       log.debug(
         loggerTitle,
-        ' PO Number: ' + poNumber + ' Customer ID: ' + customerId
+        ' PO Number: ' +
+          poNumber +
+          ' Customer ID: ' +
+          customerId +
+          ' Parent ID: ' +
+          customerParentId
       );
+
+      var subCustomers = [];
+      var customerFilters = ['name', 'anyof'];
+      if (customerParentId) {
+        subCustomers = getSubCustomersforParent(customerParentId);
+        for (var index = 0; index < subCustomers.length; index++) {
+          customerFilters.push(subCustomers[index]);
+        }
+        subCustomers.push(customerParentId);
+      } else {
+        customerFilters.push(customerId);
+      }
+      log.debug(loggerTitle + ' Customer Filters', customerFilters);
 
       if (poNumber && customerId) {
         // Perform a saved search to check for duplicate PO numbers
@@ -45,7 +72,7 @@ define(['N/search'], function (search) {
             'AND',
             ['otherrefnum', 'equalto', poNumber],
             'AND',
-            ['customermain.internalidnumber', 'equalto', customerId],
+            customerFilters,
           ],
           columns: [
             search.createColumn({
@@ -66,6 +93,60 @@ define(['N/search'], function (search) {
     return searchResultCount;
   }
   /* --------------------- Check Duplicate Number - End --------------------- */
+  //
+  /* ------------------------- Helper Functions - Begin ------------------------ */
+  //
+  /* *********************** Get Sub Customers For Parent - Begin *********************** */
+  /**
+   *
+   * @param {Number} pCustId
+   * @returns {Array}
+   */
+  function getSubCustomersforParent(pCustId) {
+    var loggerTitle = 'Get Sub Customers For Parent';
+    log.debug(loggerTitle, '|>--------' + loggerTitle + ' -Entry--------<|');
+    //
+    var customerIds = [];
+    try {
+      var customerSearchObj = search.create({
+        type: 'customer',
+        filters: [['internalidnumber', 'equalto', pCustId]],
+        columns: [
+          search.createColumn({
+            name: 'entityid',
+            join: 'subCustomer',
+            label: 'Name',
+          }),
+          search.createColumn({
+            name: 'internalid',
+            join: 'subCustomer',
+            label: 'Internal ID',
+          }),
+        ],
+      });
+      var searchResultCount = customerSearchObj.runPaged().count;
+      log.debug(
+        loggerTitle,
+        'customerSearchObj result count:' + searchResultCount
+      );
+      customerSearchObj.run().each(function (result) {
+        customerIds.push(
+          result.getValue({
+            name: 'internalid',
+            join: 'subCustomer',
+            label: 'Internal ID',
+          })
+        );
+        return true;
+      });
+    } catch (error) {
+      log.error(loggerTitle + ' caught an exception', error);
+    }
+    //
+    log.debug(loggerTitle, '|>--------' + loggerTitle + ' -Exit--------<|');
+    return customerIds;
+  }
+  /* *********************** Get Sub Customers For Parent - End *********************** */
   //
   /* ------------------------------ Exports Begin ----------------------------- */
   exports.saveRecord = checkDuplicateNumber;
