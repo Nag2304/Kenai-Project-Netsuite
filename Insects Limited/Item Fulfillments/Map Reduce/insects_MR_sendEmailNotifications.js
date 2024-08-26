@@ -66,6 +66,11 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
           name: 'trackingnumbers',
           label: 'Tracking Numbers',
         }),
+        search.createColumn({
+          name: 'custbody_il_ship_email',
+          join: 'createdFrom',
+          label: 'Shipment Email',
+        }),
       ],
     });
   };
@@ -103,6 +108,8 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
         searchResult.values['custitem_il_prod_page_link.item'];
       values.trackingNumber = searchResult.values.trackingnumbers;
       values.otherRefNum = searchResult.values['otherrefnum.createdFrom'];
+      values.shipmentEmail =
+        searchResult.values['custbody_il_ship_email.createdFrom'];
       // Write Key & Values
       mapContext.write({
         key: key,
@@ -142,10 +149,6 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
       const fromEmailAddress = scriptObj.getParameter({
         name: 'custscript_ins_from_emal_addrs',
       });
-      const toEmailAddress = scriptObj.getParameter({
-        name: 'custscript_ins_to_emal_addr',
-      });
-      log.debug(loggerTitle + ' Emails', { fromEmailAddress, toEmailAddress });
       //
 
       // Key
@@ -157,6 +160,13 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
       const eachValue = JSON.parse(values[0]);
       const poCheckNumber = eachValue.otherRefNum;
       const trackingNumber = eachValue.trackingNumber;
+      let toEmailAddress = eachValue.shipmentEmail
+        ? eachValue.shipmentEmail
+        : scriptObj.getParameter({
+            name: 'custscript_ins_to_emal_addr',
+          });
+      log.debug(loggerTitle + ' Emails', { fromEmailAddress, toEmailAddress });
+      //
       for (let index = 0; index < values.length; index++) {
         const result = JSON.parse(values[index]);
         log.debug(loggerTitle + ' for loop', result);
