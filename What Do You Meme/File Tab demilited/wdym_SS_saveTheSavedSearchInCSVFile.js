@@ -38,7 +38,7 @@ define(['N/search', 'N/file', 'N/runtime', 'N/email'], (
           let value = result.getValue(col);
 
           // Check if the value is a string, then apply the cleaning function
-          if (typeof value === 'string') {
+          if (col.name === 'entityid') {
             value = cleanStringValue(value);
           } else {
             value = value !== null && value !== undefined ? value : ''; // Ensure non-string values are handled properly
