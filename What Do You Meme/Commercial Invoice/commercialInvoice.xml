@@ -15,14 +15,34 @@
 	</#if>
     <macrolist>
         <macro id="nlheader">
-            <table style="width: 100%; font-size: 10pt;"><tr>
-	<td rowspan="3" style="padding: 0;"><img src="https://4679706.secure.netsuite.com/core/media/media.nl?id=3800&amp;c=4679706&amp;h=aY3U4Yt2bjSajWaeNeeHR3WUsPDzEIG9j6PkT7QPS-XIXhoE" style="float: left; width: 150px;" /></td>
-	<td align="right" style="padding: 0;"><br /><span style="font-size: 20pt;">Commercial Invoice</span></td>
+            <table class="header" style="width: 100%;"><tr>
+	<td rowspan="3"><img src="http://4994827-sb2.shop.netsuite.com/core/media/media.nl?id=4863&amp;c=4994827_SB2&amp;h=qtBzFeblcX2gR3xxb9xQ5OqhQ1A1f9Eogp84ZqKsK_374Y9K"
+              width="150px" height="100px" /></td>
+	<td rowspan="3"><span class="nameandaddress">${companyInformation.addressText}</span></td>
+	<td align="right"><span class="title">Commercial Invoice</span></td>
+	</tr>
+	<tr>
+	<td align="right"><span class="number">#${record.tranid}</span></td>
+	</tr>
+	<tr>
+	<td align="right">${record.trandate}</td>
+	</tr>
+	<tr>
+	<td>&nbsp;</td>
+	<td>&nbsp;</td>
+	<td align="right">${record.duedate}</td>
+	</tr>
+	<tr>
+	<td>&nbsp;</td>
+	<td>&nbsp;</td>
+	<td align="left" style="font-weight:bold;font-size:8px;">Remit To:<br />Bank Name:Israel Discount Bank of NY<br />Bank Address: 511 5th Avenue, New York NY 10017<br />Name on Account: Israel Discount Bank of NY F/B/O<br />What Do You Meme<br />Routing Number: 026009768<br />Account Number: 13-4291-8<br />Account Type: Checking<br />Swift Code: IDBYUS33</td>
 	</tr></table>
         </macro>
         <macro id="nlfooter">
-            <table style="width: 100%; font-size: 9pt;"><tr>
-	<td align="center" style="padding: 0;"><b>Pitusa</b> 6105 NW 6th CT, Miami, FL, 33127, US <b>Phone</b> 7864094237 <b>Email</b> production@pitusa.co</td>
+            <table class="footer" style="width: 100%;"><tr>
+	<td align="left">${record.memo}<br/>
+	<#if record.entity.id == "6655">CUSTOMS VALUE ONLY 1 USD SAMPLE ONLY/NOT FOR RESALE.</#if></td>
+	<td align="right"><pagenumber/> of <totalpages/></td>
 	</tr></table>
         </macro>
     </macrolist>
@@ -50,113 +70,181 @@
             font-size: 8pt;
             vertical-align: middle;
             padding: 5px 6px 3px;
+            background-color: #e3e3e3;
             color: #333333;
         }
         td {
             padding: 4px 6px;
         }
 		td p { align:left }
-      .b1{
-        border-bottom:0.5px solid #D3D3D3;
-      }
-      .b2{
-        text-decoration:none;
-      }
-            .b3{
-        border-bottom:0.5px solid #D3D3D3;
-      }
-	  hr{
-		color:#D3D3D3;
-	  }
+        b {
+            font-weight: bold;
+            color: #333333;
+        }
+        table.header td {
+            padding: 0px;
+            font-size: 10pt;
+        }
+        table.footer td {
+            padding: 0px;
+            font-size: 8pt;
+        }
+        table.itemtable th {
+            padding-bottom: 10px;
+            padding-top: 10px;
+        }
+        table.body td {
+            padding-top: 2px;
+        }
+        table.total {
+            page-break-inside: avoid;
+        }
+        tr.totalrow {
+            background-color: #e3e3e3;
+            line-height: 200%;
+        }
+        td.totalboxtop {
+            font-size: 12pt;
+            background-color: #e3e3e3;
+        }
+        td.addressheader {
+            font-size: 8pt;
+            padding-top: 6px;
+            padding-bottom: 2px;
+        }
+        td.address {
+            padding-top: 0px;
+        }
+        td.totalboxmid {
+            font-size: 28pt;
+            padding-top: 20px;
+            background-color: #e3e3e3;
+        }
+        td.totalboxbot {
+            background-color: #e3e3e3;
+            font-weight: bold;
+        }
+        span.title {
+            font-size: 28pt;
+        }
+        span.number {
+            font-size: 16pt;
+        }
+        span.itemname {
+            font-weight: bold;
+            line-height: 150%;
+        }
+        hr {
+            width: 100%;
+            color: #d3d3d3;
+            background-color: #d3d3d3;
+            height: 1px;
+        }
+        a:link, a:visited {
+            background-color: #b035c7;
+            padding: 14px 25px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+    	}
 </style>
 </head>
-<body header="nlheader" header-height="15%" footer="nlfooter" footer-height="20pt" padding="0.5in 0.5in 0.5in 0.5in" size="Letter">
- <table style="width: 100%; margin-top: 10px;"><tr>
-	<td style="width: 236px;"><strong>Shipper</strong></td>
-	<td style="width: 215px;"><strong>Recipient</strong></td>
-	<td class="b1" style="width: 131px;"><strong>Invoice Number</strong></td>
-	<td align="right" class="b1" style="width: 124px;">${record.tranid}</td>
+<body header="nlheader" header-height="19%" footer="nlfooter" footer-height="20pt" padding="0.5in 0.5in 0.5in 0.5in" size="Letter">
+    <table style="width: 100%; margin-top: 10px;"><tr>
+	<td class="addressheader" colspan="3"><b>${record.billaddress@label}</b></td>
+	<td class="addressheader" colspan="3"><b>${record.shipaddress@label}</b></td>
 	</tr>
 	<tr>
-	<td style="width: 236px;">${record.shipaddress}</td>
-	<td style="width: 215px;">${record.billaddress}</td>
-	<td class="b1" style="width: 131px;"><strong>Order Number</strong></td>
-	<td class="b1" align="right" style="width: 124px;">${record.tranid}</td>
-	</tr></table>
+	<td class="address" colspan="3" rowspan="2">${record.billaddress}</td>
+	<td class="address" colspan="3" rowspan="2">${record.shipaddress}</td>
+	</tr>
+</table>
 
-<table style="width: 100%; margin-top: 10px;"><tr>
-	<td style="width: 236px;"><strong>Email</strong> production@pitusa.co</td>
-	<td style="width: 210px;"><strong>Email</strong> ${record.entity.email}</td>
-	<td style="width: 130px;">&nbsp;</td>
-	<td style="width: 125px;">&nbsp;</td>
+<table class="body" style="width: 100%; margin-top: 10px;"><tr>
+	<th>${record.terms@label}</th>
+	<th>${record.otherrefnum@label}</th>
+	<th>${record.salesrep@label}</th>
+	<th>${record.shipmethod@label}</th>
+	<th>Ship Via</th>
+	<th>Requested Ship Date</th>
 	</tr>
 	<tr>
-	<td style="width: 236px;"><strong>Phone</strong> 7864094237</td>
-	<td style="width: 210px;">&nbsp;</td>
-	<td style="width: 130px;">&nbsp;</td>
-	<td style="width: 125px;">&nbsp;</td>
-	</tr>
-	<tr>
-	<td style="width: 236px;"><strong>VAT</strong> #FR26828555219</td>
-	<td style="width: 210px;">&nbsp;</td>
-	<td style="width: 130px;">&nbsp;</td>
-	<td style="width: 125px;">&nbsp;</td>
+	<td>${record.terms}</td>
+	<td>${record.otherrefnum}</td>
+	<td>${record.salesrep}</td>
+	<td>${record.shipmethod}</td>
+	<td>${record.custbody_ship_via}</td>
+	<td>${record.custbody_ship_by_date}</td>
 	</tr></table>
-	<br/>
-<#if record.item?has_content><#assign totalquantity = 0>
-
-<table style="width: 100%; margin-top: 10px;"><!-- start items --><#list record.item as item><#if item_index==0>
+<#assign totalCustomAmount = 0.0>
+<#if record.item?has_content>
+<table class="itemtable" style="width: 100%; margin-top: 10px;"><!-- start items --><#list record.item as item><#if item_index==0>
 <thead>
-	<tr class="b3">
-	<th colspan="4">SKU</th>
-	<th colspan="6">NAME</th>
-	<th colspan ="3">ORIGIN</th>
-	<th colspan ="4">HIS CODE</th>
-	<th colspan="2">QTY</th>
-	<th colspan="3">PRICE</th>
-	<th colspan="2">TAX</th>
-	<th colspan="4">TOTAL (USD)</th>
+	<tr>
+	<th align="center" colspan="3">${item.quantity@label}</th>
+	<th colspan="5">${item.item@label}</th>
+	<th align="right" colspan="4">${item.rate@label}</th>
+	<th align="right" colspan="4">${item.amount@label}</th>
+	<#if item.custcol_wdym_entityid != "What Do You Meme, LLC SAMPLES">
+	<th align="right" colspan="3">HTC Code</th>
+	<th align="right" colspan="3">UPC Code</th>
+	</#if>
 	</tr>
 </thead>
-</#if><tr class="b3">
-	<td colspan="4">${item.custcol_itemsku}</td>
-	<td colspan="6">${item.custcol_pitusa_itmdisplayname}<br/>
-	<b>Description</b><br/>${item.description}</td>
-    <td colspan ="3">&nbsp;</td>
-	<td colspan ="4">${item.custcol_pitusa_itemupc}</td>
-	<td colspan="2">${item.quantity}</td>
-	<#assign totalquantity = (item.quantity + totalquantity)>
-	<td colspan="3">${item.costestimate}</td>
-	<td colspan="2">&nbsp;</td>
-	<td colspan="4">${item.amount}</td>
+</#if><tr>
+	<td align="center" colspan="3" >${item.quantity}</td>
+	<td colspan="5"><span class="itemname">${item.item}</span><br />${item.description}</td>
+	<#if item.custcol_wdym_entityid == "What Do You Meme, LLC SAMPLES">
+	<td align="right" colspan="4">${item.custcol_wdym_customs_rate}</td>
+    <#else>
+	<td align="right" colspan="4">${item.rate}</td>
+    </#if>
+    <#if item.custcol_wdym_entityid == "What Do You Meme, LLC SAMPLES">
+	<td align="right" colspan="4">${item.custcol_wdym_customs_amount}</td>
+	<#assign totalCustomAmount = (totalCustomAmount +item.custcol_wdym_customs_amount) >
+    <#else>
+	<td align="right" colspan="4">${item.amount}</td>
+    </#if>
+	<#if item.custcol_wdym_entityid != "What Do You Meme, LLC SAMPLES">
+	<td align="right" colspan="3">${item.custcol_wdym_htc_code}</td>
+	<td align="right" colspan="3">${item.custcol_upc_code}</td>
+	</#if>
 	</tr>
+	
 	</#list><!-- end items --></table>
 
-</#if>
-<table style="page-break-inside: avoid; width: 100%; margin-top: 10px;"><tr>
-	<td colspan="4">&nbsp;</td>
-	<td class="b1" align="right" style="font-weight: bold; ">Total Quantity</td>
-	<td class="b1" align="right">${totalquantity}</td>
-	</tr>
-	<tr>
-	<td colspan="4">&nbsp;</td>
-	<td class="b1" align="right" style="font-weight: bold; color: #333333;">${record.subtotal@label}</td>
-	<td class="b1" align="right">${record.subtotal}</td>
-	</tr>
-	<tr>
+<hr /></#if>
+<table class="total" style="width: 100%; margin-top: 10px;">
+	<tr class="totalrow">
 	<td background-color="#ffffff" colspan="4">&nbsp;</td>
-	<td class="b1" align="right" style="font-weight: bold; color: #333333;">${record.total@label}</td>
-	<td class="b1" align="right">${record.total}</td>
+	<td align="right"><b>${record.total@label}</b></td>
+	<td align="right">
+  <#if record.entity.id == "6655">
+    ${"$" + (totalCustomAmount?string["0.00"])}
+  <#else>
+    ${record.total}
+  </#if>
+</td>
+
+	</tr>
+	</table>
+
+<br />
+
+
+<div style="text-align: right;">&nbsp;</div>
+
+<table><tr>
+	<td colspan="4">&nbsp;</td>
+	<td align="left" style="font-weight: bold; color: #333333;"><br /><br />Notes:<br /><br />${record.memo}</td>
 	</tr></table>
-<br/>
-<p style="font-size: 8pt;">I hereby certify that the information on this invoice is correct and the contents and value of this shipment are as stated.
-Pitusa 6105</p>
-<hr/>
-<table style="width: 100%; margin-top: 10px;"><tr>
-	<td style="width: 214px;"><b>Shipper&#39;s Signature</b></td>
-	<td style="width: 268px;">&nbsp;</td>
-	<td style="width: 128px;"><b>Date</b></td>
-	<td style="width: 270px;">&nbsp;</td>
+
+<table><tr>
+	<td colspan="4">&nbsp;</td>
+	<td align="left" style="font-weight: bold; color: #333333;">Customer Service:<br />What Do You Meme<br />Phone (833)470-9396<br />customerservice@whatdoyoumeme.com<br />www.WhatDoYouMeme.com</td>
+	<td align="left">&nbsp;</td>
 	</tr></table>
+ 
+
 </body>
 </pdf>
