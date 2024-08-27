@@ -13,7 +13,6 @@ define(['N/search', 'N/file', 'N/runtime', 'N/email'], (
 ) => {
   const execute = (context) => {
     try {
-      // Retrieve Script Parameter - Narvar Location Exclude
       const scriptObj = runtime.getCurrentScript();
       const savedSearchId = scriptObj.getParameter({
         name: 'custscript_wdym_savedsearch',
@@ -37,14 +36,21 @@ define(['N/search', 'N/file', 'N/runtime', 'N/email'], (
         let row = columns.map((col) => {
           let value = result.getValue(col);
 
+          log.debug('Saved Search Loop', ' Col Name: ' + col.name);
+
           // Check if the value is a string, then apply the cleaning function
           if (col.name === 'entityid') {
+            log.debug('Saved Search Loop', ' Entity Before Value: ' + value);
             value = cleanStringValue(value);
+            log.debug('Saved Search Loop', ' Entity After Value: ' + value);
           } else {
             value = value !== null && value !== undefined ? value : ''; // Ensure non-string values are handled properly
           }
 
-          return `"${String(value).replace(/"/g, '""')}"`; // Escape double quotes for CSV
+          const outputValue = `"${String(value).replace(/"/g, '""')}"`;
+          log.debug('Saved Search Loop', ' Output Value: ' + outputValue);
+
+          return outputValue; // Escape double quotes for CSV
         });
 
         searchResults.push(row.join(',')); // Join columns by commas
