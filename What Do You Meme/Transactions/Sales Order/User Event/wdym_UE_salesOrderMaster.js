@@ -10,7 +10,8 @@ define([
   'N/ui/serverWidget',
   'N/email',
   'N/format',
-], (record, runtime, search, serverWidget, email, format) => {
+  'SuiteScripts/Transactions/Sales Order/User Event/Modules/wdym_Module_scacDiscountCalculation',
+], (record, runtime, search, serverWidget, email, format, scacCalculation) => {
   const exports = {};
   /* --------------------------- before Load - Begin -------------------------- */
   const beforeLoad = (scriptContext) => {
@@ -725,6 +726,8 @@ define([
         }
         //
       }
+      //
+      scacCalculation.beforeSubmit(scriptContext);
     } catch (error) {
       log.audit(
         'Before Submit for Sales Order Exception Script Failed to Submit',
