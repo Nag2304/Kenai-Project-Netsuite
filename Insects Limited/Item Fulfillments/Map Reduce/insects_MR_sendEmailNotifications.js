@@ -40,22 +40,19 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
         'AND',
         ['quantity', 'greaterthan', '0'],
         'AND',
-        ['trandate', 'within', 'today'],
-        'AND',
         ['unit', 'noneof', '@NONE@'],
+        'AND',
+        ['createdfrom.custbody_insects_email_sent', 'is', 'F'],
+        'AND',
+        ['trandate', 'within', 'today'],
       ],
       columns: [
         search.createColumn({ name: 'tranid', label: 'Document Number' }),
         search.createColumn({ name: 'item', label: 'Item' }),
         search.createColumn({ name: 'quantity', label: 'Quantity' }),
         search.createColumn({
-          name: 'custitem_il_prod_page_link',
-          join: 'item',
-          label: 'Product Page Link',
-        }),
-        search.createColumn({
-          name: 'lineuniquekey',
-          label: 'Line Unique Key',
+          name: 'trackingnumbers',
+          label: 'Tracking Numbers',
         }),
         search.createColumn({
           name: 'otherrefnum',
@@ -63,13 +60,19 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
           label: 'PO/Check Number',
         }),
         search.createColumn({
-          name: 'trackingnumbers',
-          label: 'Tracking Numbers',
-        }),
-        search.createColumn({
           name: 'custbody_il_ship_email',
           join: 'createdFrom',
           label: 'Shipment Email',
+        }),
+        search.createColumn({
+          name: 'custitem_il_prod_page_link',
+          join: 'item',
+          label: 'Product Page Link',
+        }),
+        search.createColumn({
+          name: 'internalid',
+          join: 'createdFrom',
+          label: 'Internal ID',
         }),
       ],
     });
@@ -110,6 +113,8 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
       values.otherRefNum = searchResult.values['otherrefnum.createdFrom'];
       values.shipmentEmail =
         searchResult.values['custbody_il_ship_email.createdFrom'];
+      values.createdFromInternalId =
+        searchResult.values['internalid.createdFrom'].value;
       // Write Key & Values
       mapContext.write({
         key: key,
@@ -144,7 +149,7 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
     //
     let emailBody = '';
     try {
-      // Retrieve Script Parameter - From and To Email Address
+      // Retrieve Script Parameter - User ID (Email Address)
       const scriptObj = runtime.getCurrentScript();
       const fromEmailAddress = scriptObj.getParameter({
         name: 'custscript_ins_from_emal_addrs',
@@ -175,10 +180,16 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
         emailBody += '\n';
       }
       //
+
+      // Retrieve Email Template
+      const emailTemplateId = scriptObj.getParameter({
+        name: 'custscript_insects_email_template',
+      });
+      //
       // Load the Email Template
       const emailTemplate = record.load({
         type: record.Type.EMAIL_TEMPLATE,
-        id: 20,
+        id: emailTemplateId,
       });
       let content = emailTemplate.getValue({ fieldId: 'content' });
       content = content.replace('{tranid}', tranId);
@@ -202,6 +213,21 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
         loggerTitle + ' Email Sent Successfully',
         `RECEIPIENT EMAIL ADDRESS : ${toEmailAddress}`
       );
+      //
+      // Email Sent Successfully
+      record.submitFields({
+        type: record.Type.SALES_ORDER,
+        id: eachValue.createdFromInternalId,
+        values: {
+          custbody_insects_email_sent: true,
+        },
+      });
+      log.debug(
+        loggerTitle,
+        ' Email Sent successfully for the sales order: ' +
+          eachValue.createdFromInternalId
+      );
+      //
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
