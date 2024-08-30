@@ -19,9 +19,9 @@ define(['N/search'], function (search) {
   //
   /* --------------------- Check Duplicate Number - Begin --------------------- */
   function checkDuplicateNumber(context) {
-    var loggerTitle = ' Check Duplicate Number ';
+    var loggerTitle = 'Check Duplicate Number';
     log.debug(loggerTitle, '|>--------' + loggerTitle + ' -Entry--------<|');
-    //
+
     var searchResultCount = 0;
     try {
       var currentRecord = context.currentRecord;
@@ -48,14 +48,14 @@ define(['N/search'], function (search) {
           customerParentId
       );
 
-      var subCustomers = [];
       var customerFilters = ['name', 'anyof'];
       if (customerParentId) {
-        subCustomers = getSubCustomersforParent(customerParentId);
+        var subCustomers = getSubCustomersforParent(customerParentId);
         for (var index = 0; index < subCustomers.length; index++) {
           customerFilters.push(subCustomers[index]);
         }
         subCustomers.push(customerParentId);
+        customerFilters.push(customerParentId);
       } else {
         customerFilters.push(customerId);
       }
@@ -92,6 +92,7 @@ define(['N/search'], function (search) {
     log.debug(loggerTitle, '|>--------' + loggerTitle + ' -Exit--------<|');
     return searchResultCount;
   }
+
   /* --------------------- Check Duplicate Number - End --------------------- */
   //
   /* ------------------------- Helper Functions - Begin ------------------------ */
