@@ -49,6 +49,7 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
       columns: [
         search.createColumn({ name: 'tranid', label: 'Document Number' }),
         search.createColumn({ name: 'item', label: 'Item' }),
+        search.createColumn({ name: 'trandate', label: 'Date' }),
         search.createColumn({ name: 'quantity', label: 'Quantity' }),
         search.createColumn({
           name: 'trackingnumbers',
@@ -73,6 +74,11 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
           name: 'internalid',
           join: 'createdFrom',
           label: 'Internal ID',
+        }),
+        search.createColumn({
+          name: 'tranid',
+          join: 'createdFrom',
+          label: 'Document Number',
         }),
       ],
     });
@@ -105,6 +111,7 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
       log.debug(loggerTitle, ' Key: ' + key);
       //
       const values = {};
+      values.ifDate = searchResult.values.trandate;
       values.sku = searchResult.values.item.text;
       values.quantity = searchResult.values.quantity;
       values.prodPageLinkItem =
@@ -115,6 +122,7 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
         searchResult.values['custbody_il_ship_email.createdFrom'];
       values.createdFromInternalId =
         searchResult.values['internalid.createdFrom'].value;
+      values.createdFromTranId = searchResult.values['tranid.createdFrom'];
       // Write Key & Values
       mapContext.write({
         key: key,
@@ -156,15 +164,13 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
       });
       //
 
-      // Key
-      const tranId = reduceContext.key;
-      //
-
       // Read Values
       const values = reduceContext.values;
       const eachValue = JSON.parse(values[0]);
+      const tranId = eachValue.createdFromTranId;
       const poCheckNumber = eachValue.otherRefNum;
       const trackingNumber = eachValue.trackingNumber;
+      const ifDate = eachValue.trandate;
       let toEmailAddress = eachValue.shipmentEmail
         ? eachValue.shipmentEmail
         : scriptObj.getParameter({
@@ -172,61 +178,107 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
           });
       log.debug(loggerTitle + ' Emails', { fromEmailAddress, toEmailAddress });
       //
-      for (let index = 0; index < values.length; index++) {
-        const result = JSON.parse(values[index]);
-        log.debug(loggerTitle + ' for loop', result);
-        //
-        emailBody += `SKU: ${result.sku} Qty: ${result.quantity} Link: ${result.prodPageLinkItem}`;
-        emailBody += '\n';
-      }
-      //
 
       // Retrieve Email Template
       const emailTemplateId = scriptObj.getParameter({
         name: 'custscript_insects_email_template',
       });
-      //
-      // Load the Email Template
-      const emailTemplate = record.load({
-        type: record.Type.EMAIL_TEMPLATE,
-        id: emailTemplateId,
+      const logoTemplateId = scriptObj.getParameter({
+        name: 'custscript_insects_logo_template',
       });
-      let content = emailTemplate.getValue({ fieldId: 'content' });
-      content = content.replace('{tranid}', tranId);
-      content = content.replace('{otherrefnum}', poCheckNumber);
-      content = content.replace('{linkedtrackingnumbers}', trackingNumber);
-      content += emailBody;
-      const subject = emailTemplate.getValue({ fieldId: 'subject' });
       //
 
-      let userId = runtime.getCurrentUser().id;
-      if (userId === -4 || userId === '-4') {
-        userId = fromEmailAddress;
+      // If Script Parameters of Templates are not empty.
+      if (emailTemplateId && logoTemplateId) {
+        // Load the Email Template
+        const emailTemplate = record.load({
+          type: record.Type.EMAIL_TEMPLATE,
+          id: emailTemplateId,
+        });
+
+        // Build Email Body
+        let content = emailTemplate.getValue({ fieldId: 'content' });
+        content = content.replace('{tranid}', tranId);
+        content = content.replace('{otherrefnum}', poCheckNumber);
+        content = content.replace('{linkedtrackingnumbers}', trackingNumber);
+        content = content.replace('{trandate}', ifDate);
+        let emailBody =
+          '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%;">';
+        emailBody +=
+          '<tr><th>SKU</th><th>Quantity</th><th>Product Detail</th></tr>';
+
+        for (let index = 0; index < values.length; index++) {
+          const result = JSON.parse(values[index]);
+          log.debug(loggerTitle + ' for loop', result);
+
+          emailBody += '<tr>';
+          emailBody += `<td>${result.sku}</td>`;
+          emailBody += `<td>${result.quantity}</td>`;
+          emailBody += `<td><a href="${result.prodPageLinkItem}">View Product</a></td>`;
+          emailBody += '</tr>';
+        }
+        emailBody += '</table>';
+        content += emailBody;
+        content += '<br/><br/><br/><br/>';
+        //
+
+        // Email Subject
+        const subject = emailTemplate.getValue({ fieldId: 'subject' });
+        //
+
+        // Retrieve Logo Information
+        const logoTemplate = record.load({
+          type: record.Type.EMAIL_TEMPLATE,
+          id: logoTemplateId,
+        });
+        content += logoTemplate.getValue({ fieldId: 'content' });
+        //
+
+        log.debug(loggerTitle + ' Email Content', content);
+
+        let userId = runtime.getCurrentUser().id;
+        if (userId === -4 || userId === '-4') {
+          userId = fromEmailAddress;
+        }
+
+        log.debug(
+          loggerTitle,
+          `UserId:${userId}, Recipients: ${toEmailAddress} Subject: ${subject}`
+        );
+
+        // Send Email
+        email.send({
+          author: parseInt(userId),
+          recipients: toEmailAddress,
+          subject: subject,
+          body: content,
+        });
+        log.debug(
+          loggerTitle + ' Email Sent Successfully',
+          `RECEIPIENT EMAIL ADDRESS : ${toEmailAddress}`
+        );
+        //
+
+        // Email Sent Successfully
+        record.submitFields({
+          type: record.Type.SALES_ORDER,
+          id: eachValue.createdFromInternalId,
+          values: {
+            custbody_insects_email_sent: true,
+          },
+        });
+        log.debug(
+          loggerTitle,
+          ' Email Sent successfully for the sales order: ' +
+            eachValue.createdFromInternalId
+        );
+      } else {
+        log.error(
+          loggerTitle,
+          ' Missing Template Parameters on the script deployment record.'
+        );
       }
-      email.send({
-        author: parseInt(userId),
-        recipients: toEmailAddress,
-        subject: subject,
-        body: content,
-      });
-      log.debug(
-        loggerTitle + ' Email Sent Successfully',
-        `RECEIPIENT EMAIL ADDRESS : ${toEmailAddress}`
-      );
-      //
-      // Email Sent Successfully
-      record.submitFields({
-        type: record.Type.SALES_ORDER,
-        id: eachValue.createdFromInternalId,
-        values: {
-          custbody_insects_email_sent: true,
-        },
-      });
-      log.debug(
-        loggerTitle,
-        ' Email Sent successfully for the sales order: ' +
-          eachValue.createdFromInternalId
-      );
+
       //
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
