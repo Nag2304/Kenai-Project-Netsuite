@@ -10,7 +10,7 @@ define([
   'N/ui/serverWidget',
   'N/email',
   'N/format',
-  'SuiteScripts/Transactions/Sales Order/User Event/Modules/wdym_Module_scacDiscountCalculation',
+  'SuiteScripts/Transactions/Sales Orders/Modules/wdym_Module_scacDiscountCalculation',
 ], (record, runtime, search, serverWidget, email, format, scacCalculation) => {
   const exports = {};
   /* --------------------------- before Load - Begin -------------------------- */
