@@ -5,7 +5,9 @@
 
 /*global define, log*/
 
-define([], () => {
+define([
+  'SuiteScripts/Inbound Shipment/Modules/wdym_Module_sentEmailForNewItems',
+], (sentEmailForNewItems) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -82,6 +84,7 @@ define([], () => {
     );
     //
     try {
+      sentEmailForNewItems.afterSubmit(context);
     } catch (error) {
       log.error(strLoggerTitle + ' caught with an exception', error);
     }
