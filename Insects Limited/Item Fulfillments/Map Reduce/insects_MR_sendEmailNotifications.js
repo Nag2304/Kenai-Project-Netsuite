@@ -200,7 +200,15 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
         let content = emailTemplate.getValue({ fieldId: 'content' });
         content = content.replace('{tranid}', tranId);
         content = content.replace('{otherrefnum}', poCheckNumber);
-        content = content.replace('{linkedtrackingnumbers}', trackingNumber);
+        content = content.replace(
+          '{linkedtrackingnumbers}',
+          '<a href="https://5749557.app.netsuite.com/app/common/shipping/packagetracker.nl?type=ups&TypeOfInquiryNumber=T&InquiryNumber1=' +
+            trackingNumber +
+            '" target="_blank">' +
+            trackingNumber +
+            '</a>'
+        );
+
         content = content.replace('{trandate}', ifDate);
         let emailBody =
           '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%;">';
