@@ -814,9 +814,6 @@ define([
                   break;
                 }
               }
-            } else {
-              allLinesReady = false;
-              break;
             }
           }
 
