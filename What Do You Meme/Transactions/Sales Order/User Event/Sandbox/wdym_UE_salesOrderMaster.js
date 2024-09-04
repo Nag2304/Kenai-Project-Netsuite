@@ -3,17 +3,19 @@
  * @NScriptType UserEventScript
  */
 /*global define,log*/
-define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
-  record,
-  runtime,
-  search,
-  serverWidget,
-  email
-) => {
+define([
+  'N/record',
+  'N/runtime',
+  'N/search',
+  'N/ui/serverWidget',
+  'N/email',
+  'N/format',
+  'SuiteScripts/Transactions/Sales Orders/Modules/wdym_Module_scacDiscountCalculation',
+], (record, runtime, search, serverWidget, email, format, scacCalculation) => {
   const exports = {};
   /* --------------------------- before Load - Begin -------------------------- */
   const beforeLoad = (scriptContext) => {
-    const strLoggerTitle = 'Before Load';
+    const loggerTitle = 'Before Load';
     try {
       // Warning: This approach requires direct DOM manipulation which NetSuite
       // may deprecate in a future release, possibly causing this code to break (see Answer Id: 10085).
@@ -55,32 +57,54 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
         label: 'Print Deposit',
         functionName: 'CallforSuiteletSO()',
       });
+
+      const salesOrderRecord = scriptContext.newRecord;
+
+      // Retrieve the transaction date
+      const trandate = salesOrderRecord.getValue({
+        fieldId: 'trandate',
+      });
+      log.debug(loggerTitle + ' Tran Date', { trandate });
+
+      // Get today's date
+      const today = new Date();
+
+      // Format the dates for comparison
+      const trandateFormatted = format.format({
+        value: trandate,
+        type: format.Type.DATE,
+      });
+
+      const todayFormatted = format.format({
+        value: today,
+        type: format.Type.DATE,
+      });
+
+      log.debug(loggerTitle + ' Dates', { trandateFormatted, todayFormatted });
+
+      // Compare dates
+      //if (trandateFormatted === todayFormatted) {
+      const commercialInvoicePrinted = salesOrderRecord.getValue({
+        fieldId: 'custbody_wdym_comm_inv_printed',
+      });
+      const shipToCountry = salesOrderRecord.getValue({
+        fieldId: 'shipcountry',
+      });
+      log.debug(loggerTitle, { commercialInvoicePrinted, shipToCountry });
+      //
+      if (!commercialInvoicePrinted && shipToCountry !== 'US') {
+        log.debug(loggerTitle, ' Triggered Commercial Invoice Logic');
+        objForm.addButton({
+          id: 'custpage_commercial_invoice_btn',
+          label: 'Commercial Invoice',
+          functionName: 'callCommercialInvoiceSuitelet()',
+        });
+      }
+      //}
     } catch (error) {
-      log.error(strLoggerTitle + ' caught an exception', error);
+      log.error(loggerTitle + ' caught an exception', error);
     }
   };
-  /*
-	Note #1: We set the z-index to ensure that the header row stays above 
-	the floating action bar and any selected dropdown field in edit mode. 
-	In reality, a z-index of 1 is sufficient for this particular scenario.
-	However, we use a "very large" value just in case NetSuite changes something 
-	in the future with the z-indices of other elements.
-	
-	Strangely, if we apply the same CSS style to ".uir-machine-headerrow" 
-	instead of ".uir-machine-headerrow > td", it does not work as desired!
-	In that case, the transform operation overrules the z-index, causing it 
-	to default to 0. However, for unclear reason, when the exact same CSS 
-	is applied to the "td" elements, the z-index is preserved, hence the current solution.
-	
-	z-index is quite an involved topic. For more information, visit:
-	* https://philipwalton.com/articles/what-no-one-told-you-about-z-index/
-	* https://coder-coder.com/z-index-isnt-working/
-	* https://stackoverflow.com/questions/20851452/z-index-is-canceled-by-setting-transformrotate
-	
-	"z-context" is an an excellent Chrome extension for debugging the 
-	actual stacking context/stacking order: 
-	https://chrome.google.com/webstore/detail/z-context/jigamimbjojkdgnlldajknogfgncplbh?hl=en
-*/
   /* ---------------------------- before Load - End --------------------------- */
   //
   /* ------------------------ Before Submit Script Begin ------------------------ */
@@ -117,7 +141,8 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
 
         const lineItemCount = salesRecord.getLineCount({ sublistId: 'item' });
 
-        const customerLookUpFields = search.lookupFields({
+        // Lookup necessary fields for the customer using the provided customerId
+        const customerFields = search.lookupFields({
           type: search.Type.CUSTOMER,
           id: String(customerId),
           columns: [
@@ -128,39 +153,106 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
             'custentity_required_deposit_percent',
             'daysoverdue',
             'creditlimit',
-            'custentity4',
+            'balance',
           ],
         });
 
-        //
-        /* ---------------------- Set Credit Hold Field - Begin --------------------- */
-        const daysOverDue = customerLookUpFields.daysoverdue;
+        // Extract the number of days overdue and past due amount from the customer's lookup fields
+        const daysOverdue = customerFields.daysoverdue;
 
+        // Load the customer record to check the credit hold status
         const customerRecord = record.load({
           type: 'customer',
           id: customerId,
         });
-        const creditHold = customerRecord.getValue({
+
+        // Retrieve the current credit hold status from the customer record
+        const creditHoldStatus = customerRecord.getValue({
           fieldId: 'creditholdoverride',
         });
 
+        // Credit Limit
+        const creditLimit = customerRecord.getValue({
+          fieldId: 'creditlimit',
+        });
+
+        // Balance
+        const balance =
+          Number(
+            customerRecord.getValue({
+              fieldId: 'balance',
+            })
+          ) || 0;
+
+        //Unbilled Orders
+        const unBilledOrders =
+          Number(
+            customerRecord.getValue({
+              fieldId: 'unbilledorders',
+            })
+          ) || 0;
+
+        // Log the days overdue and the credit hold status for debugging purposes
         log.debug(
           strLoggerTitle,
-          'Days OverDue: ' + daysOverDue + ' Credit Hold:' + creditHold
+          'Days Overdue: ' +
+            daysOverdue +
+            ' Credit Hold Status: ' +
+            creditHoldStatus +
+            ' Credit Limit: ' +
+            creditLimit +
+            ' Balance: ' +
+            balance +
+            ' Un-billed Orders: ' +
+            unBilledOrders
         );
-
-        if (daysOverDue > 0 && creditHold === 'ON') {
-          salesRecord.setValue({
-            fieldId: 'custbody_wdym_credit_hold',
-            value: true,
-          });
+        //
+        /* ---------------------- Credit Hold Check Logic - Begin ---------------------- */
+        if (scriptContext.type === scriptContext.UserEventType.CREATE) {
+          if (
+            creditHoldStatus === 'ON' ||
+            (creditHoldStatus === 'AUTO' && !creditLimit)
+          ) {
+            salesRecord.setValue({
+              fieldId: 'custbody_wdym_credit_hold',
+              value: true,
+            });
+            log.debug(
+              strLoggerTitle,
+              ' Credit Hold Check Box set to true for credit limit ON OR AUTO'
+            );
+          } else if (creditHoldStatus === 'AUTO') {
+            // Transaction Amount
+            let transactionAmount =
+              (creditHoldCalculationforSOAndInv(customerId) || 0) +
+              (balance || 0) +
+              (unBilledOrders || 0);
+            if (!transactionAmount) {
+              transactionAmount = salesRecord.getValue({ fieldId: 'total' });
+            }
+            //
+            log.debug(
+              strLoggerTitle,
+              ' Transaction amount: ' + transactionAmount
+            );
+            if (transactionAmount > Number(creditLimit)) {
+              salesRecord.setValue({
+                fieldId: 'custbody_wdym_credit_hold',
+                value: true,
+              });
+              log.debug(
+                strLoggerTitle,
+                ' Credit Hold Check Box set to true for credit limit AUTO'
+              );
+            }
+          }
         }
-        /* ----------------------- Set Credit Hold Field - End ---------------------- */
+        /* ---------------------- Credit Hold Check Logic - End ------------------------ */
         //
         /* ------------------- Required Deposit Percentage - Begin ------------------ */
-        if (customerLookUpFields.custentity_required_deposit_percent.length) {
+        if (customerFields.custentity_required_deposit_percent.length) {
           const requiredDepositPercent = parseFloat(
-            customerLookUpFields.custentity_required_deposit_percent[0].text
+            customerFields.custentity_required_deposit_percent[0].text
           );
 
           log.debug(
@@ -177,51 +269,26 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
         }
         /* ------------------- Required Deposit Percentage - End ------------------ */
         //
-        const exceptionCheckBox =
-          customerLookUpFields.custentity_wdym_exception;
+        const exceptionCheckBox = customerFields.custentity_wdym_exception;
 
         let priceLevelCustomerRecord;
-        if (customerLookUpFields.pricelevel.length) {
-          priceLevelCustomerRecord = customerLookUpFields.pricelevel[0].text;
+        if (customerFields.pricelevel.length) {
+          priceLevelCustomerRecord = customerFields.pricelevel[0].text;
         }
 
         log.debug({
           title: 'Exception Box',
           details: [
             customerId,
-            customerLookUpFields,
+            customerFields,
             exceptionCheckBox,
             priceLevelCustomerRecord,
           ],
         });
-        //
+
         /* ------------------------- Item Line Count - Begin ------------------------ */
 
         for (let i = 0; i < lineItemCount; i++) {
-          if (scriptContext.type === scriptContext.UserEventType.CREATE) {
-            //
-            const customerLocation = customerLookUpFields.custentity4[0].value;
-            //
-            const location = salesRecord.getSublistValue({
-              sublistId: 'item',
-              fieldId: 'location',
-              line: i,
-            });
-
-            log.debug(strLoggerTitle, { customerLocation, location });
-            if (customerLocation !== location) {
-              salesRecord.setSublistValue({
-                sublistId: 'item',
-                fieldId: 'location',
-                value: location,
-                line: i,
-              });
-            }
-
-            log.debug(strLoggerTitle, 'Location set successfully');
-            //
-          }
-
           // Cancel Reason
           if (soHeaderCancelReason) {
             salesRecord.setSublistValue({
@@ -285,22 +352,23 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
               ],
             });
             //
-            const masterCarton =
-              itemFields['custitem_master_carton_gtin_number'];
+            const itemIdText = itemFields.itemid;
+            const newItemFlag = itemFields.custitem_wdym_new_item;
+            //
 
+            // Master Carton GTIN Number
+            const masterCarton = itemFields.custitem_master_carton_gtin_number;
             log.debug(strLoggerTitle, ' Master Carton: ' + masterCarton);
-
             if (masterCarton) {
               salesRecord.setSublistValue({
                 sublistId: 'item',
-                fieldId: 'custcol_gtin',
+                fieldId: 'custcol_wdym_gtin',
                 value: masterCarton,
                 line: i,
               });
             }
+            //
 
-            const itemIdText = itemFields['itemid'];
-            const newItemFlag = itemFields['custitem_wdym_new_item'];
             if (newItemFlag) {
               record.submitFields({
                 type: record.Type.INVENTORY_ITEM,
@@ -323,6 +391,7 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
                   body: itemIdText + ' has been ordered for the first time.',
                 });
               }
+              //
             }
           } else if (itemType == 'NonInvtPart') {
             itemFields = search.lookupFields({
@@ -343,8 +412,9 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
               ],
             });
           }
-          const masterCartonPackQty =
-            itemFields['custitem_master_carton_pack_qty'];
+          const masterCartonPackQty = itemFields.custitem_master_carton_pack_qty
+            ? itemFields.custitem_master_carton_pack_qty
+            : '';
           salesRecord.setSublistValue({
             sublistId: 'item',
             fieldId: 'custcol_case_pack',
@@ -352,8 +422,9 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
             line: i,
           });
 
-          const innerCartonPackQty =
-            itemFields['custitem_inner_carton_pack_qty'];
+          const innerCartonPackQty = itemFields.custitem_inner_carton_pack_qty
+            ? itemFields.custitem_inner_carton_pack_qty
+            : '';
           salesRecord.setSublistValue({
             sublistId: 'item',
             fieldId: 'custcol_wdym_inner',
@@ -371,7 +442,9 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
                 id: String(itemId),
                 columns: ['custitem_wdym_do_not_sell_to'],
               });
-              const doNotSellTo = itemLookUpFields.custitem_wdym_do_not_sell_to;
+              const doNotSellTo = itemLookUpFields.custitem_wdym_do_not_sell_to
+                ? itemLookUpFields.custitem_wdym_do_not_sell_to
+                : '';
               /* --------------------------- Multi Select Begin --------------------------- */
               for (let j = 0; j < doNotSellTo.length; j++) {
                 if (doNotSellTo[j].value == customerId) {
@@ -401,10 +474,10 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
         //
         /* ---------------- Populate Customer Specific Price - Begin ---------------- */
         if (runtime.executionContext !== runtime.ContextType.USER_INTERFACE) {
-          const category = customerLookUpFields.category[0].value;
+          const category = customerFields.category[0].value;
 
           if (priceLevelCustomerRecord) {
-            let companyName = customerLookUpFields.companyname;
+            let companyName = customerFields.companyname;
 
             companyName = companyName.toUpperCase();
             for (let i = 0; i < lineItemCount; i++) {
@@ -555,7 +628,7 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
         /* ----------------------- Auto Release Orders - Begin ---------------------- */
         log.audit(strLoggerTitle, 'Auto Release Orders-Begin');
 
-        const newCompanyName = customerLookUpFields.companyname.toUpperCase();
+        const newCompanyName = customerFields.companyname.toUpperCase();
 
         const status = salesRecord.getValue({ fieldId: 'status' });
 
@@ -584,7 +657,8 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
 
         if (
           newCompanyName.includes('SHOPIFY') ||
-          newCompanyName.includes('ZOLA')
+          newCompanyName.includes('ZOLA') ||
+          newCompanyName.includes('AMAZON US FBM')
         ) {
           for (let index = 0; index < lineItemCount; index++) {
             // Location
@@ -628,7 +702,6 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
             });
 
             if (
-              location == 1 &&
               quantity == quantityCommitted &&
               readyToFulfill === false &&
               quantity > 0 &&
@@ -648,6 +721,7 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
           //
         }
         //
+        scacCalculation.beforeSubmit(scriptContext);
       }
     } catch (error) {
       log.audit(
@@ -672,19 +746,19 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
     //
     try {
       log.debug(loggerTitle, context.type);
-      //
-      const salesOrderId = context.newRecord.id;
-
-      const salesOrder = record.load({
-        type: record.Type.SALES_ORDER,
-        id: salesOrderId,
-      });
-      //
       if (
         context.type === context.UserEventType.CREATE ||
         context.type === context.UserEventType.EDIT ||
         context.type === 'approve'
       ) {
+        const salesOrderId = context.newRecord.id;
+
+        const salesOrder = record.load({
+          type: record.Type.SALES_ORDER,
+          id: salesOrderId,
+          isDynamic: true,
+        });
+
         const readyToFulfill = salesOrder.getValue({
           fieldId: 'custbody_ready_to_fulfill_2',
         });
@@ -753,11 +827,11 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
             );
           }
           //
+
+          salesOrder.save();
+          log.audit(loggerTitle, ' Sales Order Saved successfully');
         }
       }
-      //
-      salesOrder.save();
-      log.audit(loggerTitle, ' Sales Order Saved successfully');
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
@@ -768,6 +842,72 @@ define(['N/record', 'N/runtime', 'N/search', 'N/ui/serverWidget', 'N/email'], (
     );
   };
   /* --------------------------- After Submit - End --------------------------- */
+  //
+  /* --------------------------- Helper Functions - Begin --------------------------- */
+  //
+  /* ************************** creditHoldCalculationforSOAndInv - Begin ************************** */
+  /**
+   *
+   * @param {Number} customerId
+   * @returns {Number}
+   */
+  const creditHoldCalculationforSOAndInv = (customerId) => {
+    const loggerTitle = ' Credit Hold Calculations for SO and INV ';
+    log.debug(
+      loggerTitle,
+      '|>----------------' + loggerTitle + '- Begin ----------------<|'
+    );
+    //
+    let total = 0;
+    try {
+      const transactionSearchObj = search.create({
+        type: 'transaction',
+        settings: [
+          { name: 'consolidationtype', value: 'ACCTTYPE' },
+          { name: 'includeperiodendtransactions', value: 'F' },
+        ],
+        filters: [
+          ['type', 'anyof', 'SalesOrd'],
+          'AND',
+          ['mainline', 'is', 'T'],
+          'AND',
+          ['customer.internalidnumber', 'equalto', customerId],
+          'AND',
+          ['status', 'anyof', 'SalesOrd:A', 'SalesOrd:B'],
+        ],
+        columns: [
+          search.createColumn({
+            name: 'amount',
+            summary: 'SUM',
+            label: 'Amount',
+          }),
+        ],
+      });
+      const searchResultCount = transactionSearchObj.runPaged().count;
+      log.debug('transactionSearchObj result count', searchResultCount);
+      //
+      transactionSearchObj.run().each(function (result) {
+        total = Number(
+          result.getValue({
+            name: 'amount',
+            summary: 'SUM',
+            label: 'Amount',
+          })
+        );
+      });
+    } catch (error) {
+      log.error(loggerTitle + ' caught with an exception', error);
+    }
+    //
+    log.debug(
+      loggerTitle,
+      '|>----------------' + loggerTitle + '- End ----------------<|'
+    );
+    return total ? total : 0;
+  };
+  /* ************************** creditHoldCalculationforSOAndInv - End ************************** */
+  //
+  /* --------------------------- Helper Functions - End --------------------------- */
   //
   /* ------------------------ Exports Begin ------------------------ */
   exports.beforeLoad = beforeLoad;

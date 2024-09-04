@@ -42,10 +42,10 @@ define([], () => {
 
       // Fetch the SAC Amount fields
       const sacAmount1 = salesOrder.getValue({
-        fieldId: 'custbody_sac1_amount',
+        fieldId: 'custbody_wdym_sac1_amount',
       });
       const sacAmount2 = salesOrder.getValue({
-        fieldId: 'custbody_sac2_amount',
+        fieldId: 'custbody_wdym_sac2_amount',
       });
 
       // Check if SAC Amount 1 is populated
