@@ -67,7 +67,7 @@ define([], () => {
 
       salesOrder.setValue({
         fieldId: 'discountitem',
-        value: 3023, // SAC Discount internal ID
+        value: 3476, // SAC Discount internal ID
       });
       salesOrder.setValue({
         fieldId: 'discountrate',
