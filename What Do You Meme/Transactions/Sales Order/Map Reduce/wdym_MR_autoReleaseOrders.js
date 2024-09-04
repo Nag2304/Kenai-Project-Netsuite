@@ -24,6 +24,8 @@ define(['N/record', 'N/search'], (record, search) => {
           ['name', 'anyof', '5440'],
           'OR',
           ['name', 'anyof', '6570'],
+          'OR',
+          ['name', 'anyof', '5185'],
         ],
         'AND',
         ['mainline', 'is', 'F'],

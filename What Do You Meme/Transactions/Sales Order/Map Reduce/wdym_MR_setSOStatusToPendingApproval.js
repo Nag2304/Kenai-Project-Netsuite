@@ -22,7 +22,7 @@ define(['N/record', 'N/search'], (record, search) => {
         'AND',
         ['mainline', 'is', 'T'],
         'AND',
-        ['name', 'anyof', '5443', '5440', '6570'],
+        ['name', 'anyof', '5443', '5440', '6570', '5185'],
       ],
       columns: [
         search.createColumn({ name: 'internalid', label: 'Internal ID' }),
