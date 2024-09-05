@@ -113,6 +113,7 @@ define(['N/search', 'N/record'], (search, record) => {
       const [record1, record2] = agentIds;
 
       // Define comparison logic
+      // Define comparison logic
       const determineKeepPurge = (rec1, rec2) => {
         const rec1Verified = rec1.verifiedFromRETSFeeds === true;
         const rec2Verified = rec2.verifiedFromRETSFeeds === true;
@@ -140,19 +141,25 @@ define(['N/search', 'N/record'], (search, record) => {
           } else if (!rec1HasRelatedRecords && rec2HasRelatedRecords) {
             return { keep: rec2, purge: rec1 };
           } else {
-            return { purge1: rec1, purge2: rec2 }; // Neither Verified and neither has related records
+            // Check if last names are different
+            if (rec1.lastName !== rec2.lastName) {
+              return { keep: rec1, keep2: rec2 }; // Mark both as 'Keep' if last names are not the same
+            } else {
+              return { purge1: rec1, purge2: rec2 }; // Neither Verified and neither has related records
+            }
           }
         }
       };
 
       // Get the keep and purge records
-      const { keep, purge, purge1, purge2 } = determineKeepPurge(
+      const { keep, keep2, purge, purge1, purge2 } = determineKeepPurge(
         record1,
         record2
       );
 
       // Update records based on determination
       if (keep) updateAgentUpdateProjectRecord(keep.id, 'keep');
+      if (keep2) updateAgentUpdateProjectRecord(keep2.id, 'keep');
       if (purge) updateAgentUpdateProjectRecord(purge.id, 'purge');
       if (purge1) updateAgentUpdateProjectRecord(purge1.id, 'purge');
       if (purge2) updateAgentUpdateProjectRecord(purge2.id, 'purge');
@@ -223,7 +230,17 @@ define(['N/search', 'N/record'], (search, record) => {
       // Create Search
       const customrecord_hms_agent_upd_projectSearchObj = search.create({
         type: 'customrecord_hms_agent_upd_project',
-        filters: [['custrecord_hms_agent_email', 'is', email]],
+        filters: [
+          ['custrecord_hms_agent_email', 'is', email],
+          'AND',
+          ['custrecord_hms_email_dupe', 'is', 'T'],
+          'AND',
+          ['isinactive', 'is', 'F'],
+          'AND',
+          ['custrecord_hms_keep', 'is', 'F'],
+          'AND',
+          ['custrecord_hms_purge', 'is', 'F'],
+        ],
         columns: [
           search.createColumn({
             name: 'custrecord_hms_agent_id_number',
@@ -245,6 +262,14 @@ define(['N/search', 'N/record'], (search, record) => {
             name: 'custrecord_hms_sold_properties',
             label: 'Sold Properties',
           }),
+          search.createColumn({
+            name: 'custrecord_hms_first_name',
+            label: 'First Name',
+          }),
+          search.createColumn({
+            name: 'custrecord_hms_last_name',
+            label: 'Last Name',
+          }),
         ],
       });
       var searchResultCount =
@@ -264,6 +289,8 @@ define(['N/search', 'N/record'], (search, record) => {
           resultObj.cCount = result.getValue('custrecord_hms_crm_record_count');
           resultObj.sCount = result.getValue('custrecord_hms_survery_count');
           resultObj.spCount = result.getValue('custrecord_hms_sold_properties');
+          resultObj.firstName = result.getValue('custrecord_hms_first_name');
+          resultObj.lastName = result.getValue('custrecord_hms_last_name');
           resultValuesArr.push(resultObj);
           return true;
         });
