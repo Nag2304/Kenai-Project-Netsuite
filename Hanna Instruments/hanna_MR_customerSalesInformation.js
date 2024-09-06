@@ -107,6 +107,10 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
         else if (savedToSearchProcess == '92373950') {
           deleteCustomerRecords(reduceContext);
         }
+        // Suitescript MR Load Customers Nightly
+        else if (savedToSearchProcess == '92374397') {
+          loadCustomerRecords(reduceContext);
+        }
       }
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
