@@ -89,7 +89,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
         }
       } else if (environmentType === 'SANDBOX') {
         // Suite Script MR Customer Sales
-        if (savedToSearchProcess == '92372361') {
+        if (savedToSearchProcess == '92373850') {
           const nightlyRunConfig = scriptObj.getParameter({
             name: 'custscript_nightly_run_config',
           });
@@ -100,11 +100,11 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           }
         }
         // Suite Script MR Load Customers
-        else if (savedToSearchProcess == '92372362') {
+        else if (savedToSearchProcess == '92374050') {
           loadCustomerRecords(reduceContext);
         }
         // Suitescript MR Delete Customers Sales Records
-        else if (savedToSearchProcess == '92372363') {
+        else if (savedToSearchProcess == '92373950') {
           deleteCustomerRecords(reduceContext);
         }
       }
