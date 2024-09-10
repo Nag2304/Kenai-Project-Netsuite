@@ -13,6 +13,10 @@ define(['N/record', 'N/search'], (record, search) => {
   //
   /* ------------------------- Get Input Data - Begin ------------------------- */
   const getInputData = () => {
+    // Walgreens Co. (5185)
+    // Shopify Website (5443)
+    // Amazon US FBM - 6570 (Zola.com)
+    //10389816 - 5440
     return search.create({
       type: 'salesorder',
       filters: [
@@ -22,7 +26,9 @@ define(['N/record', 'N/search'], (record, search) => {
         'AND',
         ['mainline', 'is', 'T'],
         'AND',
-        ['name', 'anyof', '5443', '5440', '6570', '5185'],
+        ['custbody_ready_to_fulfill_2', 'is', 'F'],
+        'AND',
+        ['name', 'anyof', '5185', '5443', '6570', '5440'],
       ],
       columns: [
         search.createColumn({ name: 'internalid', label: 'Internal ID' }),
