@@ -11,7 +11,17 @@ define([
   'N/email',
   'N/format',
   'SuiteScripts/Transactions/Sales Orders/Modules/wdym_Module_scacDiscountCalculation',
-], (record, runtime, search, serverWidget, email, format, scacCalculation) => {
+  'SuiteScripts/Transactions/Sales Orders/Modules/wdym_Module_setCreditHoldOnSalesOrder',
+], (
+  record,
+  runtime,
+  search,
+  serverWidget,
+  email,
+  format,
+  scacCalculation,
+  setCreditHold
+) => {
   const exports = {};
   /* --------------------------- before Load - Begin -------------------------- */
   const beforeLoad = (scriptContext) => {
@@ -124,6 +134,8 @@ define([
     try {
       const salesRecord = scriptContext.newRecord;
 
+      setCreditHold.beforeSubmit(scriptContext);
+
       const customerId = salesRecord.getValue({ fieldId: 'entity' });
 
       const currency = salesRecord.getValue({ fieldId: 'currency' }).toString();
@@ -155,103 +167,8 @@ define([
             'companyname',
             'pricelevel',
             'custentity_required_deposit_percent',
-            'daysoverdue',
-            'creditlimit',
-            'balance',
           ],
         });
-
-        // Extract the number of days overdue and past due amount from the customer's lookup fields
-        const daysOverdue = customerFields.daysoverdue;
-
-        // Load the customer record to check the credit hold status
-        const customerRecord = record.load({
-          type: 'customer',
-          id: customerId,
-        });
-
-        // Retrieve the current credit hold status from the customer record
-        const creditHoldStatus = customerRecord.getValue({
-          fieldId: 'creditholdoverride',
-        });
-
-        // Credit Limit
-        const creditLimit = customerRecord.getValue({
-          fieldId: 'creditlimit',
-        });
-
-        // Balance
-        const balance =
-          Number(
-            customerRecord.getValue({
-              fieldId: 'balance',
-            })
-          ) || 0;
-
-        //Unbilled Orders
-        const unBilledOrders =
-          Number(
-            customerRecord.getValue({
-              fieldId: 'unbilledorders',
-            })
-          ) || 0;
-
-        // Log the days overdue and the credit hold status for debugging purposes
-        log.debug(
-          strLoggerTitle,
-          'Days Overdue: ' +
-            daysOverdue +
-            ' Credit Hold Status: ' +
-            creditHoldStatus +
-            ' Credit Limit: ' +
-            creditLimit +
-            ' Balance: ' +
-            balance +
-            ' Un-billed Orders: ' +
-            unBilledOrders
-        );
-        //
-        /* ---------------------- Credit Hold Check Logic - Begin ---------------------- */
-        if (scriptContext.type === scriptContext.UserEventType.CREATE) {
-          if (
-            creditHoldStatus === 'ON' ||
-            (creditHoldStatus === 'AUTO' && !creditLimit)
-          ) {
-            salesRecord.setValue({
-              fieldId: 'custbody_wdym_credit_hold',
-              value: true,
-            });
-            log.debug(
-              strLoggerTitle,
-              ' Credit Hold Check Box set to true for credit limit ON OR AUTO'
-            );
-          } else if (creditHoldStatus === 'AUTO') {
-            // Transaction Amount
-            let transactionAmount =
-              (creditHoldCalculationforSOAndInv(customerId) || 0) +
-              (balance || 0) +
-              (unBilledOrders || 0);
-            if (!transactionAmount) {
-              transactionAmount = salesRecord.getValue({ fieldId: 'total' });
-            }
-            //
-            log.debug(
-              strLoggerTitle,
-              ' Transaction amount: ' + transactionAmount
-            );
-            if (transactionAmount > Number(creditLimit)) {
-              salesRecord.setValue({
-                fieldId: 'custbody_wdym_credit_hold',
-                value: true,
-              });
-              log.debug(
-                strLoggerTitle,
-                ' Credit Hold Check Box set to true for credit limit AUTO'
-              );
-            }
-          }
-        }
-        /* ---------------------- Credit Hold Check Logic - End ------------------------ */
         //
         /* ------------------- Required Deposit Percentage - Begin ------------------ */
         if (customerFields.custentity_required_deposit_percent.length) {
@@ -844,72 +761,6 @@ define([
     );
   };
   /* --------------------------- After Submit - End --------------------------- */
-  //
-  /* --------------------------- Helper Functions - Begin --------------------------- */
-  //
-  /* ************************** creditHoldCalculationforSOAndInv - Begin ************************** */
-  /**
-   *
-   * @param {Number} customerId
-   * @returns {Number}
-   */
-  const creditHoldCalculationforSOAndInv = (customerId) => {
-    const loggerTitle = ' Credit Hold Calculations for SO and INV ';
-    log.debug(
-      loggerTitle,
-      '|>----------------' + loggerTitle + '- Begin ----------------<|'
-    );
-    //
-    let total = 0;
-    try {
-      const transactionSearchObj = search.create({
-        type: 'transaction',
-        settings: [
-          { name: 'consolidationtype', value: 'ACCTTYPE' },
-          { name: 'includeperiodendtransactions', value: 'F' },
-        ],
-        filters: [
-          ['type', 'anyof', 'SalesOrd'],
-          'AND',
-          ['mainline', 'is', 'T'],
-          'AND',
-          ['customer.internalidnumber', 'equalto', customerId],
-          'AND',
-          ['status', 'anyof', 'SalesOrd:A', 'SalesOrd:B'],
-        ],
-        columns: [
-          search.createColumn({
-            name: 'amount',
-            summary: 'SUM',
-            label: 'Amount',
-          }),
-        ],
-      });
-      const searchResultCount = transactionSearchObj.runPaged().count;
-      log.debug('transactionSearchObj result count', searchResultCount);
-      //
-      transactionSearchObj.run().each(function (result) {
-        total = Number(
-          result.getValue({
-            name: 'amount',
-            summary: 'SUM',
-            label: 'Amount',
-          })
-        );
-      });
-    } catch (error) {
-      log.error(loggerTitle + ' caught with an exception', error);
-    }
-    //
-    log.debug(
-      loggerTitle,
-      '|>----------------' + loggerTitle + '- End ----------------<|'
-    );
-    return total ? total : 0;
-  };
-  /* ************************** creditHoldCalculationforSOAndInv - End ************************** */
-  //
-  /* --------------------------- Helper Functions - End --------------------------- */
   //
   /* ------------------------ Exports Begin ------------------------ */
   exports.beforeLoad = beforeLoad;
