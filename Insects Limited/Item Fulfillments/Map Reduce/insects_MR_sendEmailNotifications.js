@@ -30,6 +30,7 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
   //
   /* ------------------------- Get Input Data - Begin ------------------------- */
   const getInputData = () => {
+    //Suitescript MR Email Notification Shipments (Saved Search)
     return search.create({
       type: 'itemfulfillment',
       settings: [{ name: 'consolidationtype', value: 'ACCTTYPE' }],
@@ -170,7 +171,7 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
       const tranId = eachValue.createdFromTranId;
       const poCheckNumber = eachValue.otherRefNum;
       const trackingNumber = eachValue.trackingNumber;
-      const ifDate = eachValue.trandate;
+      const ifDate = eachValue.ifDate;
       let toEmailAddress = eachValue.shipmentEmail
         ? eachValue.shipmentEmail
         : scriptObj.getParameter({
