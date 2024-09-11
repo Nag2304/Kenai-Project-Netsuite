@@ -20,7 +20,7 @@
  
 /* global define,log*/
  
-define([], () => {
+define(['SuiteScripts/Transactions/Return Authorizations/Modules/ops_Module_createIRorCM'], (createIRorCM) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -83,6 +83,7 @@ define([], () => {
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
     try {
+      createIRorCM.afterSubmit(scriptContext);
     } catch (error) {
       log.error(loggerTitle+ ' caught an exception', error);
     }
