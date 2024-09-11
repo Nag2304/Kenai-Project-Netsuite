@@ -20,7 +20,7 @@
  
 /* global define,log*/
  
-define(['SuiteScripts/Transactions/Return Authorizations/Modules/ops_Module_createCMforAmazonCustomers'], (createCMforAmazonCustomers) => {
+define(['SuiteScripts/Transactions/Item Receipts/Modules/ops_Module_createCMforAmazonCustomers'], (createCMforAmazonCustomers) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
