@@ -39,10 +39,18 @@ define(['N/search', 'N/file', 'N/runtime', 'N/email'], (
           log.debug('Saved Search Loop', ' Col Name: ' + col.name);
 
           // Check if the value is a string, then apply the cleaning function
-          if (col.name === 'entityid') {
-            log.debug('Saved Search Loop', ' Entity Before Value: ' + value);
+          if (col.name === 'entity') {
+            value = result.getText(col);
             value = cleanStringValue(value);
             log.debug('Saved Search Loop', ' Entity After Value: ' + value);
+          } else if (col.name === 'locationnohierarchy') {
+            value = result.getText(col);
+            value = cleanStringValue(value);
+            log.debug('Saved Search Loop', ' Location After Value: ' + value);
+          } else if (col.name === 'item') {
+            value = result.getText(col);
+            value = cleanStringValue(value);
+            log.debug('Saved Search Loop', ' Item After Value: ' + value);
           } else {
             value = value !== null && value !== undefined ? value : ''; // Ensure non-string values are handled properly
           }
