@@ -12,6 +12,7 @@ define([
   'N/format',
   'SuiteScripts/Transactions/Sales Orders/Modules/wdym_Module_scacDiscountCalculation',
   'SuiteScripts/Transactions/Sales Orders/Modules/wdym_Module_setCreditHoldOnSalesOrder',
+  'SuiteScripts/Transactions/Sales Orders/Modules/wdym_Module_setReadyToFulfill',
 ], (
   record,
   runtime,
@@ -20,7 +21,8 @@ define([
   email,
   format,
   scacCalculation,
-  setCreditHold
+  setCreditHold,
+  setReadyToFulfill
 ) => {
   const exports = {};
   /* --------------------------- before Load - Begin -------------------------- */
@@ -680,76 +682,15 @@ define([
           id: salesOrderId,
           isDynamic: true,
         });
-
-        const readyToFulfill = salesOrder.getValue({
-          fieldId: 'custbody_ready_to_fulfill_2',
-        });
-
-        const status = salesOrder.getValue({ fieldId: 'status' });
-
-        log.debug(loggerTitle, { readyToFulfill, status });
-
-        if (
-          !readyToFulfill &&
-          status !== 'Cancelled' &&
-          status !== 'Pending Approval' &&
-          status !== 'Closed'
-        ) {
-          const lineCount = salesOrder.getLineCount({
-            sublistId: 'item',
-          });
-
-          let allLinesReady = false;
-
-          for (let i = 0; i < lineCount; i++) {
-            const itemType = salesOrder.getSublistValue({
-              sublistId: 'item',
-              fieldId: 'itemtype',
-              line: i,
-            });
-
-            const isClosed = salesOrder.getSublistValue({
-              sublistId: 'item',
-              fieldId: 'isclosed',
-              line: i,
-            });
-
-            log.debug(loggerTitle, { itemType, lineNumber: i + 1, isClosed });
-
-            if (itemType === 'InvtPart') {
-              if (isClosed === false) {
-                const readyToFulfill = salesOrder.getSublistValue({
-                  sublistId: 'item',
-                  fieldId: 'custcol_ready_for_fulfillment',
-                  line: i,
-                });
-                log.debug(loggerTitle, { readyToFulfill, lineNumber: i + 1 });
-                if (readyToFulfill === true) {
-                  allLinesReady = true;
-                } else {
-                  allLinesReady = false;
-                  break;
-                }
-              }
-            }
-          }
-
-          //
-          if (allLinesReady) {
-            salesOrder.setValue({
-              fieldId: 'custbody_ready_to_fulfill_2',
-              value: true,
-            });
-            log.debug(
-              loggerTitle,
-              ' Done setting the ready to fulfill 2nd box to true'
-            );
-          }
-          //
-
+        //
+        const saveFulfillFlag = setReadyToFulfill.afterSubmit(salesOrder);
+        //
+        log.debug(loggerTitle, `Save Fulfill Flag:${saveFulfillFlag}}`);
+        if (saveFulfillFlag) {
           salesOrder.save();
           log.audit(loggerTitle, ' Sales Order Saved successfully');
         }
+        //
       }
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
