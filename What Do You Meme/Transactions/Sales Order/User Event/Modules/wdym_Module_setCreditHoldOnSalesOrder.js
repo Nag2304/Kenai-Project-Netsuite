@@ -7,6 +7,7 @@
  * File name:wdym_Module_setCreditHoldOnSalesOrder.js
  * Author           Date       Version               Remarks
  * nagendrababu  10th Sep 2024 1.00       Initial creation of the module file.
+ * nagendrababu  11th Sep 2024 1.01       Removed the double calculation of transaction amount and disabled the saved search.
  *
  */
 
