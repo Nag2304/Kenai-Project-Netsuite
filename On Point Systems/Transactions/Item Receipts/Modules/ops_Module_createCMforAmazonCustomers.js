@@ -31,7 +31,7 @@ define([], () => {
       const irRecord = context.newRecord;
       //
       const customerId = irRecord.getValue({ fieldId: 'entity' });
-      const createdFromText = irRecord.getValue({ fieldId: 'createdfrom' });
+      const createdFromText = irRecord.getText({ fieldId: 'createdfrom' });
 
       log.debug(
         loggerTitle,
