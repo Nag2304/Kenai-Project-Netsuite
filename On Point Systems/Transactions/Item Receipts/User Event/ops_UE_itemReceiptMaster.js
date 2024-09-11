@@ -20,7 +20,7 @@
  
 /* global define,log*/
  
-define(['SuiteScripts/Transactions/Return Authorizations/Modules/ops_Module_createIRorCM'], (createIRorCM) => {
+define(['SuiteScripts/Transactions/Return Authorizations/Modules/ops_Module_createCMforAmazonCustomers'], (createCMforAmazonCustomers) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -83,7 +83,7 @@ define(['SuiteScripts/Transactions/Return Authorizations/Modules/ops_Module_crea
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
     try {
-      createIRorCM.afterSubmit(scriptContext);
+      createCMforAmazonCustomers.afterSubmit(scriptContext);
     } catch (error) {
       log.error(loggerTitle+ ' caught an exception', error);
     }
