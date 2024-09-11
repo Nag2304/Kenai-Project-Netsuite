@@ -13,7 +13,7 @@
 
 /* global define,log */
 
-define([], () => {
+define(['N/record'], (record) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   const AMAZON_CUSTOMERS = ['1187553', '220554'];
