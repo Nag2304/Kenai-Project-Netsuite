@@ -172,6 +172,9 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
       const poCheckNumber = eachValue.otherRefNum;
       const trackingNumber = eachValue.trackingNumber;
       const ifDate = eachValue.ifDate;
+
+      log.debug(loggerTitle, ' IF Date: ' + ifDate);
+
       let toEmailAddress = eachValue.shipmentEmail
         ? eachValue.shipmentEmail
         : scriptObj.getParameter({
@@ -210,7 +213,7 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
             '</a>'
         );
 
-        content = content.replace('{trandate}', ifDate);
+        content = content.replace('{actualshipdate}', ifDate);
         let emailBody =
           '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%;">';
         emailBody +=
