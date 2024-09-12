@@ -28,7 +28,7 @@ define(['N/record', 'N/search'], (record, search) => {
         'AND',
         ['custbody_ready_to_fulfill_2', 'is', 'F'],
         'AND',
-        ['name', 'anyof', '5185', '5443', '6570', '5440'],
+        ['name', 'anyof', '5185', '6570', '5440'],
       ],
       columns: [
         search.createColumn({ name: 'internalid', label: 'Internal ID' }),

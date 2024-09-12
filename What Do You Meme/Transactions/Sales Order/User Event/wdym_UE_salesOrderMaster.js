@@ -579,7 +579,6 @@ define([
         // }
 
         if (
-          newCompanyName.includes('SHOPIFY') ||
           newCompanyName.includes('ZOLA') ||
           newCompanyName.includes('AMAZON US FBM')
         ) {

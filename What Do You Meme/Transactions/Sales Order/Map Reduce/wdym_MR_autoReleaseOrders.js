@@ -19,8 +19,6 @@ define(['N/record', 'N/search'], (record, search) => {
         ['type', 'anyof', 'SalesOrd'],
         'AND',
         [
-          ['name', 'anyof', '5443'],
-          'OR',
           ['name', 'anyof', '5440'],
           'OR',
           ['name', 'anyof', '6570'],
