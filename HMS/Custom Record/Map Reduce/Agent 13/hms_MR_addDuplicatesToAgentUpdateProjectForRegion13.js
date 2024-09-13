@@ -265,9 +265,9 @@ define(['N/record', 'N/search'], (record, search) => {
             fieldId: 'custrecord_hms_latest_rets_chg_13',
             value: changeAgent,
           });
-          // Save the Duplicate Email ID field
+          // Save the Duplicate Agent ID field
           agentProjectUpdateRecord.setValue({
-            fieldId: 'custrecord_hms_email_dupe_13',
+            fieldId: 'custrecord_hms_agent_id_dupe_13',
             value: true,
           });
           // Update the Verified RETS Feed
