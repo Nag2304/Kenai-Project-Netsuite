@@ -44,24 +44,29 @@ define(['N/record', 'N/runtime', 'N/search'], (record, runtime, search) => {
   /* -------------------------- Before Submit - Begin ------------------------- */
   const beforeSubmit = (scriptContext) => {
     /* ------------------------ Intialize Values - Begin ------------------------ */
-    const strLoggerTitle = 'Before Submit';
+    const loggerTitle = 'Before Submit';
+    log.audit(
+      loggerTitle,
+      '|>----------------' + loggerTitle + '- Begin ----------------<|'
+    );
     let scacField = '';
     let scacDescription = '';
     let proNumber = '';
     let itemfulfillmentWeight = '';
     let caseShipped = '';
+    let totalUnitsShipped = '';
     /* ------------------------ Intialize Values - End ------------------------ */
     //
     try {
       log.debug(
-        strLoggerTitle,
+        loggerTitle,
         ' Execution Context Type ' + runtime.executionContext
       );
       //
       const invRecord = scriptContext.newRecord;
 
       log.debug(
-        strLoggerTitle + ' Invoice Record Number',
+        loggerTitle + ' Invoice Record Number',
         ' Document Number' + invRecord.id
       );
       // Get Values
@@ -72,7 +77,7 @@ define(['N/record', 'N/runtime', 'N/search'], (record, runtime, search) => {
       );
       //
       log.debug(
-        strLoggerTitle + ' Created From Value',
+        loggerTitle + ' Created From Value',
         'Created From ID: ' + createdFromId
       );
       if (createdFromId) {
@@ -104,15 +109,15 @@ define(['N/record', 'N/runtime', 'N/search'], (record, runtime, search) => {
               label: 'Item Fullfillment Weight',
             }),
             search.createColumn({
-              name: 'custbody_cases_shipped',
-              label: 'Cases Shipped',
+              name: 'custbody_wdym_units_shipped',
+              label: 'Units Shipped',
             }),
           ],
         });
         //
         /* --------------------------- Run Search - Begin --------------------------- */
         itemfulfillmentSearchObj.run().each(function (result) {
-          log.audit(strLoggerTitle + ' Saved Search Result', result);
+          log.audit(loggerTitle + ' Saved Search Result', result);
           //
           scacField = result.getValue({
             name: 'custbody_scac',
@@ -130,9 +135,13 @@ define(['N/record', 'N/runtime', 'N/search'], (record, runtime, search) => {
             name: 'custbody_wdym_if_weight',
             label: 'Item Fullfillment Weight ',
           });
-          caseShipped = result.getValue({
-            name: 'custbody_cases_shipped',
-            label: 'Cases Shipped',
+          // caseShipped = result.getValue({
+          //   name: 'custbody_cases_shipped',
+          //   label: 'Cases Shipped',
+          // });
+          totalUnitsShipped = result.getValue({
+            name: 'custbody_wdym_units_shipped',
+            label: 'Units Shipped',
           });
           return true;
         });
@@ -141,17 +150,14 @@ define(['N/record', 'N/runtime', 'N/search'], (record, runtime, search) => {
         /* ------------------------------ Search - End ------------------------------ */
         //
         /* -------------------- Setting the Field Values - Begin -------------------- */
-        log.debug(strLoggerTitle, [scacField, scacDescription, proNumber]);
+        log.debug(loggerTitle, [scacField, scacDescription, proNumber]);
         if (scacField) {
           invRecord.setValue({
             fieldId: 'custbody_wdym_scac_invoice',
             value: scacField,
           });
 
-          log.audit(
-            strLoggerTitle + ' SCAC Field',
-            ' Setting Value Successfully'
-          );
+          log.audit(loggerTitle + ' SCAC Field', ' Setting Value Successfully');
         }
 
         if (scacDescription) {
@@ -161,7 +167,7 @@ define(['N/record', 'N/runtime', 'N/search'], (record, runtime, search) => {
           });
 
           log.audit(
-            strLoggerTitle + ' SCAC Description',
+            loggerTitle + ' SCAC Description',
             ' Setting Value Successfully'
           );
         }
@@ -171,10 +177,7 @@ define(['N/record', 'N/runtime', 'N/search'], (record, runtime, search) => {
             fieldId: 'custbody_wdym_pronumb_invoice',
             value: proNumber,
           });
-          log.audit(
-            strLoggerTitle + ' Pro Number',
-            ' Setting Value Successfully'
-          );
+          log.audit(loggerTitle + ' Pro Number', ' Setting Value Successfully');
         }
 
         if (itemfulfillmentWeight) {
@@ -183,7 +186,7 @@ define(['N/record', 'N/runtime', 'N/search'], (record, runtime, search) => {
             value: itemfulfillmentWeight,
           });
           log.audit(
-            strLoggerTitle + ' Item Fulfillment Weight',
+            loggerTitle + ' Item Fulfillment Weight',
             ' Setting Value Successfully'
           );
         }
@@ -194,9 +197,15 @@ define(['N/record', 'N/runtime', 'N/search'], (record, runtime, search) => {
             value: caseShipped,
           });
           log.audit(
-            strLoggerTitle + ' Cases Shipped',
+            loggerTitle + ' Cases Shipped',
             ' Setting Value Successfully'
           );
+        }
+        if (totalUnitsShipped) {
+          invRecord.setValue({
+            fieldId: 'custbody_wdym_units_shipped',
+            value: totalUnitsShipped,
+          });
         }
         /* --------------------- Setting the Field Values - End --------------------- */
         //
@@ -229,7 +238,7 @@ define(['N/record', 'N/runtime', 'N/search'], (record, runtime, search) => {
           });
           const masterCarton = itemFields['custitem_master_carton_gtin_number'];
 
-          log.debug(strLoggerTitle, ' Master Carton: ' + masterCarton);
+          log.debug(loggerTitle, ' Master Carton: ' + masterCarton);
 
           if (masterCarton) {
             invRecord.setSublistValue({
@@ -242,8 +251,13 @@ define(['N/record', 'N/runtime', 'N/search'], (record, runtime, search) => {
         }
       }
     } catch (error) {
-      log.audit(strLoggerTitle + ' failed to execute the script', error);
+      log.audit(loggerTitle + ' failed to execute the script', error);
     }
+    //
+    log.audit(
+      loggerTitle,
+      '|>----------------' + loggerTitle + '- End ----------------<|'
+    );
   };
   /* --------------------------- Before Submit - End -------------------------- */
   //
