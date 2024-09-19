@@ -6,7 +6,7 @@
 
 /**
  * File name: hms_MR_keepAndPurgeForAgent13AgentDuplicates.js
- * Script: HMS | MR Keep Purge Region 13 Agent Duplicates
+ * Script: HMS | MR Keep Purge Region 13 Agent Dup
  * Author           Date       Version               Remarks
  * nagendrababu  09.15.2024     1.00     Initial Creation of the Script.
  *
