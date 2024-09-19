@@ -42,21 +42,21 @@ define(['N/search', 'N/file', 'N/runtime', 'N/email'], (
           if (col.name === 'entity') {
             value = result.getText(col);
             value = cleanStringValue(value);
-            log.debug('Saved Search Loop', ' Entity After Value: ' + value);
+            //log.debug('Saved Search Loop', ' Entity After Value: ' + value);
           } else if (col.name === 'locationnohierarchy') {
             value = result.getText(col);
             value = cleanStringValue(value);
-            log.debug('Saved Search Loop', ' Location After Value: ' + value);
+            //log.debug('Saved Search Loop', ' Location After Value: ' + value);
           } else if (col.name === 'item') {
             value = result.getText(col);
             value = cleanStringValue(value);
-            log.debug('Saved Search Loop', ' Item After Value: ' + value);
+            //log.debug('Saved Search Loop', ' Item After Value: ' + value);
           } else {
             value = value !== null && value !== undefined ? value : ''; // Ensure non-string values are handled properly
           }
 
           const outputValue = `"${String(value).replace(/"/g, '""')}"`;
-          log.debug('Saved Search Loop', ' Output Value: ' + outputValue);
+          //log.debug('Saved Search Loop', ' Output Value: ' + outputValue);
 
           return outputValue; // Escape double quotes for CSV
         });
@@ -100,9 +100,11 @@ define(['N/search', 'N/file', 'N/runtime', 'N/email'], (
         });
       }
 
-      const recipientsEmail = scriptObj.getParameter({
-        name: 'custscript_wdym_recipients_email',
-      });
+      const recipientsEmail = Array(
+        scriptObj.getParameter({
+          name: 'custscript_wdym_recipients_email',
+        })
+      );
 
       const emailSubject = scriptObj.getParameter({
         name: 'custscript_wdym_email_subject',
@@ -114,7 +116,7 @@ define(['N/search', 'N/file', 'N/runtime', 'N/email'], (
       //
 
       // Check if userId, recipientsEmail, and emailSubject are not empty
-      if (userId && recipientsEmail && emailSubject) {
+      if (userId && recipientsEmail.length > 0 && emailSubject) {
         email.send({
           author: userId,
           recipients: recipientsEmail,
