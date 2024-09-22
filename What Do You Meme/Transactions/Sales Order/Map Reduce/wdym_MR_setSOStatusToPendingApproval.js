@@ -14,7 +14,6 @@ define(['N/record', 'N/search'], (record, search) => {
   /* ------------------------- Get Input Data - Begin ------------------------- */
   const getInputData = () => {
     // Walgreens Co. (5185)
-    // Shopify Website (5443)
     // Amazon US FBM - 6570 (Zola.com)
     //10389816 - 5440
     return search.create({
