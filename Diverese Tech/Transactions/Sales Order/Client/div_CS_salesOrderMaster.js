@@ -26,7 +26,24 @@ define([
 ], function (checkDuplicatePONumber, dialog) {
   /* ------------------------ Global Variables - Begin ------------------------ */
   var exports = {};
+  var executionType = '';
   /* ------------------------- Global Variables - End ------------------------- */
+  //
+  /* ------------------------- Page Init - Begin ------------------------- */
+  function pageInit(scriptContext) {
+    var loggerTitle = ' Page Init ';
+    log.debug(loggerTitle, '|>--------' + loggerTitle + ' -Entry--------<|');
+    //
+    try {
+      executionType = scriptContext.mode;
+      log.debug(loggerTitle, 'Execution Type: ' + executionType);
+    } catch (error) {
+      log.error(loggerTitle + ' caught an exception', error);
+    }
+    //
+    log.debug(loggerTitle, '|>--------' + loggerTitle + ' -Exit--------<|');
+  }
+  /* ------------------------- Page Init - End ------------------------- */
   //
   /* ------------------------- Save Record - Begin ------------------------- */
   function saveRecord(context) {
@@ -35,15 +52,25 @@ define([
     //
     var saveFlag = true;
     try {
-      var duplicateCheckCount = checkDuplicatePONumber.saveRecord(context);
-      log.debug(loggerTitle, ' Duplicate Check Count: ' + duplicateCheckCount);
+      if (executionType === 'create') {
+        var duplicateCheckCount = checkDuplicatePONumber.saveRecord(context);
+        log.debug(
+          loggerTitle,
+          ' Duplicate Check Count: ' + duplicateCheckCount
+        );
 
-      if (duplicateCheckCount > 0) {
-        dialog.alert({
-          title: 'Duplicate PO Number',
-          message: 'This PO number has already been used for this customer.',
-        });
-        saveFlag = false;
+        if (duplicateCheckCount > 0) {
+          dialog.alert({
+            title: 'Duplicate PO Number',
+            message: 'This PO number has already been used for this customer.',
+          });
+          saveFlag = false;
+        }
+      } else {
+        log.debug(
+          loggerTitle,
+          ' Execution Type Should Be Create. Exiting Code'
+        );
       }
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
@@ -55,6 +82,7 @@ define([
   /* -------------------------- Save Record - End -------------------------- */
   //
   /* ------------------------------ Exports Begin ----------------------------- */
+  exports.pageInit = pageInit;
   exports.saveRecord = saveRecord;
   return exports;
   /* ------------------------------- Exports End ------------------------------ */
