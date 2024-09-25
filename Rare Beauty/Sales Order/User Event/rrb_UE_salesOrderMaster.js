@@ -94,20 +94,19 @@ define(['N/record'], (record) => {
     try {
       if (scriptContext.type !== scriptContext.UserEventType.DELETE) {
         const salesOrderRecordId = scriptContext.newRecord.id;
-        //
         const salesOrderRecord = record.load({
           type: 'salesorder',
           id: salesOrderRecordId,
         });
 
         const location = salesOrderRecord.getValue({ fieldId: 'location' });
-
         const shipAddress = salesOrderRecord.getValue({
           fieldId: 'shipaddress',
         });
 
         log.debug(strLoggerTitle, { location, shipAddress });
 
+        // Only proceed if location is 6 and shipping address is in the UK
         if (location === '6' && shipAddress.includes('United Kingdom')) {
           const salesOrderLineCount = salesOrderRecord.getLineCount({
             sublistId: 'item',
@@ -116,19 +115,46 @@ define(['N/record'], (record) => {
             fieldId: 'total',
           });
           log.debug(strLoggerTitle, { salesOrderTotal });
-          //
+
           /* --------------------------- Line Count - Begin --------------------------- */
           for (let index = 0; index < salesOrderLineCount; index++) {
+            // Get the current rate of the item
+            const currentRate = parseFloat(
+              salesOrderRecord.getSublistValue({
+                sublistId: 'item',
+                fieldId: 'rate',
+                line: index,
+              })
+            );
+
+            // Reduce the rate by 20% for VAT
+            const reducedRate = (currentRate / 1.2).toFixed(2);
+            log.debug(
+              strLoggerTitle,
+              'Original Rate: ' +
+                currentRate +
+                ' | Reduced Rate: ' +
+                reducedRate
+            );
+
+            // Update the item rate to the reduced value
+            salesOrderRecord.setSublistValue({
+              sublistId: 'item',
+              fieldId: 'rate',
+              value: reducedRate,
+              line: index,
+            });
+
+            // Check if VAT line already exists
             const vatLine = salesOrderRecord.findSublistLineWithValue({
               sublistId: 'item',
               fieldId: 'item',
-              value: 1620,
+              value: 1620, // assuming 1620 is the VAT item
             });
 
-            log.debug(strLoggerTitle, 'Vat line Found ' + vatLine);
             if (index === salesOrderLineCount - 1 && vatLine === -1) {
               log.debug(strLoggerTitle, ' Adding new VAT line');
-              //
+
               const lastIndex = salesOrderLineCount;
               salesOrderRecord.insertLine({
                 sublistId: 'item',
@@ -140,8 +166,8 @@ define(['N/record'], (record) => {
                 value: 1620,
                 line: lastIndex,
               });
-              const vatTotal = ((20 * salesOrderTotal) / 100).toFixed(2);
 
+              const vatTotal = ((20 * salesOrderTotal) / 100).toFixed(2);
               log.debug(strLoggerTitle, 'VAT Total: ' + vatTotal);
 
               salesOrderRecord.setSublistValue({
@@ -159,10 +185,9 @@ define(['N/record'], (record) => {
             }
           }
           /* --------------------------- Line Count - End --------------------------- */
-          //
+          salesOrderRecord.save();
+          log.debug(strLoggerTitle, 'Sales Order Record Saved Successfully');
         }
-        salesOrderRecord.save();
-        log.debug(strLoggerTitle, 'Sales Order Record Saved Successfully');
       }
     } catch (error) {
       log.error(strLoggerTitle + ' caught with an exception', error);
@@ -173,6 +198,7 @@ define(['N/record'], (record) => {
       '|>----------------' + strLoggerTitle + '-Exit----------------<|'
     );
   };
+
   /* --------------------------- After Submit - End --------------------------- */
   //
   /* ----------------------------- Exports - Begin ---------------------------- */
