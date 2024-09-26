@@ -13,6 +13,7 @@ define([
   'SuiteScripts/Transactions/Sales Orders/Modules/wdym_Module_scacDiscountCalculation',
   'SuiteScripts/Transactions/Sales Orders/Modules/wdym_Module_setCreditHoldOnSalesOrder',
   'SuiteScripts/Transactions/Sales Orders/Modules/wdym_Module_setReadyToFulfill',
+  'SuiteScripts/Transactions/Sales Orders/Modules/wdym_Module_setDefaultApprovalStatus',
 ], (
   record,
   runtime,
@@ -22,7 +23,8 @@ define([
   format,
   scacCalculation,
   setCreditHold,
-  setReadyToFulfill
+  setReadyToFulfill,
+  setDefaultApprovalStatus
 ) => {
   const exports = {};
   /* --------------------------- before Load - Begin -------------------------- */
@@ -580,7 +582,8 @@ define([
 
         if (
           newCompanyName.includes('ZOLA') ||
-          newCompanyName.includes('AMAZON US FBM')
+          newCompanyName.includes('AMAZON US FBM') ||
+          newCompanyName.includes('WALGREENS CO.')
         ) {
           for (let index = 0; index < lineItemCount; index++) {
             // Location
@@ -682,6 +685,7 @@ define([
           isDynamic: true,
         });
         //
+        setDefaultApprovalStatus.afterSubmit(salesOrder);
         const saveFulfillFlag = setReadyToFulfill.afterSubmit(salesOrder);
         //
         log.debug(loggerTitle, `Save Fulfill Flag:${saveFulfillFlag}}`);
