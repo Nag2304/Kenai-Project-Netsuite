@@ -205,10 +205,20 @@ define([
             name: 'displayname',
             join: 'item',
           }),
+          search.createColumn({
+            name: 'custbody_dct_order_date',
+            label: 'Order Date',
+          }),
+          search.createColumn({
+            name: 'custbody_dct_priority',
+            label: 'Priority',
+          }),
         ],
       })
       .run()
       .each(function (result) {
+        var quantitylbs = getWorkOrderLbQty(result.id);
+
         var job = {
           NetSuiteID: result.id,
           JobID: '',
@@ -248,17 +258,25 @@ define([
                 name: 'displayname',
                 join: 'item',
               }),
-              DueDate: starttime,
+              DueDate: formatDate(
+                result.getValue({ name: 'custbody_dct_order_date' })
+              ),
               Impressions: 0,
               PartWeight: 0,
               WasteWeight: 0,
               SellingPrice: 0,
               MaterialCost: 0,
               Material: '',
-              Text: ['', result.getText({ name: 'entity' }) || ''],
+              Text: [
+                '',
+                result.getText({ name: 'entity' }) || '',
+                result.getValue({ name: 'custbody_dct_priority' }),
+                '',
+                result.getValue({ name: 'custbody_dct_order_date' }),
+              ],
               Number: [0],
               AdditionalText: [],
-              AdditionalNumber: [0],
+              AdditionalNumber: [0, quantitylbs || ''],
             },
           ],
           ProcessParameters: [
@@ -367,6 +385,54 @@ define([
    */
   function writeNetSuiteData(data) {
     return null;
+  }
+
+  function getWorkOrderLbQty(woId) {
+    var quantity = 0;
+    try {
+      if (woId) {
+        var workOrderRecord = record.load({
+          type: record.Type.WORK_ORDER,
+          id: woId,
+        });
+        //
+        // LBS - 3
+        var lbsLine = workOrderRecord.findSublistLineWithValue({
+          sublistId: 'item',
+          fieldId: 'units',
+          value: 3,
+        });
+        //
+        quantity = workOrderRecord.getSublistValue({
+          sublistId: 'item',
+          fieldId: 'quantity',
+          line: lbsLine,
+        });
+      }
+    } catch (error) {
+      log.error('Get Work Order Lbs Qty Caught an exception', error);
+    }
+    return quantity;
+  }
+
+  function formatDate(orderDate) {
+    var dueDate = '';
+    try {
+      var orderDate = new Date(orderDate);
+      var year = orderDate.getFullYear();
+      var month = ('0' + (orderDate.getMonth() + 1)).slice(-2); // Months are 0-indexed
+      var day = ('0' + orderDate.getDate()).slice(-2);
+
+      // Hardcoded time and milliseconds
+      var time = '01:01:01.000Z';
+
+      // Formatted DueDate
+      dueDate = year + '-' + month + '-' + day + 'T' + time;
+    } catch (error) {
+      log.error(' Format Date Caught with an exception', error);
+    }
+
+    return dueDate;
   }
 
   /**
