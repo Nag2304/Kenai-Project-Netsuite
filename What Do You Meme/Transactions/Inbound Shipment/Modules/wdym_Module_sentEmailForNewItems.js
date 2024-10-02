@@ -29,12 +29,15 @@ define(['N/record', 'N/email', 'N/search', 'N/runtime'], (
    */
   const sentNewEmailForNewItems = (context) => {
     const loggerTitle = 'Sent New Email For New Items';
-    log.debug(loggerTitle, '|>------------------- Entry -------------------<|');
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + '- Entry-------------------<| '
+    );
 
     try {
       const inboundShipmentRecord = context.newRecord;
       const itemCount = inboundShipmentRecord.getLineCount({
-        sublistId: 'item',
+        sublistId: 'items',
       });
 
       const { userAddress, recipientEmail } = getScriptParameters();
@@ -43,10 +46,12 @@ define(['N/record', 'N/email', 'N/search', 'N/runtime'], (
       let emailTableContent = '';
       let approvalDate = '';
 
+      log.debug(loggerTitle, 'Item Count: ' + itemCount);
+
       for (let i = 0; i < itemCount; i++) {
         const itemId = inboundShipmentRecord.getSublistValue({
-          sublistId: 'item',
-          fieldId: 'item',
+          sublistId: 'items',
+          fieldId: 'itemid',
           line: i,
         });
         const itemFields = getItemFields(itemId);
@@ -62,12 +67,26 @@ define(['N/record', 'N/email', 'N/search', 'N/runtime'], (
 
       if (newItemFound) {
         sendEmail(userAddress, recipientEmail, approvalDate, emailTableContent);
+        const inbShipRec = record.load({
+          type: record.Type.INBOUND_SHIPMENT,
+          id: inboundShipmentRecord.id,
+        });
+        inbShipRec.setValue({
+          fieldId: 'custrecord_wdym_inbd_email_sent',
+          value: true,
+        });
+        inbShipRec.save();
+        //
+        log.debug(loggerTitle, 'Inbound Shipment Record Saved Successfully');
       }
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
 
-    log.debug(loggerTitle, '|>------------------- Exit -------------------<|');
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + '- Exit-------------------<| '
+    );
   };
   /* -------------------- Sent Email for New Items - End -------------------- */
   //
@@ -76,7 +95,10 @@ define(['N/record', 'N/email', 'N/search', 'N/runtime'], (
   /* *********************** Get Script Parameters - Begin *********************** */
   const getScriptParameters = () => {
     const loggerTitle = 'Get Script Parameters';
-    log.debug(loggerTitle, '|>------------------- Entry -------------------<|');
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + '- Entry-------------------<| '
+    );
     //
     let userAddress = '';
     let recipientEmail = '';
@@ -96,7 +118,10 @@ define(['N/record', 'N/email', 'N/search', 'N/runtime'], (
       `User Addres: ${userAddress} To Email: ${recipientEmail}`
     );
     //
-    log.debug(loggerTitle, '|>------------------- Exit -------------------<|');
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + '- Exit-------------------<| '
+    );
     return { userAddress, recipientEmail };
   };
   /* *********************** Get Script Parameters - End *********************** */
@@ -109,21 +134,33 @@ define(['N/record', 'N/email', 'N/search', 'N/runtime'], (
    */
   const getItemFields = (itemId) => {
     const loggerTitle = `Get Item Fields for Item ID: ${itemId}`;
-    log.debug(loggerTitle, '|>------------------- Entry -------------------<|');
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + '- Entry-------------------<| '
+    );
 
+    let itemFields;
     try {
       log.debug(loggerTitle, ' Item ID: ' + itemId);
       //
-      return search.lookupFields({
-        type: 'item',
-        id: itemId,
-        columns: ['custitem_wdym_new_item', 'itemid', 'displayname'],
-      });
+      if (itemId) {
+        itemFields = search.lookupFields({
+          type: 'item',
+          id: itemId,
+          columns: ['custitem_wdym_new_item', 'itemid', 'displayname'],
+        });
+      }
+      //
+      log.debug(loggerTitle + ' item fields ', itemFields);
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
 
-    log.debug(loggerTitle, '|>------------------- Exit -------------------<|');
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + '- Exit-------------------<| '
+    );
+    return itemFields;
   };
   /* *********************** Get Item Fields - End *********************** */
   //
@@ -135,7 +172,10 @@ define(['N/record', 'N/email', 'N/search', 'N/runtime'], (
    */
   const getCLevelApprovalDate = (itemId) => {
     const loggerTitle = `Get C-Level Approval Date for Item ID: ${itemId}`;
-    log.debug(loggerTitle, '|>------------------- Entry -------------------<|');
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + '- Entry-------------------<| '
+    );
 
     try {
       const approvalDateSearch = search.create({
@@ -176,7 +216,10 @@ define(['N/record', 'N/email', 'N/search', 'N/runtime'], (
       log.error(loggerTitle + ' caught with an exception', error);
     }
 
-    log.debug(loggerTitle, '|>------------------- Exit -------------------<|');
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + '- Exit-------------------<| '
+    );
   };
   /* *********************** Get C-Level Approval Date - End *********************** */
   //
@@ -188,7 +231,10 @@ define(['N/record', 'N/email', 'N/search', 'N/runtime'], (
    */
   const generateEmailTableRow = (itemFields) => {
     const loggerTitle = 'Generate Email Table Row';
-    log.debug(loggerTitle, '|>------------------- Entry -------------------<|');
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + '- Entry-------------------<| '
+    );
 
     try {
       return `
@@ -199,8 +245,10 @@ define(['N/record', 'N/email', 'N/search', 'N/runtime'], (
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
-
-    log.debug(loggerTitle, '|>------------------- Exit -------------------<|');
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + '- Exit-------------------<| '
+    );
   };
   /* *********************** Generate Email Table Row - End *********************** */
   //
@@ -211,11 +259,14 @@ define(['N/record', 'N/email', 'N/search', 'N/runtime'], (
    */
   const updateNewItemField = (itemId) => {
     const loggerTitle = `Update New Item Field for Item ID: ${itemId}`;
-    log.debug(loggerTitle, '|>------------------- Entry -------------------<|');
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + '- Entry-------------------<| '
+    );
 
     try {
       record.submitFields({
-        type: record.Type.ITEM,
+        type: record.Type.INVENTORY_ITEM,
         id: itemId,
         values: { custitem_wdym_new_item: false },
       });
@@ -223,7 +274,10 @@ define(['N/record', 'N/email', 'N/search', 'N/runtime'], (
       log.error(loggerTitle + ' caught with an exception', error);
     }
 
-    log.debug(loggerTitle, '|>------------------- Exit -------------------<|');
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + '- Exit-------------------<| '
+    );
   };
   /* *********************** Update New Item Field - End *********************** */
   //
@@ -235,7 +289,10 @@ define(['N/record', 'N/email', 'N/search', 'N/runtime'], (
     emailTableContent
   ) => {
     const loggerTitle = 'Send Email';
-    log.debug(loggerTitle, '|>------------------- Entry -------------------<|');
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + '- Entry-------------------<| '
+    );
 
     try {
       const emailTemplate = record.load({
@@ -265,11 +322,15 @@ define(['N/record', 'N/email', 'N/search', 'N/runtime'], (
         subject: emailTemplate.getValue({ fieldId: 'subject' }),
         body: emailContent,
       });
+      log.debug(loggerTitle, ' Email Sent Successfully');
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
 
-    log.debug(loggerTitle, '|>------------------- Exit -------------------<|');
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + '- Exit-------------------<| '
+    );
   };
   /* *********************** Send Email -End *********************** */
   //

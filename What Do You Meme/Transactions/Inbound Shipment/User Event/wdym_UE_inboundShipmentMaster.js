@@ -84,7 +84,14 @@ define([
     );
     //
     try {
-      sentEmailForNewItems.afterSubmit(context);
+      const inboundShipmentRecord = context.newRecord;
+      //
+      const emailSent = inboundShipmentRecord.getValue({
+        fieldId: 'custrecord_wdym_inbd_email_sent',
+      });
+      if (!emailSent) {
+        sentEmailForNewItems.afterSubmit(context);
+      }
     } catch (error) {
       log.error(strLoggerTitle + ' caught with an exception', error);
     }
