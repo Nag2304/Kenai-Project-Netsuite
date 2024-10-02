@@ -108,6 +108,7 @@ define(['N/search', 'N/record'], (search, record) => {
    * @returns {object}
    */
   const searchAgentDuplicateswithTwoRecords = () => {
+    // SB Saved Search Link: https://1309901-sb1.app.netsuite.com/app/common/search/searchresults.nl?searchid=1247&saverun=T&whence=
     const loggerTitle = ' Search Agent Duplicates With Two Records ';
     log.debug(loggerTitle, ' Search Started');
     return search.create({
@@ -116,6 +117,10 @@ define(['N/search', 'N/record'], (search, record) => {
         ['custrecord_hms_agent_id_dupe', 'is', 'T'],
         'AND',
         ['isinactive', 'is', 'F'],
+        'AND',
+        ['custrecord_hms_keep', 'is', 'F'],
+        'AND',
+        ['custrecord_hms_purge', 'is', 'F'],
       ],
       columns: [
         search.createColumn({
@@ -157,7 +162,13 @@ define(['N/search', 'N/record'], (search, record) => {
     try {
       customAgentUpdateProjectSearchObj = search.create({
         type: 'customrecord_hms_agent_upd_project',
-        filters: [['custrecord_hms_agent_id_number', 'is', agentIdNumber]],
+        filters: [
+          ['custrecord_hms_agent_id_number', 'is', agentIdNumber],
+          'AND',
+          ['isinactive', 'is', 'F'],
+          'AND',
+          ['custrecord_hms_agent_id_dupe', 'is', 'T'],
+        ],
         columns: [
           search.createColumn({
             name: 'custrecord_hms_agent_id_number',
