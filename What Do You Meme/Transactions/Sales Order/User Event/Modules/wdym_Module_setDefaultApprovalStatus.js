@@ -64,6 +64,7 @@ define([], () => {
       loggerTitle,
       '|>----------------' + loggerTitle + '- End ----------------<|'
     );
+    return true;
   };
   /* ------------------- Set Default Approval Status - End------------------ */
   //

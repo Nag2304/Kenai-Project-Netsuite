@@ -685,11 +685,14 @@ define([
           isDynamic: true,
         });
         //
-        setDefaultApprovalStatus.afterSubmit(salesOrder);
+        const approvalStatus = setDefaultApprovalStatus.afterSubmit(salesOrder);
         const saveFulfillFlag = setReadyToFulfill.afterSubmit(salesOrder);
         //
-        log.debug(loggerTitle, `Save Fulfill Flag:${saveFulfillFlag}}`);
-        if (saveFulfillFlag) {
+        log.debug(
+          loggerTitle,
+          `Save Fulfill Flag:${saveFulfillFlag} Approval Status: ${approvalStatus}`
+        );
+        if (saveFulfillFlag || approvalStatus) {
           salesOrder.save();
           log.audit(loggerTitle, ' Sales Order Saved successfully');
         }
