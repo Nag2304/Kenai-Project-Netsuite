@@ -52,7 +52,7 @@ define([], () => {
           log.debug(loggerTitle, validationResult.message + ' - Ops Hold set.');
         } else {
           // If all validations pass, set the order status to Approved
-          tranRecord.setValue({ fieldId: 'orderstatus', value: 'A' }); // Approved
+          tranRecord.setValue({ fieldId: 'orderstatus', value: 'B' }); // Approved
           log.debug(loggerTitle, ' Order status set to Approved.');
         }
       }
