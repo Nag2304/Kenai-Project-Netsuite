@@ -73,7 +73,6 @@ define([
       });
 
       const salesOrderRecord = scriptContext.newRecord;
-
       // Retrieve the transaction date
       const trandate = salesOrderRecord.getValue({
         fieldId: 'trandate',
@@ -83,21 +82,31 @@ define([
       // Get today's date
       const today = new Date();
 
+      // Calculate the date 5 days ago
+      const fiveDaysAgo = new Date();
+      fiveDaysAgo.setDate(today.getDate() - 5);
+
       // Format the dates for comparison
       const trandateFormatted = format.format({
         value: trandate,
         type: format.Type.DATE,
       });
-
       const todayFormatted = format.format({
         value: today,
         type: format.Type.DATE,
       });
+      const fiveDaysAgoFormatted = format.format({
+        value: fiveDaysAgo,
+        type: format.Type.DATE,
+      });
 
-      log.debug(loggerTitle + ' Dates', { trandateFormatted, todayFormatted });
+      log.debug(loggerTitle + ' Dates', {
+        trandateFormatted,
+        fiveDaysAgoFormatted,
+        todayFormatted,
+      });
 
-      // Compare dates
-      //if (trandateFormatted === todayFormatted) {
+      // Retrieve other necessary fields
       const commercialInvoicePrinted = salesOrderRecord.getValue({
         fieldId: 'custbody_wdym_comm_inv_printed',
       });
@@ -105,11 +114,13 @@ define([
         fieldId: 'shipcountry',
       });
       log.debug(loggerTitle, { commercialInvoicePrinted, shipToCountry });
-      //
+
+      // Compare dates to check if trandate is within the last 5 days
       if (
         !commercialInvoicePrinted &&
         shipToCountry !== 'US' &&
-        trandateFormatted === todayFormatted
+        trandateFormatted >= fiveDaysAgoFormatted &&
+        trandateFormatted <= todayFormatted
       ) {
         log.debug(loggerTitle, ' Triggered Commercial Invoice Logic');
         objForm.addButton({
@@ -118,7 +129,6 @@ define([
           functionName: 'callCommercialInvoiceSuitelet()',
         });
       }
-      //}
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
