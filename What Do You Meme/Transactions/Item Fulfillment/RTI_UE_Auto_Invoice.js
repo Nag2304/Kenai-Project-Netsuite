@@ -167,6 +167,13 @@ define(['N/record', 'N/runtime', 'N/search'], function (
 
       var recItemFulfillment = scriptContext.newRecord;
 
+      var itemfulfillmentWeight = recItemFulfillment.getValue({
+        fieldId: 'custbody_wdym_if_weight',
+      });
+      var totalUnitsShipped = recItemFulfillment.getValue({
+        fieldId: 'custbody_wdym_units_shipped',
+      });
+
       var stInvoiceNumber = recItemFulfillment.getValue(
         'custbody_invoice_nbr_from_tbf'
       );
@@ -215,6 +222,25 @@ define(['N/record', 'N/runtime', 'N/search'], function (
         fieldId: 'trandate',
         value: shipDate,
       });
+      if (totalUnitsShipped) {
+        recInvoice.setValue({
+          fieldId: 'custbody_wdym_units_shipped',
+          value: totalUnitsShipped,
+        });
+      }
+      if (itemfulfillmentWeight) {
+        recInvoice.setValue({
+          fieldId: 'custbody_wdym_if_weight',
+          value: itemfulfillmentWeight,
+        });
+      }
+      log.debug(
+        stLogTitle,
+        'Item Fulfillment Weight:' +
+          itemfulfillmentWeight +
+          ' total units shipped: ' +
+          totalUnitsShipped
+      );
       var stInvoiceId = recInvoice.save({
         ignoreMandatoryFields: true,
       });
