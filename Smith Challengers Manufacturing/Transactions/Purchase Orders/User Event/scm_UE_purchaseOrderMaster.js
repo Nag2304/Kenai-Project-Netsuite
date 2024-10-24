@@ -9,7 +9,7 @@
  * Script: SCM | UE PO Master
  * Author           Date       Version               Remarks
  * nagendrababu  10.17.2024      1.00       Initial creation of the script
- *
+ * nagendrababu  10.18.2024      1.01       Set Expected PO Date
  */
 
 /* -------------------------- Script Usage - Begin -------------------------- */
@@ -20,9 +20,11 @@
 
 /* global define,log*/
 
-define(['SuiteScripts/Transactions/Modules/scm_Module_stickyHeaders'], (
-  stickyHeaders
-) => {
+define([
+  'N/record',
+  'SuiteScripts/Transactions/Modules/scm_Module_stickyHeaders',
+  'SuiteScripts/Transactions/Purchase Orders/Modules/scm_Module_setExpectedPODate',
+], (record, stickyHeaders, setExpectedPODate) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -86,6 +88,20 @@ define(['SuiteScripts/Transactions/Modules/scm_Module_stickyHeaders'], (
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
     try {
+      const poId = scriptContext.newRecord.id;
+      const purchaseOrderRecord = record.load({
+        type: 'purchaseorder',
+        id: poId,
+      });
+      const expectedReceiveDateSet = setExpectedPODate.afterSubmit(
+        scriptContext,
+        purchaseOrderRecord
+      );
+      //
+      if (expectedReceiveDateSet) {
+        purchaseOrderRecord.save();
+        log.debug(loggerTitle, 'Purchase Order Record Saved Successfully');
+      }
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
