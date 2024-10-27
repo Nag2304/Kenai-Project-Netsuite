@@ -424,7 +424,7 @@ define([
       var day = ('0' + orderDate.getDate()).slice(-2);
 
       // Hardcoded time and milliseconds
-      var time = '01:01:01.000Z';
+      var time = '06:01:01.000Z';
 
       // Formatted DueDate
       dueDate = year + '-' + month + '-' + day + 'T' + time;
