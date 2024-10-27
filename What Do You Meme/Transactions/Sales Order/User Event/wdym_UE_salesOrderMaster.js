@@ -74,37 +74,37 @@ define([
 
       const salesOrderRecord = scriptContext.newRecord;
       // Retrieve the transaction date
-      const trandate = salesOrderRecord.getValue({
-        fieldId: 'trandate',
-      });
-      log.debug(loggerTitle + ' Tran Date', { trandate });
+      // const trandate = salesOrderRecord.getValue({
+      //   fieldId: 'trandate',
+      // });
+      // log.debug(loggerTitle + ' Tran Date', { trandate });
 
       // Get today's date
-      const today = new Date();
+      // const today = new Date();
 
       // Calculate the date 5 days ago
-      const fiveDaysAgo = new Date();
-      fiveDaysAgo.setDate(today.getDate() - 5);
+      // const fiveDaysAgo = new Date();
+      // fiveDaysAgo.setDate(today.getDate() - 5);
 
       // Format the dates for comparison
-      const trandateFormatted = format.format({
-        value: trandate,
-        type: format.Type.DATE,
-      });
-      const todayFormatted = format.format({
-        value: today,
-        type: format.Type.DATE,
-      });
-      const fiveDaysAgoFormatted = format.format({
-        value: fiveDaysAgo,
-        type: format.Type.DATE,
-      });
+      // const trandateFormatted = format.format({
+      //   value: trandate,
+      //   type: format.Type.DATE,
+      // });
+      // const todayFormatted = format.format({
+      //   value: today,
+      //   type: format.Type.DATE,
+      // });
+      // const fiveDaysAgoFormatted = format.format({
+      //   value: fiveDaysAgo,
+      //   type: format.Type.DATE,
+      // });
 
-      log.debug(loggerTitle + ' Dates', {
-        trandateFormatted,
-        fiveDaysAgoFormatted,
-        todayFormatted,
-      });
+      // log.debug(loggerTitle + ' Dates', {
+      //   trandateFormatted,
+      //   fiveDaysAgoFormatted,
+      //   todayFormatted,
+      // });
 
       // Retrieve other necessary fields
       const commercialInvoicePrinted = salesOrderRecord.getValue({
@@ -116,12 +116,7 @@ define([
       log.debug(loggerTitle, { commercialInvoicePrinted, shipToCountry });
 
       // Compare dates to check if trandate is within the last 5 days
-      if (
-        !commercialInvoicePrinted &&
-        shipToCountry !== 'US' &&
-        trandateFormatted >= fiveDaysAgoFormatted &&
-        trandateFormatted <= todayFormatted
-      ) {
+      if (!commercialInvoicePrinted && shipToCountry !== 'US') {
         log.debug(loggerTitle, ' Triggered Commercial Invoice Logic');
         objForm.addButton({
           id: 'custpage_commercial_invoice_btn',
