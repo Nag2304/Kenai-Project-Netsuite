@@ -259,7 +259,7 @@ define([
                 join: 'item',
               }),
               DueDate: formatDate(
-                result.getValue({ name: 'custbody_dct_order_date' })
+                result.getValue({ name: 'custbody_dct_due_date' })
               ),
               Impressions: 0,
               PartWeight: 0,
@@ -268,6 +268,7 @@ define([
               MaterialCost: 0,
               Material: '',
               Text: [
+                '',
                 '',
                 result.getText({ name: 'entity' }) || '',
                 result.getValue({ name: 'custbody_dct_priority' }),
