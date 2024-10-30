@@ -213,11 +213,15 @@ define([
             name: 'custbody_dct_priority',
             label: 'Priority',
           }),
+          search.createColumn({
+            name: 'custbody_dct_due_date',
+            label: 'Due Date',
+          }),
         ],
       })
       .run()
       .each(function (result) {
-        var quantitylbs = getWorkOrderLbQty(result.id);
+        var itemResults = getWorkOrderInvtDetails(result.id);
 
         var job = {
           NetSuiteID: result.id,
@@ -266,7 +270,7 @@ define([
               WasteWeight: 0,
               SellingPrice: 0,
               MaterialCost: 0,
-              Material: '',
+              Material: itemResults.description,
               Text: [
                 '',
                 '',
@@ -277,7 +281,7 @@ define([
               ],
               Number: [0],
               AdditionalText: [],
-              AdditionalNumber: [0, quantitylbs || ''],
+              AdditionalNumber: [0, itemResults.quantity || ''],
             },
           ],
           ProcessParameters: [
@@ -388,8 +392,12 @@ define([
     return null;
   }
 
-  function getWorkOrderLbQty(woId) {
-    var quantity = 0;
+  function getWorkOrderInvtDetails(woId) {
+    var resultsObject = {
+      quantity: 0,
+      description: '',
+    };
+
     try {
       if (woId) {
         var workOrderRecord = record.load({
@@ -404,16 +412,21 @@ define([
           value: 3,
         });
         //
-        quantity = workOrderRecord.getSublistValue({
+        resultsObject.quantity = workOrderRecord.getSublistValue({
           sublistId: 'item',
           fieldId: 'quantity',
+          line: lbsLine,
+        });
+        resultsObject.description = workOrderRecord.getSublistValue({
+          sublistId: 'item',
+          fieldId: 'description',
           line: lbsLine,
         });
       }
     } catch (error) {
       log.error('Get Work Order Lbs Qty Caught an exception', error);
     }
-    return quantity;
+    return resultsObject;
   }
 
   function formatDate(orderDate) {
