@@ -272,9 +272,9 @@ define([
               MaterialCost: 0,
               Material: itemResults.description,
               Text: [
-                '',
-                '',
                 result.getText({ name: 'entity' }) || '',
+                '',
+                '',
                 result.getValue({ name: 'custbody_dct_priority' }),
                 '',
                 result.getValue({ name: 'custbody_dct_order_date' }),
