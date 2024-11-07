@@ -419,8 +419,8 @@ define([
       filters: [['custrecord_ctm_currency', 'anyof', currency]],
       columns: [
         search.createColumn({
-          name: 'custrecord_ctm_template',
-          label: 'PDF Template',
+          name: 'custrecord_rrb_file_id',
+          label: 'File ID',
         }),
       ],
     });
