@@ -45,10 +45,15 @@ define(['N/record'], (record) => {
           const soDetails = getSODetails(createdFromField, workOrderRecord);
           log.debug(`${loggerTitle} SO DETAILS`, soDetails);
           if (soDetails.broom) {
+            // const currentBroomField = workOrderRecord.getValue({
+            //   fieldId: 'custbody_scm_broom_for_sweeper',
+            // });
+
             workOrderRecord.setValue({
               fieldId: 'custbody_scm_broom_for_sweeper',
               value: soDetails.broom,
             });
+
             broomFieldPopulated = true;
           }
           //
