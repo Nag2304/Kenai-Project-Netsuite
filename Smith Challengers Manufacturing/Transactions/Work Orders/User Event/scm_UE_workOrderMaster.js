@@ -20,9 +20,11 @@
 
 /* global define,log*/
 
-define(['SuiteScripts/Transactions/Modules/scm_Module_stickyHeaders'], (
-  stickyHeaders
-) => {
+define([
+  'SuiteScripts/Transactions/Modules/scm_Module_stickyHeaders',
+  'N/record',
+  'SuiteScripts/Transactions/Work Orders/Modules/scm_Module_populateBroomField',
+], (stickyHeaders, record, populateBroomField) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -86,6 +88,25 @@ define(['SuiteScripts/Transactions/Modules/scm_Module_stickyHeaders'], (
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
     try {
+      const isDelete =
+        scriptContext.type === scriptContext.UserEventType.DELETE;
+      if (!isDelete) {
+        const workOrderId = scriptContext.newRecord.id;
+        const workOrderRecord = record.load({
+          type: record.Type.WORK_ORDER,
+          id: workOrderId,
+        });
+
+        const broomFieldPopulate = populateBroomField.afterSubmit(
+          scriptContext,
+          workOrderRecord
+        );
+
+        if (broomFieldPopulate) {
+          workOrderRecord.save();
+          log.debug(loggerTitle, 'Work Order Record Saved Successfully.');
+        }
+      }
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
