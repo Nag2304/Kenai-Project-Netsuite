@@ -12,12 +12,12 @@ define(['N/record', 'N/search', 'N/format'], (record, search, format) => {
   //
   /* -------------------------- Before Submit - Begin ------------------------- */
   const beforeSubmit = (scriptContext) => {
-    const strLoggerTitle = ' Before Submit';
+    const strLoggerTitle = 'Before Submit';
     log.audit(
       strLoggerTitle,
       '|>-----------------' + strLoggerTitle + ' - Entry-----------------<|'
     );
-    //
+
     try {
       const poRecord = scriptContext.newRecord;
       const isCreate =
@@ -26,33 +26,60 @@ define(['N/record', 'N/search', 'N/format'], (record, search, format) => {
       const runDateUpdates = poRecord.getValue({
         fieldId: 'custbody_wdym_run_date_updates',
       });
-      const receiveByDate = poRecord.getValue({ fieldId: 'duedate' });
+      const exFactoryDate = poRecord.getValue({
+        fieldId: 'custbody_ex_factory_date',
+      });
       const lineItemCount = poRecord.getLineCount({ sublistId: 'item' });
       const createdFrom = poRecord.getValue({ fieldId: 'createdfrom' });
-      //
-      // Create
+
+      // Helper function to add days to a date
+      const addDays = (date, days) => {
+        const result = new Date(date);
+        result.setDate(result.getDate() + days);
+        return result;
+      };
+
       if (isCreate) {
         for (let index = 0; index < lineItemCount; index++) {
-          // Get Item Qty
           const itemQty = poRecord.getSublistValue({
             sublistId: 'item',
             fieldId: 'quantity',
             line: index,
           });
-
           const item = poRecord.getSublistValue({
             sublistId: 'item',
             fieldId: 'item',
             line: index,
           });
-
           const itemType = poRecord.getSublistValue({
             sublistId: 'item',
             fieldId: 'itemtype',
             line: index,
           });
+          const location = poRecord.getSublistValue({
+            sublistId: 'item',
+            fieldId: 'location',
+            line: index,
+          });
 
-          if (itemType == 'InvtPart') {
+          // Determine Expected Receipt Date
+          let expectedReceiptDate = exFactoryDate;
+          if (location === 'TBF' && exFactoryDate) {
+            expectedReceiptDate = addDays(exFactoryDate, 60);
+          }
+
+          // Set Expected Receipt Date if applicable
+          if (expectedReceiptDate) {
+            poRecord.setSublistValue({
+              sublistId: 'item',
+              fieldId: 'expectedreceiptdate',
+              value: expectedReceiptDate,
+              line: index,
+            });
+          }
+
+          // Set Refresh Date if item type is Inventory Part
+          if (itemType === 'InvtPart') {
             const inventoryItemSearch = search.lookupFields({
               type: search.Type.INVENTORY_ITEM,
               id: item,
@@ -73,16 +100,6 @@ define(['N/record', 'N/search', 'N/format'], (record, search, format) => {
             }
           }
 
-          if (receiveByDate) {
-            // Set Expected Receipt Date
-            poRecord.setSublistValue({
-              sublistId: 'item',
-              fieldId: 'expectedreceiptdate',
-              value: receiveByDate,
-              line: index,
-            });
-          }
-
           // Set Original Order Qty
           poRecord.setSublistValue({
             sublistId: 'item',
@@ -91,7 +108,8 @@ define(['N/record', 'N/search', 'N/format'], (record, search, format) => {
             line: index,
           });
         }
-        //
+
+        // Set Ex-Factory Date at header if created from another record
         if (createdFrom) {
           let lineLevelExpectedReceiveDate = null;
           for (let index1 = 0; index1 < lineItemCount; index1++) {
@@ -113,25 +131,32 @@ define(['N/record', 'N/search', 'N/format'], (record, search, format) => {
             log.debug(strLoggerTitle, 'Set Line Level Value');
           }
         }
-
-        //
-      }
-      // Edit
-      else if (isUpdate && runDateUpdates) {
+      } else if (isUpdate && runDateUpdates) {
         for (let index1 = 0; index1 < lineItemCount; index1++) {
-          poRecord.setSublistValue({
+          const location = poRecord.getSublistValue({
             sublistId: 'item',
-            fieldId: 'expectedreceiptdate',
-            value: receiveByDate,
+            fieldId: 'location',
             line: index1,
           });
+          let expectedReceiptDate = exFactoryDate;
+          if (location === 'TBF' && exFactoryDate) {
+            expectedReceiptDate = addDays(exFactoryDate, 60);
+          }
+
+          if (expectedReceiptDate) {
+            poRecord.setSublistValue({
+              sublistId: 'item',
+              fieldId: 'expectedreceiptdate',
+              value: expectedReceiptDate,
+              line: index1,
+            });
+          }
         }
       }
-      //
     } catch (error) {
       log.error(strLoggerTitle + ' caught an exception', error);
     }
-    //
+
     log.audit(
       strLoggerTitle,
       '|>-----------------' + strLoggerTitle + ' - Exit-----------------<|'
@@ -307,7 +332,7 @@ define(['N/record', 'N/search', 'N/format'], (record, search, format) => {
         // const lineSearchRFID = poRecord.findSublistLineWithValue({
         //   sublistId: 'item',
         //   fieldId: 'item',
-        //   value: 2825,
+        //   value: 2915,
         // });
 
         const lineSearchRFIDDescription = poRecord.findSublistLineWithValue({
@@ -336,7 +361,7 @@ define(['N/record', 'N/search', 'N/format'], (record, search, format) => {
           poRecord.setCurrentSublistValue({
             sublistId: 'item',
             fieldId: 'item',
-            value: 2825,
+            value: 2915,
           });
           poRecord.setCurrentSublistValue({
             sublistId: 'item',
