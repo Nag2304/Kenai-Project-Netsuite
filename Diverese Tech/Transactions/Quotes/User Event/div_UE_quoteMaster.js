@@ -20,7 +20,7 @@
 
 /* global define,log*/
 
-define(['SuiteScripts/Transactions/Modules/scm_Module_stickyHeaders'], (
+define(['SuiteScripts/Transactions/Modules/div_Module_stickyHeaders'], (
   stickyHeaders
 ) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
