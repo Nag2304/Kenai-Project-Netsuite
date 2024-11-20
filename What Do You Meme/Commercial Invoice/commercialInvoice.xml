@@ -178,42 +178,50 @@
 	</tr></table>
 <#assign totalCustomAmount = 0.0>
 <#if record.item?has_content>
-<table class="itemtable" style="width: 100%; margin-top: 10px;"><!-- start items --><#list record.item as item><#if item_index==0>
-<thead>
-	<tr>
-	<th align="center" colspan="3">${item.quantity@label}</th>
-	<th colspan="5">${item.item@label}</th>
-	<th align="right" colspan="4">${item.rate@label}</th>
-	<th align="right" colspan="4">${item.amount@label}</th>
-	<#if item.custcol_wdym_entityid != "What Do You Meme, LLC SAMPLES">
-	<th align="right" colspan="3">HTC Code</th>
-	<th align="right" colspan="3">UPC Code</th>
-	</#if>
-	</tr>
-</thead>
-</#if><tr>
-	<td align="center" colspan="3" >${item.quantity}</td>
-	<td colspan="5"><span class="itemname">${item.item}</span><br />${item.description}</td>
-	<#if item.custcol_wdym_entityid == "What Do You Meme, LLC SAMPLES">
-	<td align="right" colspan="4">${item.custcol_wdym_customs_rate}</td>
-    <#else>
-	<td align="right" colspan="4">${item.rate}</td>
-    </#if>
-    <#if item.custcol_wdym_entityid == "What Do You Meme, LLC SAMPLES">
-	<td align="right" colspan="4">${item.custcol_wdym_customs_amount}</td>
-	<#assign totalCustomAmount = (totalCustomAmount +item.custcol_wdym_customs_amount) >
-    <#else>
-	<td align="right" colspan="4">${item.amount}</td>
-    </#if>
-	<#if item.custcol_wdym_entityid != "What Do You Meme, LLC SAMPLES">
-	<td align="right" colspan="3">${item.custcol_wdym_htc_code}</td>
-	<td align="right" colspan="3">${item.custcol_upc_code}</td>
-	</#if>
-	</tr>
-	
-	</#list><!-- end items --></table>
+<table class="itemtable" style="width: 100%; margin-top: 10px;">
+    <!-- Print the header only once -->
+    <thead>
+        <tr>
+            <th align="center" colspan="3">${record.item[0].quantity@label}</th>
+            <th colspan="5">${record.item[0].item@label}</th>
+            <th align="right" colspan="4">${record.item[0].rate@label}</th>
+            <th align="right" colspan="4">${record.item[0].amount@label}</th>
+            <#if record.item[0].custcol_wdym_entityid != "What Do You Meme, LLC SAMPLES">
+                <th align="right" colspan="3">HTC Code</th>
+                <th align="right" colspan="3">UPC Code</th>
+            </#if>
+        </tr>
+    </thead>
+    <!-- Loop through items and print only open ones -->
+    <#list record.item as item>
+        <#if item.isclosed?string("Yes", "No") == 'No'>
+        <tr>
+            <td align="center" colspan="3">${item.quantity}</td>
+            <td colspan="5">
+                <span class="itemname">${item.item}</span><br />${item.description}
+            </td>
+            <#if item.custcol_wdym_entityid == "What Do You Meme, LLC SAMPLES">
+                <td align="right" colspan="4">${item.custcol_wdym_customs_rate}</td>
+            <#else>
+                <td align="right" colspan="4">${item.rate}</td>
+            </#if>
+            <#if item.custcol_wdym_entityid == "What Do You Meme, LLC SAMPLES">
+                <td align="right" colspan="4">${item.custcol_wdym_customs_amount}</td>
+                <#assign totalCustomAmount = (totalCustomAmount + item.custcol_wdym_customs_amount)>
+            <#else>
+                <td align="right" colspan="4">${item.amount}</td>
+            </#if>
+            <#if item.custcol_wdym_entityid != "What Do You Meme, LLC SAMPLES">
+                <td align="right" colspan="3">${item.custcol_wdym_htc_code}</td>
+                <td align="right" colspan="3">${item.custcol_upc_code}</td>
+            </#if>
+        </tr>
+        </#if>
+    </#list>
+</table>
 
-<hr /></#if>
+<hr />
+</#if>
 <table class="total" style="width: 100%; margin-top: 10px;">
 	<tr class="totalrow">
 	<td background-color="#ffffff" colspan="4">&nbsp;</td>
