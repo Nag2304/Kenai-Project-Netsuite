@@ -53,15 +53,39 @@ function GetHTML(builderId, builderPersId) {
           builderId,
           'custentity_mls_service_regions'
         );
-        nlapiLogExecution('DEBUG', 'Before Switch', 'mlsArea: ' + mlsArea);
+        nlapiLogExecution('DEBUG', 'Retrieved MLS Area', 'mlsArea: ' + mlsArea);
+
+        // Ensure mlsArea retains all values (handle comma-separated string)
+        if (mlsArea) {
+          mlsArea = mlsArea.split(',');
+          nlapiLogExecution(
+            'DEBUG',
+            'Parsed MLS Area',
+            'mlsArea Array: ' + mlsArea.join(',')
+          );
+        } else {
+          mlsArea = [];
+        }
+
         switch (builderId) {
-          case builderId == '516':
-            mlsArea = 4;
-          case builderId == '5047':
-            mlsArea = 3;
-            nlapiLogExecution('DEBUG', 'Inside Switch', 'mlsArea: ' + mlsArea);
+          case '516':
+            mlsArea = ['4']; // Example of overriding with specific value
+            break;
+          case '5047':
+            mlsArea = ['3'];
+            nlapiLogExecution(
+              'DEBUG',
+              'Inside Switch',
+              'mlsArea overridden: ' + mlsArea.join(',')
+            );
+            break;
           default:
-            mlsArea = mlsArea[0];
+            // No truncation here; retain the entire parsed array
+            nlapiLogExecution(
+              'DEBUG',
+              'Default MLS Area',
+              'mlsArea: ' + mlsArea.join(',')
+            );
         }
         nlapiLogExecution('DEBUG', 'mlsArea: ' + mlsArea);
         divList2 = GetPreviousWeekProperties(builderId);
@@ -76,19 +100,48 @@ function GetHTML(builderId, builderPersId) {
         builderId,
         'custentity_mls_service_regions'
       );
-      switch (builderId) {
-        case builderId == '516':
-          mlsArea = 4;
-        case builderId == '5047':
-          mlsArea = 3;
-          nlapiLogExecution('DEBUG', 'Inside Switch', 'mlsArea: ' + mlsArea);
-        default:
-          mlsArea = mlsArea[0];
+      nlapiLogExecution(
+        'DEBUG',
+        'Retrieved MLS Area for builderId and personnelId',
+        'mlsArea: ' + mlsArea
+      );
+
+      // Parse MLS Area into an array if it is not null or empty
+      if (mlsArea) {
+        mlsArea = mlsArea.split(',');
+        nlapiLogExecution(
+          'DEBUG',
+          'Parsed MLS Area',
+          'mlsArea Array: ' + mlsArea.join(',')
+        );
+      } else {
+        mlsArea = [];
       }
-      nlapiLogExecution('DEBUG', 'mlsArea: ' + mlsArea);
+
+      switch (builderId) {
+        case '516':
+          mlsArea = ['4']; // Override value for specific builderId
+          break;
+        case '5047':
+          mlsArea = ['3'];
+          nlapiLogExecution(
+            'DEBUG',
+            'Inside Switch',
+            'mlsArea overridden: ' + mlsArea.join(',')
+          );
+          break;
+        default:
+          nlapiLogExecution(
+            'DEBUG',
+            'Default MLS Area',
+            'mlsArea: ' + mlsArea.join(',')
+          );
+      }
+
       divList2 = GetPreviousWeekProperties(builderId);
       divList3 = GetFutureProperties(builderId);
     }
+
     nlapiLogExecution('DEBUG', '62', '62');
 
     var filters = [];
