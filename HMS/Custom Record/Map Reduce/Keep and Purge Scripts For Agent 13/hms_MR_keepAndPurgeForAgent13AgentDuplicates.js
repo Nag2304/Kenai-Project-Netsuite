@@ -5,10 +5,10 @@
  */
 
 /**
- * File name: hms_MR_keepAndPurgeForAgent13AgentDuplicates.js
- * Script: HMS | MR Keep Purge Region 13 Agent Dup
+ * File name: hms_MR_keepAndPurgeAgentDuplicateRecordsForRegion13.js
+ * Script: HMS | MR K & P For Region 13 Agent Dup
  * Author           Date       Version               Remarks
- * nagendrababu  09.15.2024     1.00     Initial Creation of the Script.
+ * nagendrababu  24.11.2024     1.00     Initial Creation of the Script.
  *
  */
 
@@ -23,10 +23,67 @@ define(['N/search', 'N/record'], (search, record) => {
   /* ------------------------- Global Variables - End ------------------------- */
   //
   /* ------------------------- Get Input Data - Begin ------------------------- */
+  /**
+   *
+   * @returns {object}
+   */
   const getInputData = () => {
     return searchAgentDuplicateswithTwoRecords();
   };
   /* ------------------------- Get Input Data - End ------------------------- */
+  //
+  /* -------------------------- Map Phase - Begin -------------------------- */
+  /**
+   *
+   * @param {object} mapContext
+   */
+  const map = (mapContext) => {
+    const loggerTitle = 'Map Phase';
+    log.audit(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+    );
+    //
+    try {
+      // Parse the Values
+      const mapContextValues = JSON.parse(mapContext.value);
+      log.debug(loggerTitle, mapContextValues);
+      //
+
+      // Key
+      const agent =
+        mapContextValues.values['GROUP(custrecord_hms_agent_id_number_13)'];
+      //
+
+      // Values
+      const reduceValues = {};
+      reduceValues.crmCount = parseInt(
+        mapContextValues.values['SUM(custrecord_hms_crm_record_count_13)']
+      );
+      reduceValues.surveyCount = parseInt(
+        mapContextValues.values['SUM(custrecord_hms_survery_count_13)']
+      );
+      reduceValues.soldPropertiesCount = parseInt(
+        mapContextValues.values['SUM(custrecord_hms_sold_properties_13)']
+      );
+      //
+
+      // Form Key Values
+      mapContext.write({
+        key: agent,
+        value: reduceValues,
+      });
+      //
+    } catch (error) {
+      log.error(loggerTitle + ' caught an exception', error);
+    }
+    //
+    log.audit(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit------------------<|'
+    );
+  };
+  /* -------------------------- Map Phase- End-------------------------- */
   //
   /* -------------------------- Reduce Phase - Begin -------------------------- */
   /**
@@ -39,24 +96,116 @@ define(['N/search', 'N/record'], (search, record) => {
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
-    //
+
     try {
-      // Parse the Values
-      const reduceContextValues = JSON.parse(reduceContext.values[0]);
-      log.debug(loggerTitle, reduceContextValues);
+      // Key
+      const key = reduceContext.key;
+      log.debug(loggerTitle, `Key: ${key}`);
       //
-      // Read the Values
-      const agentIdNumber =
-        reduceContextValues.values['GROUP(custrecord_hms_agent_id_number_13)'];
-      log.debug(loggerTitle, `Agent ID:${agentIdNumber}`);
-      //
-      if (agentIdNumber) {
-        getAgentRelatedRecords(agentIdNumber);
+      // Values
+      const results = JSON.parse(reduceContext.values[0]);
+      log.debug(loggerTitle + ' Results', results);
+      let crmCount = results.crmCount;
+      let surveyCount = results.surveyCount;
+      let soldPropertiesCount = results.soldPropertiesCount;
+
+      // Retrieve Ids
+      const agentIds = retrieveAgentInternalIds(key);
+      log.debug(loggerTitle + ' Agent Ids ', agentIds);
+
+      // Ensure we have exactly two records
+      if (agentIds.length !== 2) {
+        return true;
       }
+
+      const [record1, record2] = agentIds;
+
+      // Define comparison logic
+      const determineKeepPurge = (rec1, rec2) => {
+        const rec1Verified = rec1.verifiedFromRETSFeeds === true;
+        const rec2Verified = rec2.verifiedFromRETSFeeds === true;
+
+        log.debug(
+          loggerTitle,
+          `REC1 VERIFIED: ${rec1Verified} REC2 VERIFIED: ${rec2Verified}`
+        );
+
+        const rec1HasRelatedRecords =
+          rec1.cCount > 0 || rec1.sCount > 0 || rec1.spCount > 0;
+        const rec2HasRelatedRecords =
+          rec2.cCount > 0 || rec2.sCount > 0 || rec2.spCount > 0;
+
+        log.debug(
+          loggerTitle,
+          ` REC1 RELATED RECORDS: ${rec1HasRelatedRecords} REC 2 RELATED RECORDS: ${rec2HasRelatedRecords}`
+        );
+
+        if (
+          !rec1Verified &&
+          !rec2Verified &&
+          rec1HasRelatedRecords &&
+          rec2HasRelatedRecords
+        ) {
+          // Both records are unverified, and both have related records
+          // Compare `lastUpdate` dates and keep the one with the most recent date
+          if (new Date(rec1.lastUpdate) > new Date(rec2.lastUpdate)) {
+            return { keep: rec1, purge: rec2 };
+          } else {
+            return { keep: rec2, purge: rec1 };
+          }
+        }
+
+        if (rec1Verified && !rec2Verified) {
+          return { keep: rec1, purge: rec2 };
+        } else if (!rec1Verified && rec2Verified) {
+          return { keep: rec2, purge: rec1 };
+        } else if (rec1Verified && rec2Verified) {
+          if (rec1HasRelatedRecords && !rec2HasRelatedRecords) {
+            return { keep: rec1, purge: rec2 };
+          } else if (!rec1HasRelatedRecords && rec2HasRelatedRecords) {
+            return { keep: rec2, purge: rec1 };
+          } else {
+            return { purge1: rec1, purge2: rec2 };
+          }
+        } else {
+          if (rec1HasRelatedRecords && !rec2HasRelatedRecords) {
+            return { keep: rec1, purge: rec2 };
+          } else if (!rec1HasRelatedRecords && rec2HasRelatedRecords) {
+            return { keep: rec2, purge: rec1 };
+          } else {
+            if (rec1.lastName !== rec2.lastName) {
+              return { keep: rec1, keep2: rec2 };
+            } else {
+              return { purge1: rec1, purge2: rec2 };
+            }
+          }
+        }
+      };
+
+      // Get the keep and purge records
+      const { keep, keep2, purge, purge1, purge2 } = determineKeepPurge(
+        record1,
+        record2
+      );
+
+      log.debug(loggerTitle + ' Determin Keep Purge ', {
+        keep,
+        keep2,
+        purge,
+        purge1,
+        purge2,
+      });
+
+      // Update records based on determination
+      if (keep) updateAgentUpdateProjectRecord(keep.id, 'keep');
+      if (keep2) updateAgentUpdateProjectRecord(keep2.id, 'keep');
+      if (purge) updateAgentUpdateProjectRecord(purge.id, 'purge');
+      if (purge1) updateAgentUpdateProjectRecord(purge1.id, 'purge');
+      if (purge2) updateAgentUpdateProjectRecord(purge2.id, 'purge');
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
-    //
+
     log.audit(
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
@@ -102,6 +251,113 @@ define(['N/search', 'N/record'], (search, record) => {
   //
   /* ----------------------- Helper Functions - Begin ----------------------- */
   //
+  /* *********************** retrieveAgentInternalIds - Begin *********************** */
+  /**
+   *
+   * @param {string} agentId
+   * @returns {object}
+   */
+  const retrieveAgentInternalIds = (agentId) => {
+    const loggerTitle = ' Retrieve Agent Internal Ids';
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+    );
+    //
+    const resultValuesArr = [];
+    try {
+      // Create Search
+      const customrecord_hms_agent_upd_projectSearchObj = search.create({
+        type: 'customrecord_hms_agent_upd_prjct_reg_13',
+        filters: [
+          ['custrecord_hms_agent_id_number_13', 'is', agentId],
+          'AND',
+          ['custrecord_hms_agent_id_dupe_13', 'is', 'T'],
+          'AND',
+          ['isinactive', 'is', 'F'],
+          'AND',
+          ['custrecord_hms_keep_13', 'is', 'F'],
+          'AND',
+          ['custrecord_hms_purge_13', 'is', 'F'],
+        ],
+        columns: [
+          search.createColumn({
+            name: 'custrecord_hms_agent_id_number_13',
+            label: 'Agent ID Number',
+          }),
+          search.createColumn({
+            name: 'custrecord_hms_verified_from_ret_feed_13',
+            label: 'VERIFIED FROM RETS FEED',
+          }),
+          search.createColumn({
+            name: 'custrecord_hms_crm_record_count_13',
+            label: 'CRM Record Count',
+          }),
+          search.createColumn({
+            name: 'custrecord_hms_survery_count_13',
+            label: 'Survey Count',
+          }),
+          search.createColumn({
+            name: 'custrecord_hms_sold_properties_13',
+            label: 'Sold Properties',
+          }),
+          search.createColumn({
+            name: 'custrecord_hms_first_name_13',
+            label: 'First Name',
+          }),
+          search.createColumn({
+            name: 'custrecord_hms_last_name_13',
+            label: 'Last Name',
+          }),
+          search.createColumn({
+            name: 'custrecord_hms_last_update_13',
+            label: 'Last Update',
+          }),
+        ],
+      });
+      var searchResultCount =
+        customrecord_hms_agent_upd_projectSearchObj.runPaged().count;
+      log.debug(loggerTitle, `Search Result Count: ${searchResultCount}`);
+      //
+      if (searchResultCount == 2) {
+        customrecord_hms_agent_upd_projectSearchObj.run().each((result) => {
+          let resultObj = {};
+          resultObj.id = result.id;
+          resultObj.agentIdNumber = result.getValue(
+            'custrecord_hms_agent_id_number_13'
+          );
+          resultObj.verifiedFromRETSFeeds = result.getValue(
+            'custrecord_hms_verified_from_ret_feed_13'
+          );
+          resultObj.cCount = result.getValue(
+            'custrecord_hms_crm_record_count_13'
+          );
+          resultObj.sCount = result.getValue('custrecord_hms_survery_count_13');
+          resultObj.spCount = result.getValue(
+            'custrecord_hms_sold_properties_13'
+          );
+          resultObj.firstName = result.getValue('custrecord_hms_first_name_13');
+          resultObj.lastName = result.getValue('custrecord_hms_last_name_13');
+          resultObj.lastUpdate = result.getValue(
+            'custrecord_hms_last_update_13'
+          );
+          resultValuesArr.push(resultObj);
+          return true;
+        });
+      }
+    } catch (error) {
+      log.error(loggerTitle + ' caught with an exception', error);
+    }
+    //
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
+    );
+    return resultValuesArr;
+  };
+  /* *********************** retrieveAgentInternalIds - End *********************** */
+  //
+  //
   /* *********************** searchAgentDuplicateswithTwoRecords - Begin *********************** */
   /**
    *
@@ -116,474 +372,85 @@ define(['N/search', 'N/record'], (search, record) => {
         ['custrecord_hms_agent_id_dupe_13', 'is', 'T'],
         'AND',
         ['isinactive', 'is', 'F'],
+        'AND',
+        ['custrecord_hms_keep_13', 'is', 'F'],
+        'AND',
+        ['custrecord_hms_purge_13', 'is', 'F'],
+        'AND',
+        ['count(internalid)', 'equalto', '2'],
       ],
       columns: [
         search.createColumn({
+          name: 'custrecord_hms_agent_id_dupe_13',
+          summary: 'GROUP',
+          label: 'Agent Duplicate',
+        }),
+        search.createColumn({
+          name: 'custrecord_hms_mls_region_13',
+          summary: 'GROUP',
+          label: 'MLS Region',
+        }),
+        search.createColumn({
+          name: 'custrecord_hms_crm_record_count_13',
+          summary: 'SUM',
+          label: 'CRM Record Count',
+        }),
+        search.createColumn({
+          name: 'custrecord_hms_survery_count_13',
+          summary: 'SUM',
+          label: 'Survey Count',
+        }),
+        search.createColumn({
+          name: 'custrecord_hms_sold_properties_13',
+          summary: 'SUM',
+          label: 'Sold Properties',
+        }),
+        search.createColumn({
           name: 'custrecord_hms_agent_id_number_13',
           summary: 'GROUP',
-          label: 'Agent ID Number',
+          label: 'Agent Number',
         }),
       ],
     });
   };
-  /* *********************** searchAgentDuplicateswithTwoRecords - Begin *********************** */
+  /* *********************** searchAgentDuplicateswithTwoRecords - End *********************** */
   //
-  /* *********************** getAgentRelatedRecords - Begin *********************** */
+  /* *********************** updateAgentUpdateProjectRecord - Begin *********************** */
   /**
    *
-   * @param {string} agentIdNumber
-   * @returns {boolean}
-   */
-  const getAgentRelatedRecords = (agentIdNumber) => {
-    const loggerTitle = ' Get Agent Related Records ';
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
-    );
-    //
-    let searchResultCount = 0;
-    let customAgentUpdateProjectSearchObj;
-    let previousInternalId;
-    let previousKeep;
-    let previousNrdsId;
-    let previousAgentId;
-    let previousCrmCount;
-    let previousSoldPropertiesCount;
-    const updateObject = {
-      agentUpdate: false,
-      CRM: false,
-      soldProperties: false,
-    };
-    try {
-      customAgentUpdateProjectSearchObj = search.create({
-        type: 'customrecord_hms_agent_upd_prjct_reg_13',
-        filters: [['custrecord_hms_agent_id_number_13', 'is', agentIdNumber]],
-        columns: [
-          search.createColumn({
-            name: 'custrecord_hms_agent_id_number_13',
-            label: 'Agent ID Number',
-          }),
-          search.createColumn({
-            name: 'custrecord_hms_agent_name_13',
-            label: 'Name',
-          }),
-          search.createColumn({
-            name: 'custrecord_hms_nrds_13',
-            label: 'NRDS',
-          }),
-          search.createColumn({
-            name: 'custrecord_hms_keep_13',
-            label: 'Keep',
-            sort: search.Sort.DESC,
-          }),
-          search.createColumn({
-            name: 'custrecord_hms_purge_13',
-            label: 'Purge',
-          }),
-          search.createColumn({
-            name: 'custrecord_hms_crm_record_count_13',
-            label: 'CRM Record Count',
-          }),
-          search.createColumn({
-            name: 'custrecord_hms_survery_count_13',
-            label: 'Survey Count',
-          }),
-          search.createColumn({
-            name: 'custrecord_hms_sold_properties_13',
-            label: 'Sold Properties',
-          }),
-        ],
-      });
-      searchResultCount = customAgentUpdateProjectSearchObj.runPaged().count;
-      log.debug(loggerTitle, ' Search Result Count: ' + searchResultCount);
-      //
-
-      customAgentUpdateProjectSearchObj.run().each((result) => {
-        const internalId = result.id;
-        // Get Agent ID
-        const name = result.getValue('custrecord_hms_agent_name_13');
-        const agentId = getAgentRecordId(name);
-        //
-        const keep = result.getValue('custrecord_hms_keep_13');
-        const purge = result.getValue('custrecord_hms_purge_13');
-        const nrdsId = result.getValue('custrecord_hms_nrds_13');
-        const crmCount = result.getValue('custrecord_hms_crm_record_count_13');
-        const soldPropertiesCount = result.getValue(
-          'custrecord_hms_sold_properties_13'
-        );
-        // If Previous NRDS ID is Null and Current NRDS ID has value && Purge is true
-        if (!previousNrdsId && nrdsId && purge) {
-          if (previousKeep && previousInternalId) {
-            updateObject.agentUpdate = updateAgentUpdateProject(
-              previousInternalId,
-              nrdsId,
-              'A'
-            );
-          }
-        }
-        //
-
-        // CRM Count
-        if (crmCount > 0 && purge && agentId) {
-          log.debug(
-            loggerTitle,
-            ' Calling the Update Agent CRM Records and Agent ID is ' +
-              agentId +
-              ' Previous Agent ID ' +
-              previousAgentId
-          );
-          updateObject.CRM = updateAgentCRMRecords(previousAgentId, agentId);
-        }
-        //
-
-        // Sold Properties Count
-        if (soldPropertiesCount > 0 && purge && agentId) {
-          log.debug(
-            loggerTitle,
-            ' Calling the Update Agent Sold Properties and Agent ID is ' +
-              agentId +
-              ' Previous Agent ID ' +
-              previousAgentId
-          );
-          updateObject.soldProperties = updateAgentSoldProperties(
-            previousAgentId,
-            agentId
-          );
-        }
-        //
-
-        if (
-          Object.values(updateObject).some((val) => val) &&
-          purge &&
-          agentId
-        ) {
-          log.debug(loggerTitle, ' Calling the Update Original Agent Record ');
-          updateOriginalAgentRecord(agentId);
-          log.debug(
-            loggerTitle,
-            ` Marked the Original Agent Id to Inactive ${agentId}`
-          );
-        }
-
-        log.debug(loggerTitle, {
-          internalId,
-          name,
-          keep,
-          purge,
-          nrdsId,
-          agentId,
-          crmCount,
-          soldPropertiesCount,
-        });
-        previousInternalId = internalId;
-        previousKeep = keep;
-        previousNrdsId = nrdsId;
-        previousAgentId = agentId;
-        previousCrmCount = crmCount;
-        previousSoldPropertiesCount = soldPropertiesCount;
-        return true;
-      });
-      // Update the Purge Record
-      updateAgentUpdateProject(previousInternalId, 0, 'I');
-      //
-    } catch (error) {
-      log.error(loggerTitle + ' caught with an exception', error);
-    }
-    //
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
-    );
-    return true;
-  };
-  /* *********************** getAgentRelatedRecords - End *********************** */
-  //
-  /* *********************** updateOriginalAgentRecord - Begin *********************** */
-  /**
-   *
-   * @param {Number} agentId
-   */
-  const updateOriginalAgentRecord = (agentId) => {
-    const loggerTitle = ' Update Original Agent Record ';
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
-    );
-    //
-    try {
-      if (agentId) {
-        record.submitFields({
-          type: 'customrecord_agent',
-          id: agentId,
-          values: {
-            isinactive: true,
-            custrecord_hms_marked_dup: true,
-          },
-        });
-        log.debug(loggerTitle, `Updated ID: ${agentId} `);
-      }
-    } catch (error) {
-      log.error(loggerTitle + ' caught with an exception', error);
-    }
-    //
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
-    );
-  };
-  /* *********************** updateOriginalAgentRecord - End *********************** */
-  //
-  /* *********************** updateAgentUpdateProject - Begin *********************** */
-  /**
-   *
-   * @param {number} id
-   * @param {number} nrdsId
+   * @param {Number} customRecordId
    * @param {string} flag
    * @returns {boolean}
    */
-  const updateAgentUpdateProject = (id, nrdsId, flag = 'A') => {
-    const loggerTitle = ' Update Agent Update Project ';
+  const updateAgentUpdateProjectRecord = (customRecordId, flag) => {
+    const loggerTitle = ' Update Agent Update Project Record ';
     log.debug(
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
     //
-    let updateFlag = false;
     try {
-      if (flag == 'A') {
+      if (customRecordId && flag == 'purge') {
         record.submitFields({
           type: 'customrecord_hms_agent_upd_prjct_reg_13',
-          id: id,
+          id: customRecordId,
           values: {
-            custrecord_hms_nrds_13: nrdsId,
+            custrecord_hms_purge_13: true,
+            custrecord_hms_keep_13: false,
           },
         });
-        log.debug(loggerTitle, `Updated ID: ${id} with NRDS ID:${nrdsId}`);
-        updateFlag = true;
-      } else if (flag == 'I') {
+        log.debug(loggerTitle, `Updated ID: ${customRecordId} for ${flag}`);
+      } else if (customRecordId && flag == 'keep') {
         record.submitFields({
           type: 'customrecord_hms_agent_upd_prjct_reg_13',
-          id: id,
+          id: customRecordId,
           values: {
-            isinactive: true,
+            custrecord_hms_keep_13: true,
+            custrecord_hms_purge_13: false,
           },
         });
-        log.debug(loggerTitle, `Updated ID: ${id} and set to inactive`);
-        updateFlag = true;
+        log.debug(loggerTitle, `Updated ID: ${customRecordId} for ${flag}`);
       }
-      //
-    } catch (error) {
-      log.error(loggerTitle + ' caught with an exception', error);
-    }
-    //
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
-    );
-    return updateFlag;
-  };
-  /* *********************** updateAgentUpdateProject - End *********************** */
-  //
-  /* *********************** getAgentRecordId - Begin *********************** */
-  /**
-   *
-   * @param {string} agentName
-   * @returns {number} agentId
-   */
-  const getAgentRecordId = (agentName) => {
-    const loggerTitle = ' Get Agent Record Id ';
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
-    );
-    //
-    let agentId;
-    try {
-      const customAgentSearchObj = search.create({
-        type: 'customrecord_agent',
-        filters: [['name', 'is', agentName]],
-        columns: [
-          search.createColumn({ name: 'internalid', label: 'Internal ID' }),
-        ],
-      });
-      const searchResultCount = customAgentSearchObj.runPaged().count;
-      log.debug(loggerTitle, ' Search Count: ' + searchResultCount);
-      //
-      if (searchResultCount) {
-        customAgentSearchObj.run().each((result) => {
-          agentId = result.id;
-        });
-        log.debug(loggerTitle, ' Agent ID: ' + agentId);
-      }
-    } catch (error) {
-      log.error(loggerTitle + ' caught with an exception', error);
-    }
-    //
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
-    );
-    return agentId;
-  };
-  /* *********************** getAgentRecordId - End *********************** */
-  //
-  /* *********************** updateAgentCRMRecords - Begin *********************** */
-  /**
-   *
-   * @param {number} pId
-   * @param {number} cId
-   * @returns {boolean}
-   */
-  const updateAgentCRMRecords = (pId, cId) => {
-    const loggerTitle = ' Update Agent CRM Records ';
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
-    );
-    //
-    let updateFlag = false;
-    try {
-      const customAgentSearchObj = search.create({
-        type: 'customrecord_agent',
-        filters: [['internalidnumber', 'equalto', cId]],
-        columns: [
-          search.createColumn({
-            name: 'type',
-            join: 'CUSTEVENT_CALLER_NAME',
-            label: 'Type',
-          }),
-          search.createColumn({
-            name: 'internalid',
-            join: 'CUSTEVENT_CALLER_NAME',
-            label: 'Internal ID',
-          }),
-          search.createColumn({ name: 'internalid', label: 'Internal ID' }),
-        ],
-      });
-      const searchResultCount = customAgentSearchObj.runPaged().count;
-      log.debug(loggerTitle, ' Search Count: ' + searchResultCount);
-      //
-      log.debug(loggerTitle, `Current ID: ${cId} Previous ID: ${pId}`);
-      if (searchResultCount) {
-        customAgentSearchObj.run().each((result) => {
-          const crmType = result.getValue({
-            name: 'type',
-            join: 'CUSTEVENT_CALLER_NAME',
-            label: 'Type',
-          });
-          const crmId = result.getValue({
-            name: 'internalid',
-            join: 'CUSTEVENT_CALLER_NAME',
-            label: 'Internal ID',
-          });
-          log.debug(loggerTitle, { crmType, crmId });
-          //
-          if (crmType == 'CASE' && crmId > 0) {
-            updateSupportCaseRecord(crmId, pId);
-            updateFlag = true;
-          } else if (crmType == 'CALL' && crmId > 0) {
-            updatePhoneCallRecord(crmId, pId);
-            updateFlag = true;
-          }
-          //
-          return true;
-        });
-      }
-    } catch (error) {
-      log.error(loggerTitle + ' caught with an exception', error);
-    }
-    //
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
-    );
-    return updateFlag;
-  };
-  /* *********************** updateAgentCRMRecords - End *********************** */
-  //
-  /* *********************** updateAgentSoldProperties - Begin *********************** */
-  /**
-   *
-   * @param {number} pId
-   * @param {number} cId
-   * @returns {boolean}
-   */
-  const updateAgentSoldProperties = (pId, cId) => {
-    const loggerTitle = ' Update Agent Sold Properties ';
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
-    );
-    //
-    let updateFlag = false;
-    try {
-      const customAgentSearchObj = search.create({
-        type: 'customrecord_agent',
-        filters: [['internalidnumber', 'equalto', cId]],
-        columns: [
-          search.createColumn({ name: 'internalid', label: 'Internal ID' }),
-          search.createColumn({
-            name: 'internalid',
-            join: 'CUSTRECORD_REAL_ESTATE_AGENT_NAME',
-            label: 'Internal ID',
-          }),
-        ],
-      });
-      const searchResultCount = customAgentSearchObj.runPaged().count;
-      log.debug(loggerTitle, ' Search Count: ' + searchResultCount);
-      //
-      if (searchResultCount) {
-        customAgentSearchObj.run().each((result) => {
-          const propertyRecordId = result.getValue({
-            name: 'internalid',
-            join: 'CUSTRECORD_REAL_ESTATE_AGENT_NAME',
-            label: 'Internal ID',
-          });
-          if (propertyRecordId > 0) {
-            updatePropertyRecord(propertyRecordId, pId);
-            updateFlag = true;
-          }
-        });
-      }
-    } catch (error) {
-      log.error(loggerTitle + ' caught with an exception', error);
-    }
-    //
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
-    );
-    return updateFlag;
-  };
-  /* *********************** updateAgentSoldProperties - End *********************** */
-  //
-  /* *********************** updatePropertyRecord - Begin *********************** */
-  /**
-   *
-   * @param {number} propertyRecordId
-   * @param {number} agentId
-   * @returns {boolean}
-   */
-  const updatePropertyRecord = (propertyRecordId, agentId) => {
-    const loggerTitle = ' Update Property Record ';
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
-    );
-    //
-    try {
-      record.submitFields({
-        type: 'customrecord_property_record',
-        id: propertyRecordId,
-        values: {
-          custrecord_real_estate_agent_name: agentId,
-        },
-      });
-      log.debug(
-        loggerTitle,
-        ' Property Record Saved Successfully: ' + propertyRecordId
-      );
-      //
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
@@ -594,90 +461,13 @@ define(['N/search', 'N/record'], (search, record) => {
     );
     return true;
   };
-  /* *********************** updatePropertyRecord - End *********************** */
-  //
-  /* *********************** updatePhoneCallRecord - Begin *********************** */
-  /**
-   *
-   * @param {number} phoneCallId
-   * @param {number} agentId
-   * @returns {boolean}
-   */
-  const updatePhoneCallRecord = (phoneCallId, agentId) => {
-    const loggerTitle = ' Update Phone Call Record ';
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
-    );
-    //
-    try {
-      record.submitFields({
-        type: 'phonecall',
-        id: phoneCallId,
-        values: {
-          custevent_caller_name: agentId,
-        },
-      });
-      log.debug(
-        loggerTitle,
-        ' Phone Call Record Saved Successfully: ' + phoneCallId
-      );
-      //
-    } catch (error) {
-      log.error(loggerTitle + ' caught with an exception', error);
-    }
-    //
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
-    );
-    return true;
-  };
-  /* *********************** updatePhoneCallRecord - End *********************** */
-  //
-  /* *********************** updateSupportCaseRecord - Begin *********************** */
-  /**
-   *
-   * @param {number} supportCaseId
-   * @param {number} agentId
-   * @returns {boolean}
-   */
-  const updateSupportCaseRecord = (supportCaseId, agentId) => {
-    const loggerTitle = ' Update Support Case Record ';
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
-    );
-    //
-    try {
-      record.submitFields({
-        type: 'supportcase',
-        id: supportCaseId,
-        values: {
-          custevent_caller_name: agentId,
-        },
-      });
-      log.debug(
-        loggerTitle,
-        ' Support Case Record Saved Successfully: ' + supportCaseId
-      );
-      //
-    } catch (error) {
-      log.error(loggerTitle + ' caught with an exception', error);
-    }
-    //
-    log.debug(
-      loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
-    );
-    return true;
-  };
-  /* *********************** updateSupportCaseRecord - End *********************** */
+  /* *********************** updateAgentUpdateProjectRecord - End *********************** */
   //
   /* ----------------------- Helper Functions - End ----------------------- */
   //
   /* ----------------------------- Exports - Begin ---------------------------- */
   exports.getInputData = getInputData;
+  exports.map = map;
   exports.reduce = reduce;
   exports.summarize = summarize;
   return exports;
