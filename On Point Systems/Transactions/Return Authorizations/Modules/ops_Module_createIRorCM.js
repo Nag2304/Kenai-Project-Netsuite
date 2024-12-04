@@ -15,7 +15,7 @@
 define(['N/record'], (record) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
-  const AMAZON_CUSTOMERS = ['1187553', '220554'];
+  const AMAZON_CUSTOMERS = ['220554', '1187553'];
   const INSPECTED_BY_ID = 14;
   /* ------------------------- Global Variables - End ------------------------- */
   //
@@ -120,7 +120,7 @@ define(['N/record'], (record) => {
         `Created From ID: ${createdFromId} Return Auth Status: ${returnAuthStatus}`
       );
       //
-      if (returnAuthStatus === 'Pending Receipt' && createdFromId) {
+      if (createdFromId) {
         createItemReceipt(returnAuthorizationRecord);
         createCreditMemo(returnAuthorizationRecord);
       }
