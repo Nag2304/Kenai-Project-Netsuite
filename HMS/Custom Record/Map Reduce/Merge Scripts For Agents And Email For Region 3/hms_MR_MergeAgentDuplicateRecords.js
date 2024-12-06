@@ -17,7 +17,7 @@
 
 /* global define,log*/
 
-define(['N/search', 'N/record'], (search, record) => {
+define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -110,13 +110,33 @@ define(['N/search', 'N/record'], (search, record) => {
   const searchAgentDuplicateswithTwoRecords = () => {
     const loggerTitle = ' Search Agent Duplicates With Two Records ';
     log.debug(loggerTitle, ' Search Started');
-    return search.create({
-      type: 'customrecord_hms_agent_upd_project',
-      filters: [
+
+    const scriptObj = runtime.getCurrentScript();
+    const agentIdParameter = scriptObj.getParameter({
+      name: 'custscript_hms_agentid',
+    });
+
+    let filtersArr;
+
+    if (agentIdParameter) {
+      filtersArr = [
         ['custrecord_hms_agent_id_dupe', 'is', 'T'],
         'AND',
         ['isinactive', 'is', 'F'],
-      ],
+        'AND',
+        ['custrecord_hms_agent_id_number', 'is', agentIdParameter],
+      ];
+    } else {
+      filtersArr = [
+        ['custrecord_hms_agent_id_dupe', 'is', 'T'],
+        'AND',
+        ['isinactive', 'is', 'F'],
+      ];
+    }
+
+    return search.create({
+      type: 'customrecord_hms_agent_upd_project',
+      filters: filtersArr,
       columns: [
         search.createColumn({
           name: 'custrecord_hms_agent_id_number',
@@ -192,6 +212,10 @@ define(['N/search', 'N/record'], (search, record) => {
             name: 'custrecord_hms_sold_properties',
             label: 'Sold Properties',
           }),
+          search.createColumn({
+            name: 'custrecord_hms_brokerage_name',
+            label: 'brokerage name',
+          }),
         ],
       });
       searchResultCount = customAgentUpdateProjectSearchObj.runPaged().count;
@@ -201,8 +225,13 @@ define(['N/search', 'N/record'], (search, record) => {
       customAgentUpdateProjectSearchObj.run().each((result) => {
         const internalId = result.id;
         // Get Agent ID
-        const name = result.getValue('custrecord_hms_agent_name');
-        const agentId = getAgentRecordId(name);
+        const agentIdNumber = result.getValue('custrecord_hms_agent_id_number');
+        const name = result.getValue('custrecord_hms_brokerage_name');
+        log.debug(loggerTitle + ' Before callng the getAgent Record ID', {
+          agentIdNumber,
+          name,
+        });
+        const agentId = getAgentRecordId(agentIdNumber, name);
         //
         const keep = result.getValue('custrecord_hms_keep');
         const purge = result.getValue('custrecord_hms_purge');
@@ -267,6 +296,7 @@ define(['N/search', 'N/record'], (search, record) => {
 
         log.debug(loggerTitle, {
           internalId,
+          agentIdNumber,
           name,
           keep,
           purge,
@@ -390,7 +420,7 @@ define(['N/search', 'N/record'], (search, record) => {
    * @param {string} agentName
    * @returns {number} agentId
    */
-  const getAgentRecordId = (agentName) => {
+  const getAgentRecordId = (agentName, name) => {
     const loggerTitle = ' Get Agent Record Id ';
     log.debug(
       loggerTitle,
@@ -401,7 +431,11 @@ define(['N/search', 'N/record'], (search, record) => {
     try {
       const customAgentSearchObj = search.create({
         type: 'customrecord_agent',
-        filters: [['name', 'is', agentName]],
+        filters: [
+          ['custrecord_agent_id', 'is', agentName],
+          'AND',
+          ['custrecord_brokerage.internalidnumber', 'equalto', name],
+        ],
         columns: [
           search.createColumn({ name: 'internalid', label: 'Internal ID' }),
         ],
