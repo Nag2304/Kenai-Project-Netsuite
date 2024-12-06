@@ -17,14 +17,14 @@
 
 /* global define,log*/
 
-define(['N/search', 'N/record'], (search, record) => {
+define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
   //
   /* ------------------------- Get Input Data - Begin ------------------------- */
   const getInputData = () => {
-    return searchAgentDuplicateswithTwoRecords();
+    return searchEmailDuplicateswithTwoRecords();
   };
   /* ------------------------- Get Input Data - End ------------------------- */
   //
@@ -102,21 +102,41 @@ define(['N/search', 'N/record'], (search, record) => {
   //
   /* ----------------------- Helper Functions - Begin ----------------------- */
   //
-  /* *********************** searchAgentDuplicateswithTwoRecords - Begin *********************** */
+  /* *********************** searchEmailDuplicateswithTwoRecords - Begin *********************** */
   /**
    *
    * @returns {object}
    */
-  const searchAgentDuplicateswithTwoRecords = () => {
-    const loggerTitle = ' Search Agent Duplicates With Two Records ';
+  const searchEmailDuplicateswithTwoRecords = () => {
+    const loggerTitle = ' Search Email Duplicates With Two Records ';
     log.debug(loggerTitle, ' Search Started');
-    return search.create({
-      type: 'customrecord_hms_agent_upd_project',
-      filters: [
+
+    const scriptObj = runtime.getCurrentScript();
+    const emailIdParameter = scriptObj.getParameter({
+      name: 'custscript_hms_emailid',
+    });
+
+    let filtersArr;
+
+    if (emailIdParameter) {
+      filtersArr = [
         ['custrecord_hms_email_dupe', 'is', 'T'],
         'AND',
         ['isinactive', 'is', 'F'],
-      ],
+        'AND',
+        ['custrecord_hms_agent_email', 'is', emailIdParameter],
+      ];
+    } else {
+      filtersArr = [
+        ['custrecord_hms_email_dupe', 'is', 'T'],
+        'AND',
+        ['isinactive', 'is', 'F'],
+      ];
+    }
+
+    return search.create({
+      type: 'customrecord_hms_agent_upd_project',
+      filters: filtersArr,
       columns: [
         search.createColumn({
           name: 'custrecord_hms_agent_email',
@@ -126,7 +146,7 @@ define(['N/search', 'N/record'], (search, record) => {
       ],
     });
   };
-  /* *********************** searchAgentDuplicateswithTwoRecords - Begin *********************** */
+  /* *********************** searchEmailDuplicateswithTwoRecords - End *********************** */
   //
   /* *********************** getAgentRelatedRecords - Begin *********************** */
   /**
@@ -145,15 +165,14 @@ define(['N/search', 'N/record'], (search, record) => {
     let customAgentUpdateProjectSearchObj;
     let previousInternalId;
     let previousKeep;
+    let previousNrdsId;
     let previousAgentId;
-    let previousSoldPropertiesCount;
     let previousCrmCount;
-    let previousSurveyCount;
+    let previousSoldPropertiesCount;
     const updateObject = {
       agentUpdate: false,
       CRM: false,
       soldProperties: false,
-      survey: false,
     };
     try {
       customAgentUpdateProjectSearchObj = search.create({
@@ -170,6 +189,7 @@ define(['N/search', 'N/record'], (search, record) => {
             name: 'custrecord_hms_agent_id_number',
             label: 'Agent ID Number',
           }),
+          search.createColumn({ name: 'custrecord_hms_nrds', label: 'NRDS' }),
           search.createColumn({
             name: 'custrecord_hms_agent_name',
             label: 'Name',
@@ -192,6 +212,10 @@ define(['N/search', 'N/record'], (search, record) => {
             name: 'custrecord_hms_sold_properties',
             label: 'Sold Properties',
           }),
+          search.createColumn({
+            name: 'custrecord_hms_brokerage_name',
+            label: 'brokerage name',
+          }),
         ],
       });
       searchResultCount = customAgentUpdateProjectSearchObj.runPaged().count;
@@ -201,25 +225,31 @@ define(['N/search', 'N/record'], (search, record) => {
       customAgentUpdateProjectSearchObj.run().each((result) => {
         const internalId = result.id;
         // Get Agent ID
-        const name = result.getValue('custrecord_hms_agent_name');
-        const agentId = getAgentRecordId(name);
+        const agentIdNumber = result.getValue('custrecord_hms_agent_id_number');
+        const name = result.getValue('custrecord_hms_brokerage_name');
+        log.debug(loggerTitle + ' Before callng the getAgent Record ID', {
+          agentIdNumber,
+          name,
+        });
+        const agentId = getAgentRecordId(agentIdNumber, name);
         //
         const keep = result.getValue('custrecord_hms_keep');
         const purge = result.getValue('custrecord_hms_purge');
+        const nrdsId = result.getValue('custrecord_hms_nrds');
         const crmCount = result.getValue('custrecord_hms_crm_record_count');
         const soldPropertiesCount = result.getValue(
           'custrecord_hms_sold_properties'
         );
         const surveyCount = result.getValue('custrecord_hms_survery_count');
-        //Purge is true
-        if (purge) {
-          //   if (previousKeep && previousInternalId) {
-          //     updateObject.agentUpdate = updateAgentUpdateProject(
-          //       previousInternalId,
-          //       nrdsId,
-          //       'A'
-          //     );
-          //   }
+        // If Previous NRDS ID is Null and Current NRDS ID has value && Purge is true
+        if (!previousNrdsId && nrdsId && purge) {
+          if (previousKeep && previousInternalId) {
+            updateObject.agentUpdate = updateAgentUpdateProject(
+              previousInternalId,
+              nrdsId,
+              'A'
+            );
+          }
         }
         //
 
@@ -252,18 +282,6 @@ define(['N/search', 'N/record'], (search, record) => {
         }
         //
 
-        // Survey Count
-        if (surveyCount > 0 && purge && agentId) {
-          log.debug(
-            loggerTitle,
-            ' Calling the Update Agent Survey Count and Agent ID is ' +
-              agentId +
-              ' Previous Agent ID ' +
-              previousAgentId
-          );
-          updateObject.survey = updateAgentSurvey(previousAgentId, agentId);
-        }
-
         if (
           Object.values(updateObject).some((val) => val) &&
           purge &&
@@ -279,20 +297,21 @@ define(['N/search', 'N/record'], (search, record) => {
 
         log.debug(loggerTitle, {
           internalId,
+          agentIdNumber,
           name,
           keep,
           purge,
+          nrdsId,
           agentId,
           crmCount,
           soldPropertiesCount,
-          surveyCount,
         });
         previousInternalId = internalId;
         previousKeep = keep;
+        previousNrdsId = nrdsId;
         previousAgentId = agentId;
         previousCrmCount = crmCount;
         previousSoldPropertiesCount = soldPropertiesCount;
-        previousSurveyCount = surveyCount;
         return true;
       });
       // Update the Purge Record
@@ -402,7 +421,7 @@ define(['N/search', 'N/record'], (search, record) => {
    * @param {string} agentName
    * @returns {number} agentId
    */
-  const getAgentRecordId = (agentName) => {
+  const getAgentRecordId = (agentName, name) => {
     const loggerTitle = ' Get Agent Record Id ';
     log.debug(
       loggerTitle,
@@ -413,7 +432,13 @@ define(['N/search', 'N/record'], (search, record) => {
     try {
       const customAgentSearchObj = search.create({
         type: 'customrecord_agent',
-        filters: [['name', 'is', agentName]],
+        filters: [
+          [
+            ['custrecord_agent_id', 'is', agentName],
+            'AND',
+            ['custrecord_brokerage.internalidnumber', 'equalto', name],
+          ],
+        ],
         columns: [
           search.createColumn({ name: 'internalid', label: 'Internal ID' }),
         ],
