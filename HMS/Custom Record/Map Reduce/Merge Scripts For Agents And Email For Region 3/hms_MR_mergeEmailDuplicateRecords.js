@@ -295,6 +295,15 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
           );
         }
 
+        if (soldPropertiesCount == 0 && crmCount == 0 && purge && agentId) {
+          log.debug(loggerTitle, ' Calling the Update Original Agent Record ');
+          updateOriginalAgentRecord(agentId);
+          log.debug(
+            loggerTitle,
+            ` Marked the Original Agent Id to Inactive Where There are no Related Records ${agentId}`
+          );
+        }
+
         log.debug(loggerTitle, {
           internalId,
           agentIdNumber,
