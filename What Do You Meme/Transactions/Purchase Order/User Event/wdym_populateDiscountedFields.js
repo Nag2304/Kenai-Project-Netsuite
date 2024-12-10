@@ -68,21 +68,21 @@ define(['N/record', 'N/search', 'N/format'], (record, search, format) => {
             line: index,
           });
 
-          // Determine Expected Receipt Date
-          let expectedReceiptDate = exFactoryDate;
-          if (location === 'TBF' && exFactoryDate) {
-            expectedReceiptDate = addDays(exFactoryDate, 60);
-          }
+          // // Determine Expected Receipt Date
+          // let expectedReceiptDate = exFactoryDate;
+          // if (location === 'TBF' && exFactoryDate) {
+          //   expectedReceiptDate = addDays(exFactoryDate, 60);
+          // }
 
-          // Set Expected Receipt Date if applicable
-          if (expectedReceiptDate) {
-            poRecord.setSublistValue({
-              sublistId: 'item',
-              fieldId: 'expectedreceiptdate',
-              value: expectedReceiptDate,
-              line: index,
-            });
-          }
+          // // Set Expected Receipt Date if applicable
+          // if (expectedReceiptDate) {
+          //   poRecord.setSublistValue({
+          //     sublistId: 'item',
+          //     fieldId: 'expectedreceiptdate',
+          //     value: expectedReceiptDate,
+          //     line: index,
+          //   });
+          // }
 
           if (itemType == 'InvtPart') {
             const inventoryItemSearch = search.lookupFields({
@@ -105,15 +105,15 @@ define(['N/record', 'N/search', 'N/format'], (record, search, format) => {
             }
           }
 
-          // if (receiveByDate) {
-          //   // Set Expected Receipt Date
-          //   poRecord.setSublistValue({
-          //     sublistId: 'item',
-          //     fieldId: 'expectedreceiptdate',
-          //     value: receiveByDate,
-          //     line: index,
-          //   });
-          // }
+          if (receiveByDate) {
+            // Set Expected Receipt Date
+            poRecord.setSublistValue({
+              sublistId: 'item',
+              fieldId: 'expectedreceiptdate',
+              value: receiveByDate,
+              line: index,
+            });
+          }
 
           // Set Original Order Qty
           poRecord.setSublistValue({
@@ -156,26 +156,26 @@ define(['N/record', 'N/search', 'N/format'], (record, search, format) => {
             fieldId: 'location',
             line: index1,
           });
-          let expectedReceiptDate = exFactoryDate;
-          if (location === 'TBF' && exFactoryDate) {
-            expectedReceiptDate = addDays(exFactoryDate, 60);
-          }
+          // let expectedReceiptDate = exFactoryDate;
+          // if (location === 'TBF' && exFactoryDate) {
+          //   expectedReceiptDate = addDays(exFactoryDate, 60);
+          // }
 
-          if (expectedReceiptDate) {
-            poRecord.setSublistValue({
-              sublistId: 'item',
-              fieldId: 'expectedreceiptdate',
-              value: expectedReceiptDate,
-              line: index1,
-            });
-          }
+          // if (expectedReceiptDate) {
+          //   poRecord.setSublistValue({
+          //     sublistId: 'item',
+          //     fieldId: 'expectedreceiptdate',
+          //     value: expectedReceiptDate,
+          //     line: index1,
+          //   });
+          // }
 
-          // poRecord.setSublistValue({
-          //   sublistId: 'item',
-          //   fieldId: 'expectedreceiptdate',
-          //   value: receiveByDate,
-          //   line: index1,
-          // });
+          poRecord.setSublistValue({
+            sublistId: 'item',
+            fieldId: 'expectedreceiptdate',
+            value: receiveByDate,
+            line: index1,
+          });
         }
       }
 
