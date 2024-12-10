@@ -20,9 +20,11 @@
 
 /* global define,log*/
 
-define(['SuiteScripts/Transactions/Modules/div_Module_setLineLevelLocation'], (
-  setLineLevelLocation
-) => {
+define([
+  'SuiteScripts/Transactions/Modules/div_Module_setLineLevelLocation',
+  'SuiteScripts/Transactions/Sales Order/Modules/div_Module_requiredCleaningCharge',
+  'N/record',
+], (setLineLevelLocation, requiredCleaningCharge, record) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -89,6 +91,17 @@ define(['SuiteScripts/Transactions/Modules/div_Module_setLineLevelLocation'], (
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
     try {
+      if (scriptContext.type !== scriptContext.UserEventType.DELETE) {
+        const salesOrder = record.load({
+          type: 'salesorder',
+          id: scriptContext.newRecord.id,
+          isDynamic: true,
+        });
+        requiredCleaningCharge.afterSubmit(scriptContext, salesOrder);
+        // Save the updated sales order record
+        const updatedId = salesOrder.save();
+        log.debug(loggerTitle, ' Sales Order updated with ID: ' + updatedId);
+      }
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
