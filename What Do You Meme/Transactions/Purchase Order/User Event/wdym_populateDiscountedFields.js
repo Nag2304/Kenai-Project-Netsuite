@@ -12,12 +12,12 @@ define(['N/record', 'N/search', 'N/format'], (record, search, format) => {
   //
   /* -------------------------- Before Submit - Begin ------------------------- */
   const beforeSubmit = (scriptContext) => {
-    const strLoggerTitle = ' Before Submit';
+    const strLoggerTitle = 'Before Submit';
     log.audit(
       strLoggerTitle,
       '|>-----------------' + strLoggerTitle + ' - Entry-----------------<|'
     );
-    //
+
     try {
       const poRecord = scriptContext.newRecord;
       const isCreate =
@@ -29,10 +29,8 @@ define(['N/record', 'N/search', 'N/format'], (record, search, format) => {
       const exFactoryDate = poRecord.getValue({
         fieldId: 'custbody_ex_factory_date',
       });
-      const receiveByDate = poRecord.getValue({ fieldId: 'duedate' });
       const lineItemCount = poRecord.getLineCount({ sublistId: 'item' });
       const createdFrom = poRecord.getValue({ fieldId: 'createdfrom' });
-      //
 
       // Helper function to add days to a date
       const addDays = (date, days) => {
@@ -41,22 +39,18 @@ define(['N/record', 'N/search', 'N/format'], (record, search, format) => {
         return result;
       };
 
-      // Create
       if (isCreate) {
         for (let index = 0; index < lineItemCount; index++) {
-          // Get Item Qty
           const itemQty = poRecord.getSublistValue({
             sublistId: 'item',
             fieldId: 'quantity',
             line: index,
           });
-
           const item = poRecord.getSublistValue({
             sublistId: 'item',
             fieldId: 'item',
             line: index,
           });
-
           const itemType = poRecord.getSublistValue({
             sublistId: 'item',
             fieldId: 'itemtype',
@@ -84,7 +78,8 @@ define(['N/record', 'N/search', 'N/format'], (record, search, format) => {
             });
           }
 
-          if (itemType == 'InvtPart') {
+          // Set Refresh Date if item type is Inventory Part
+          if (itemType === 'InvtPart') {
             const inventoryItemSearch = search.lookupFields({
               type: search.Type.INVENTORY_ITEM,
               id: item,
@@ -105,16 +100,6 @@ define(['N/record', 'N/search', 'N/format'], (record, search, format) => {
             }
           }
 
-          // if (receiveByDate) {
-          //   // Set Expected Receipt Date
-          //   poRecord.setSublistValue({
-          //     sublistId: 'item',
-          //     fieldId: 'expectedreceiptdate',
-          //     value: receiveByDate,
-          //     line: index,
-          //   });
-          // }
-
           // Set Original Order Qty
           poRecord.setSublistValue({
             sublistId: 'item',
@@ -123,7 +108,8 @@ define(['N/record', 'N/search', 'N/format'], (record, search, format) => {
             line: index,
           });
         }
-        //
+
+        // Set Ex-Factory Date at header if created from another record
         if (createdFrom) {
           let lineLevelExpectedReceiveDate = null;
           for (let index1 = 0; index1 < lineItemCount; index1++) {
@@ -145,11 +131,7 @@ define(['N/record', 'N/search', 'N/format'], (record, search, format) => {
             log.debug(strLoggerTitle, 'Set Line Level Value');
           }
         }
-
-        //
-      }
-      // Edit
-      else if (isUpdate && runDateUpdates) {
+      } else if (isUpdate && runDateUpdates) {
         for (let index1 = 0; index1 < lineItemCount; index1++) {
           const location = poRecord.getSublistValue({
             sublistId: 'item',
@@ -169,67 +151,12 @@ define(['N/record', 'N/search', 'N/format'], (record, search, format) => {
               line: index1,
             });
           }
-
-          // poRecord.setSublistValue({
-          //   sublistId: 'item',
-          //   fieldId: 'expectedreceiptdate',
-          //   value: receiveByDate,
-          //   line: index1,
-          // });
         }
       }
-
-      // Update
-      if (isUpdate) {
-        const poOldRecord = scriptContext.oldRecord;
-        //
-        for (let index2 = 0; index2 < lineItemCount; index2++) {
-          const item = poRecord.getSublistValue({
-            sublistId: 'item',
-            fieldId: 'item',
-            line: index2,
-          });
-          const itemOld = poOldRecord.getSublistValue({
-            sublistId: 'item',
-            fieldId: 'item',
-            line: index2,
-          });
-          //
-          if (itemOld != item || !itemOld) {
-            const itemType = poRecord.getSublistValue({
-              sublistId: 'item',
-              fieldId: 'itemtype',
-              line: index2,
-            });
-            //
-            if (itemType == 'InvtPart') {
-              const inventoryItemSearch = search.lookupFields({
-                type: search.Type.INVENTORY_ITEM,
-                id: item,
-                columns: ['custitem_refresh_date'],
-              });
-              let refreshDate = inventoryItemSearch.custitem_refresh_date;
-              if (refreshDate) {
-                refreshDate = format.parse({
-                  value: refreshDate,
-                  type: format.Type.DATE,
-                });
-                poRecord.setSublistValue({
-                  sublistId: 'item',
-                  fieldId: 'custcol_refresh_date',
-                  value: refreshDate,
-                  line: index2,
-                });
-              }
-            }
-          }
-        }
-      }
-      //
     } catch (error) {
       log.error(strLoggerTitle + ' caught an exception', error);
     }
-    //
+
     log.audit(
       strLoggerTitle,
       '|>-----------------' + strLoggerTitle + ' - Exit-----------------<|'
