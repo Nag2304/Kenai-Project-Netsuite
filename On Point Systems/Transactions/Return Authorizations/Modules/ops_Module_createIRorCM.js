@@ -208,6 +208,30 @@ define(['N/record'], (record) => {
 
       creditMemoRecord.setValue({ fieldId: 'trandate', value: returnAuthDate });
 
+      const lineCount = creditMemoRecord.getLineCount({
+        sublistId: 'item',
+      });
+
+      for (let i = 0; i < lineCount; i++) {
+        creditMemoRecord.selectLine({ sublistId: 'item', line: i });
+
+        const rmaRefundRate = returnAuthorizationRecord.getSublistValue({
+          sublistId: 'item',
+          fieldId: 'custcol_ops_refund_rate',
+          line: i,
+        });
+
+        if (rmaRefundRate) {
+          creditMemoRecord.setCurrentSublistValue({
+            sublistId: 'item',
+            fieldId: 'rate',
+            value: rmaRefundRate,
+          });
+        }
+
+        creditMemoRecord.commitLine({ sublistId: 'item' });
+      }
+
       const creditMemoRecordInternalId = creditMemoRecord.save();
       log.audit(
         'Credit Memo',
