@@ -20,9 +20,10 @@
 
 /* global define,log*/
 
-define(['SuiteScripts/Transactions/Modules/scm_Module_stickyHeaders'], (
-  stickyHeaders
-) => {
+define([
+  'SuiteScripts/Transactions/Modules/scm_Module_stickyHeaders',
+  'SuiteScripts/Transactions/Sales Orders/Modules/scm_Module_setExpectedShipDate',
+], (stickyHeaders, setExpectedShipDate) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -63,6 +64,7 @@ define(['SuiteScripts/Transactions/Modules/scm_Module_stickyHeaders'], (
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
     try {
+      setExpectedShipDate.beforeSubmit(scriptContext);
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
