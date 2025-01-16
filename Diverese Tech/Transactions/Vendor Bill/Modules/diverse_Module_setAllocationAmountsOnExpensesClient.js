@@ -70,6 +70,9 @@ define(['N/search'], function (search) {
     //
     var dctResults;
     try {
+      //Filters
+      var arrFilters = [];
+      arrFilters.push(['isinactive', 'is', 'F']);
       // Columns
       var arrColumns = [];
       arrColumns.push(
@@ -86,7 +89,7 @@ define(['N/search'], function (search) {
       dctResults = getAllSearchResults(
         'customrecord_dct_allocation',
         null,
-        null,
+        arrFilters,
         arrColumns
       );
       log.debug(loggerTitle + ' DCT RESULTS ', dctResults);
