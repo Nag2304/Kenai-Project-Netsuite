@@ -25,17 +25,20 @@ define([], () => {
     try {
       const salesOrderRecord = scriptContext.newRecord;
 
-      // Retrieve the value of the checkbox field
-      const shouldUpdateLineDates = salesOrderRecord.getValue({
-        fieldId: 'custbody_scm_update_line_date',
-      });
+      log.debug(loggerTitle, `Script Context Type: ${scriptContext.type}`);
 
-      if (!shouldUpdateLineDates) {
-        log.debug(
-          loggerTitle,
-          'Update line schedule date checkbox is not checked. Exiting.'
-        );
-        return;
+      if (scriptContext.type === 'edit') {
+        // Retrieve the value of the checkbox field
+        const shouldUpdateLineDates = salesOrderRecord.getValue({
+          fieldId: 'custbody_scm_update_line_date',
+        });
+        if (!shouldUpdateLineDates) {
+          log.debug(
+            loggerTitle,
+            'Update line schedule date checkbox is not checked. Exiting.'
+          );
+          return;
+        }
       }
 
       const expectedShipDate = salesOrderRecord.getValue({
@@ -48,7 +51,6 @@ define([], () => {
       log.debug(loggerTitle, {
         expectedShipDate,
         lineItemCount,
-        shouldUpdateLineDates,
       });
 
       for (let index = 0; index < lineItemCount; index++) {
