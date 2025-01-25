@@ -24,7 +24,8 @@ define([
   'N/record',
   'SuiteScripts/Transactions/Modules/scm_Module_stickyHeaders',
   'SuiteScripts/Transactions/Purchase Orders/Modules/scm_Module_setExpectedPODate',
-], (record, stickyHeaders, setExpectedPODate) => {
+  'SuiteScripts/Transactions/Purchase Orders/Modules/scm_Module_setRateforRFQ',
+], (record, stickyHeaders, setExpectedPODate, setRateforRFQ) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -65,6 +66,7 @@ define([
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
     try {
+      setRateforRFQ.beforeSubmit(scriptContext);
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
