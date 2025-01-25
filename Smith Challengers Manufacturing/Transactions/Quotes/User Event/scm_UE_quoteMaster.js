@@ -20,9 +20,10 @@
 
 /* global define,log*/
 
-define(['SuiteScripts/Transactions/Modules/scm_Module_stickyHeaders'], (
-  stickyHeaders
-) => {
+define([
+  'SuiteScripts/Transactions/Modules/scm_Module_stickyHeaders',
+  'SuiteScripts/Transactions/Quotes/Modules/scm_Module_setListPriceQuote',
+], (stickyHeaders, setListPrice) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -63,6 +64,7 @@ define(['SuiteScripts/Transactions/Modules/scm_Module_stickyHeaders'], (
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
     try {
+      setListPrice.beforeSubmit(scriptContext);
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
