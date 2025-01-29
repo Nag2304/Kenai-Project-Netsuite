@@ -18,52 +18,78 @@
 
 /* global define,log*/
 
-define(['N/search', 'N/record'], (search, record) => {
+define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
   //
   /* ------------------------- Get Input Data - Begin ------------------------- */
   const getInputData = () => {
-    return search.create({
-      type: 'itemfulfillment',
-      filters: [
-        ['type', 'anyof', 'ItemShip'],
-        'AND',
-        ['name', 'anyof', '543342'],
-        'AND',
-        ['item', 'anyof', '122403'],
-        'AND',
-        ['createdfrom.trandate', 'on', '1/14/2025'],
-        'AND',
-        ['item', 'noneof', '@NONE@'],
-        'AND',
-        ['taxline', 'is', 'F'],
-        'AND',
-        ['shipping', 'is', 'F'],
-        'AND',
-        ['mainline', 'any', ''],
-      ],
-      columns: [
-        search.createColumn({
-          name: 'internalid',
-          summary: 'GROUP',
-          label: 'Internal ID',
-        }),
-        search.createColumn({
-          name: 'tranid',
-          summary: 'GROUP',
-          label: 'Document Number',
-        }),
-        search.createColumn({ name: 'item', summary: 'GROUP', label: 'Item' }),
-        search.createColumn({
-          name: 'internalid',
-          join: 'item',
-          summary: 'GROUP',
-          label: 'Item Internal ID',
-        }),
-      ],
+    const scriptObj = runtime.getCurrentScript();
+    const itemId = scriptObj.getParameter({
+      name: 'custscript_lw_mr_item_id',
     });
+    const customerId = scriptObj.getParameter({
+      name: 'custscript_lw_mr_customer',
+    });
+    const createdFromDate = scriptObj.getParameter({
+      name: 'custscript_lw_mr_created_from_date',
+    });
+
+    log.audit('Get Input Data', { itemId, customerId, createdFromDate });
+
+    if (itemId && createdFromDate && customerId) {
+      return search.create({
+        type: 'itemfulfillment',
+        filters: [
+          ['type', 'anyof', 'ItemShip'],
+          'AND',
+          ['name', 'anyof', customerId],
+          'AND',
+          ['item', 'anyof', itemId],
+          'AND',
+          ['createdfrom.trandate', 'on', createdFromDate],
+          'AND',
+          ['item', 'noneof', '@NONE@'],
+          'AND',
+          ['taxline', 'is', 'F'],
+          'AND',
+          ['shipping', 'is', 'F'],
+          'AND',
+          ['mainline', 'any', ''],
+        ],
+        columns: [
+          search.createColumn({
+            name: 'internalid',
+            summary: 'GROUP',
+            label: 'Internal ID',
+          }),
+          search.createColumn({
+            name: 'tranid',
+            summary: 'GROUP',
+            label: 'Document Number',
+          }),
+          search.createColumn({
+            name: 'item',
+            summary: 'GROUP',
+            label: 'Item',
+          }),
+          search.createColumn({
+            name: 'internalid',
+            join: 'item',
+            summary: 'GROUP',
+            label: 'Item Internal ID',
+          }),
+        ],
+      });
+    } else {
+      log.error(
+        'Get Input Data',
+        `The Script Parameter Item ID, Customer ID, and Created From Date are empty. 
+        Please populate the Script Paramters with Apporpiate Values and Try Again.`
+      );
+      return null;
+    }
   };
   /* ------------------------- Get Input Data - End ------------------------- */
   //
