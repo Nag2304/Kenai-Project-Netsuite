@@ -18,7 +18,12 @@
 
 /* global define,log*/
 
-define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
+define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
+  search,
+  record,
+  runtime,
+  format
+) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -36,9 +41,14 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
       name: 'custscript_lw_mr_created_from_date',
     });
 
-    log.audit('Get Input Data', { itemId, customerId, createdFromDate });
-
     if (itemId && createdFromDate && customerId) {
+      //
+      const formattedDate = format.format({
+        value: createdFromDate,
+        type: format.Type.DATE,
+      });
+      //
+      log.audit('Get Input Data', { itemId, customerId, formattedDate });
       return search.create({
         type: 'itemfulfillment',
         filters: [
@@ -48,7 +58,7 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
           'AND',
           ['item', 'anyof', itemId],
           'AND',
-          ['createdfrom.trandate', 'on', createdFromDate],
+          ['createdfrom.trandate', 'on', formattedDate],
           'AND',
           ['item', 'noneof', '@NONE@'],
           'AND',
