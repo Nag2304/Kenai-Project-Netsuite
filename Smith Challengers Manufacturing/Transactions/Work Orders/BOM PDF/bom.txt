@@ -1,0 +1,15 @@
+ <#if assembly.quantity?number != 0>
+                <td colspan="4" align="center">${assembly.quantity}</td>
+    <#if assembly.indentlevel = 0>
+        <td colspan="6"><span class="itemname">${assembly.item}</span><br />${assembly.description}</td>
+    <#elseif assembly.indentlevel = 1>
+        <td colspan="6" style="text-indent: 10px;">${assembly.item}<br />${assembly.description}</td>
+    <#elseif assembly.indentlevel = 2>
+        <td colspan="6" style="text-indent: 20px;">${assembly.item}<br />${assembly.description}</td>
+    <#elseif assembly.indentlevel = 3>
+        <td colspan="6" style="text-indent: 30px;">${assembly.item}<br />${assembly.description}</td>
+    <#elseif assembly.indentlevel = 4>
+        <td colspan="6" style="text-indent: 40px;">${assembly.item}<br />${assembly.description}</td>
+      <td colspan="4" align="center">${assembly.units}</td>
+    </#if>
+</#if>
