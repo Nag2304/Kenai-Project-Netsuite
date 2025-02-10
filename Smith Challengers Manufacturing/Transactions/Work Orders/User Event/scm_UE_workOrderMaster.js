@@ -24,7 +24,8 @@ define([
   'SuiteScripts/Transactions/Modules/scm_Module_stickyHeaders',
   'N/record',
   'SuiteScripts/Transactions/Work Orders/Modules/scm_Module_populateBroomField',
-], (stickyHeaders, record, populateBroomField) => {
+  'SuiteScripts/Transactions/Work Orders/Modules/scm_Module_populateDates',
+], (stickyHeaders, record, populateBroomField, populateDates) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -101,8 +102,12 @@ define([
           scriptContext,
           workOrderRecord
         );
+        const dateFieldsUpdate = populateDates.afterSubmit(
+          scriptContext,
+          workOrderRecord
+        );
 
-        if (broomFieldPopulate) {
+        if (broomFieldPopulate || dateFieldsUpdate) {
           workOrderRecord.save();
           log.debug(loggerTitle, 'Work Order Record Saved Successfully.');
         }

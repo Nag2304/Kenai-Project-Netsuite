@@ -41,6 +41,17 @@ define(['N/record'], (record) => {
         });
         log.debug(`${loggerTitle}`, ` Created From Field: ${createdFromField}`);
 
+        const createdFromText = workOrderRecord.getText({
+          fieldId: 'createdfrom',
+        });
+        if (!createdFromText || !createdFromText.includes('Sales Order')) {
+          log.debug(
+            loggerTitle,
+            'The Work Order was not created from a Sales Order.'
+          );
+          return;
+        }
+
         if (createdFromField) {
           const soDetails = getSODetails(createdFromField, workOrderRecord);
           log.debug(`${loggerTitle} SO DETAILS`, soDetails);
