@@ -12,7 +12,7 @@
 
 /* global define,log */
 
-define(['N/search', 'N/format'], (search, format) => {
+define(['N/search', 'N/format', 'N/runtime'], (search, format, runtime) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -63,8 +63,16 @@ define(['N/search', 'N/format'], (search, format) => {
         type: format.Type.DATE,
       });
 
-      const startDateObj = new Date(shipDateObj);
-      startDateObj.setDate(shipDateObj.getDate() - 7); // Subtract 7 days
+      let startDateObj = new Date(shipDateObj);
+      const scriptObj = runtime.getCurrentScript();
+      const days = scriptObj.getParameter({
+        name: 'custscript_scm_daysfor_stdate',
+      });
+      if (days > 0) {
+        startDateObj.setDate(shipDateObj.getDate() - days);
+      } else {
+        startDateObj.setDate(shipDateObj.getDate() - 7); // Subtract 7 days
+      }
 
       log.debug(loggerTitle, startDateObj);
 
