@@ -68,6 +68,8 @@ define(['N/search', 'N/format', 'N/runtime'], (search, format, runtime) => {
       const days = scriptObj.getParameter({
         name: 'custscript_scm_daysfor_stdate',
       });
+      log.debug(loggerTitle, { days });
+      //
       if (days > 0) {
         startDateObj.setDate(shipDateObj.getDate() - days);
       } else {
