@@ -27,10 +27,15 @@ define(['N/ui/dialog', 'N/runtime'], function (dialog, runtime) {
 
       // Check if the field changed is on the item sublist and is the item field
       if (sublistId === 'item' && fieldId === 'item') {
-        var itemId = currentRec.getCurrentSublistValue({
-          sublistId: 'item',
-          fieldId: 'item',
-        });
+        var itemId =
+          parseInt(
+            currentRec.getCurrentSublistValue({
+              sublistId: 'item',
+              fieldId: 'item',
+            })
+          ) || 0; // Default to 0 if null/undefined
+
+        log.debug(loggerTitle, 'Final Retrieved Item ID: ' + itemId);
 
         if (!itemId) {
           log.debug(loggerTitle, 'No item selected yet.');
@@ -43,22 +48,24 @@ define(['N/ui/dialog', 'N/runtime'], function (dialog, runtime) {
         log.debug(loggerTitle, 'Item ID (parsed): ' + itemId);
 
         // Check if the script is running in production or sandbox
-        var isProduction = runtime.envType === runtime.EnvType.PRODUCTION;
-        log.debug(loggerTitle, 'Environment isProduction: ' + isProduction);
+        var isProduction =
+          runtime.envType === runtime.EnvType.PRODUCTION ? true : false;
+        log.debug(loggerTitle, 'Runtime environment: ' + runtime.envType);
 
         // Define item IDs based on the environment
         var itemA = 3093; // SC-70-0093
-        var itemB = isProduction ? 5949 : 1910; // SC-70-0310 (Prod) or SC-70-0010 (Sandbox)
-
+        var itemB = isProduction ? 5949 : 1910; // SC-70-0010 in sandbox, SC-70-0310 in production
         log.debug(loggerTitle, 'Item A: ' + itemA + ', Item B: ' + itemB);
 
         // Display appropriate messages using dialog
-        if (itemId === itemA) {
+        if (itemId == itemA) {
           log.debug(loggerTitle, 'Triggering dialog for Item A.');
           showDialog(
-            'Item SC-70-0310 (in sandbox, SC-70-0010) can also be used as a replacement for this item. Please check availability.'
+            'Item ' +
+              (isProduction ? 'SC-70-0310' : 'SC-70-0010') +
+              ' can also be used as a replacement for this item. Please check availability.'
           );
-        } else if (itemId === itemB) {
+        } else if (itemId == itemB) {
           log.debug(loggerTitle, 'Triggering dialog for Item B.');
           showDialog(
             'Item SC-70-0093 can also be used as a replacement for this item. Please check availability.'
