@@ -54,8 +54,12 @@ define(['N/ui/dialog', 'N/runtime'], function (dialog, runtime) {
 
         // Define item IDs based on the environment
         var itemA = 3093; // SC-70-0093
-        var itemB = isProduction ? 5949 : 1910; // SC-70-0010 in sandbox, SC-70-0310 in production
-        log.debug(loggerTitle, 'Item A: ' + itemA + ', Item B: ' + itemB);
+        var itemB = 5949; // SC-70-0310
+        var itemC = 1910; // SC-70-0010
+        log.debug(
+          loggerTitle,
+          'Item A: ' + itemA + ', Item B: ' + itemB + ', Item C:' + itemC
+        );
 
         // Display appropriate messages using dialog
         if (itemId == itemA) {
@@ -66,6 +70,11 @@ define(['N/ui/dialog', 'N/runtime'], function (dialog, runtime) {
               ' can also be used as a replacement for this item. Please check availability.'
           );
         } else if (itemId == itemB) {
+          log.debug(loggerTitle, 'Triggering dialog for Item B.');
+          showDialog(
+            'Item SC-70-0093 can also be used as a replacement for this item. Please check availability.'
+          );
+        } else if (itemId == itemC) {
           log.debug(loggerTitle, 'Triggering dialog for Item B.');
           showDialog(
             'Item SC-70-0093 can also be used as a replacement for this item. Please check availability.'
