@@ -23,10 +23,12 @@ define(['N/search'], function (search) {
     try {
       var currentRecord = context.currentRecord;
       var sublistId = context.sublistId;
-      var fieldId = context.fieldId;
 
       // Ensure we are working on the 'item' field in the 'item' sublist
-      if (sublistId === 'item' && fieldId === 'item') {
+      if (sublistId === 'item') {
+        var lineCount = currentRecord.getLineCount({ sublistId: 'item' });
+        if (lineCount === 0) return;
+
         var primaryItemId = currentRecord.getCurrentSublistValue({
           sublistId: 'item',
           fieldId: 'item',
@@ -65,7 +67,7 @@ define(['N/search'], function (search) {
     var complimentaryItems = [];
 
     var customRecordSearch = search.create({
-      type: 'customrecord_complimentary_items', // Replace with actual custom record ID
+      type: 'customrecord_hi_complimentary_codes',
       filters: [['custrecord_hi_primary_item', 'anyof', primaryItemId]],
       columns: [
         'custrecord_hi_comp_code_1',
@@ -98,16 +100,21 @@ define(['N/search'], function (search) {
   /* *********************** Get Complimentary Items - End *********************** */
   //
   /* *********************** Add Complimentary Items - Begin *********************** */
-  /**
-   *
-   * @param {Object} currentRecord
-   * @param {Object} complimentaryItems
-   */
   function addComplimentaryItems(currentRecord, complimentaryItems) {
-    var lineCount = currentRecord.getLineCount({ sublistId: 'item' });
+    var loggerTitle = 'Add Complimentary Items';
+
+    log.debug(
+      loggerTitle,
+      'Initial Line Count: ' + currentRecord.getLineCount({ sublistId: 'item' })
+    );
+    log.debug(
+      loggerTitle,
+      'Complimentary Items: ' + JSON.stringify(complimentaryItems)
+    );
 
     complimentaryItems.forEach(function (itemId) {
       var exists = false;
+      var lineCount = currentRecord.getLineCount({ sublistId: 'item' }); // Update line count dynamically
 
       // Check if the item already exists in the quote
       for (var i = 0; i < lineCount; i++) {
@@ -123,27 +130,60 @@ define(['N/search'], function (search) {
       }
 
       if (!exists) {
-        currentRecord.selectNewLine({ sublistId: 'item' });
+        log.debug(loggerTitle, 'Adding item: ' + itemId);
+        currentRecord.selectNewLine({ sublistId: 'item' }); // Select new line
         currentRecord.setCurrentSublistValue({
           sublistId: 'item',
           fieldId: 'item',
           value: itemId,
+          ignoreFieldChange: true,
         });
         currentRecord.setCurrentSublistValue({
           sublistId: 'item',
           fieldId: 'quantity',
           value: 1,
+          ignoreFieldChange: true,
         });
-        currentRecord.commitLine({ sublistId: 'item' });
+
+        // Retrieve rate and calculate amount
+        var rate =
+          currentRecord.getCurrentSublistValue({
+            sublistId: 'item',
+            fieldId: 'rate',
+          }) || 0;
+        var amount = rate * 1; // quantity is always 1
+        log.debug(loggerTitle, 'Rate: ' + rate + ', Amount: ' + amount);
+
+        currentRecord.setCurrentSublistValue({
+          sublistId: 'item',
+          fieldId: 'amount',
+          value: amount,
+          ignoreFieldChange: true,
+        });
+
+        currentRecord.setCurrentSublistValue({
+          sublistId: 'item',
+          fieldId: 'taxcode',
+          value: '79279',
+          ignoreFieldChange: true,
+        });
+
+        currentRecord.commitLine({ sublistId: 'item' }); // Commit the new line
       }
     });
+
+    log.debug(
+      loggerTitle,
+      'Final Line Count: ' + currentRecord.getLineCount({ sublistId: 'item' })
+    );
   }
+
   /* *********************** Add Complimentary Items - End *********************** */
   //
   /* ------------------------- Helpers Functions - End ------------------------ */
   //
   /* ------------------------------ Exports Begin ----------------------------- */
-  exports.fieldChanged = complimentaryCodes;
+  exports.sublistChanged = complimentaryCodes;
   return exports;
   /* ------------------------------- Exports End ------------------------------ */
 });

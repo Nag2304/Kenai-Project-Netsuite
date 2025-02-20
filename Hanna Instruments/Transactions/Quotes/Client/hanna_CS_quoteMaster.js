@@ -28,10 +28,10 @@ define([
   /* ------------------------- Global Variables - End ------------------------- */
   //
   /* -------------------------- Field Changed - Begin ------------------------- */
-  function fieldChanged(context) {
+  function sublistChanged(context) {
     var loggerTitle = ' Field Changed ';
     try {
-      complimentaryCodes.fieldChanged(context);
+      complimentaryCodes.sublistChanged(context);
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
@@ -39,7 +39,7 @@ define([
   /* -------------------------- Field Changed  - End -------------------------- */
   //
   /* ------------------------------ Exports Begin ----------------------------- */
-  exports.fieldChanged = fieldChanged;
+  exports.sublistChanged = sublistChanged;
   return exports;
   /* ------------------------------- Exports End ------------------------------ */
 });
