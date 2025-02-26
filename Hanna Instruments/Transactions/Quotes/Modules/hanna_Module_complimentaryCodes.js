@@ -112,6 +112,9 @@ define(['N/search'], function (search) {
       'Complimentary Items: ' + JSON.stringify(complimentaryItems)
     );
 
+    // Get all item details in one shot
+    var itemDetailsMap = getItemDetails(complimentaryItems);
+
     complimentaryItems.forEach(function (itemId) {
       var exists = false;
       var lineCount = currentRecord.getLineCount({ sublistId: 'item' }); // Update line count dynamically
@@ -130,8 +133,13 @@ define(['N/search'], function (search) {
       }
 
       if (!exists) {
+        var itemDetails = itemDetailsMap[itemId] || {
+          description: '',
+          listPrice: 1,
+        };
         log.debug(loggerTitle, 'Adding item: ' + itemId);
-        currentRecord.selectNewLine({ sublistId: 'item' }); // Select new line
+
+        currentRecord.selectNewLine({ sublistId: 'item' });
         currentRecord.setCurrentSublistValue({
           sublistId: 'item',
           fieldId: 'item',
@@ -145,14 +153,19 @@ define(['N/search'], function (search) {
           ignoreFieldChange: true,
         });
 
-        // Retrieve rate and calculate amount
-        var rate =
-          currentRecord.getCurrentSublistValue({
-            sublistId: 'item',
-            fieldId: 'rate',
-          }) || 0;
-        var amount = rate * 1; // quantity is always 1
-        log.debug(loggerTitle, 'Rate: ' + rate + ', Amount: ' + amount);
+        currentRecord.setCurrentSublistValue({
+          sublistId: 'item',
+          fieldId: 'rate',
+          value: itemDetails.listPrice,
+          ignoreFieldChange: true,
+        });
+
+        // Calculate amount = rate * quantity
+        var amount = itemDetails.listPrice * 1;
+        log.debug(
+          loggerTitle,
+          'Rate: ' + itemDetails.listPrice + ', Amount: ' + amount
+        );
 
         currentRecord.setCurrentSublistValue({
           sublistId: 'item',
@@ -160,7 +173,12 @@ define(['N/search'], function (search) {
           value: amount,
           ignoreFieldChange: true,
         });
-
+        currentRecord.setCurrentSublistValue({
+          sublistId: 'item',
+          fieldId: 'description',
+          value: itemDetails.description || '',
+          ignoreFieldChange: true,
+        });
         currentRecord.setCurrentSublistValue({
           sublistId: 'item',
           fieldId: 'taxcode',
@@ -168,7 +186,7 @@ define(['N/search'], function (search) {
           ignoreFieldChange: true,
         });
 
-        currentRecord.commitLine({ sublistId: 'item' }); // Commit the new line
+        currentRecord.commitLine({ sublistId: 'item' });
       }
     });
 
@@ -177,8 +195,70 @@ define(['N/search'], function (search) {
       'Final Line Count: ' + currentRecord.getLineCount({ sublistId: 'item' })
     );
   }
-
   /* *********************** Add Complimentary Items - End *********************** */
+  //
+  /* *********************** Get Item Details - Optimized (Batch Search) *********************** */
+  function getItemDetails(itemIds) {
+    var loggerTitle = 'Get Item Details';
+    var itemDetailsMap = {};
+
+    if (!itemIds || itemIds.length === 0) {
+      log.debug(loggerTitle, 'No items provided.');
+      return itemDetailsMap;
+    }
+
+    try {
+      var itemSearch = search.create({
+        type: search.Type.ITEM,
+        filters: [
+          ['internalid', 'anyof', itemIds],
+          'AND',
+          ['pricing.pricelevel', 'anyof', '1'],
+          'AND',
+          ['pricing.currency', 'anyof', '1'],
+        ],
+        columns: [
+          search.createColumn({
+            name: 'salesdescription',
+            label: 'Description',
+          }),
+          search.createColumn({
+            name: 'unitprice',
+            join: 'pricing',
+            label: 'Unit Price',
+          }),
+          search.createColumn({ name: 'internalid', label: 'Internal ID' }),
+        ],
+      });
+
+      itemSearch.run().each(function (result) {
+        var itemId = result.getValue('internalid');
+        var description = result.getValue('salesdescription') || '';
+        var listPrice =
+          result.getValue({
+            name: 'unitprice',
+            join: 'pricing',
+            label: 'Unit Price',
+          }) || 1; // Default to 1 if no price
+
+        itemDetailsMap[itemId] = {
+          description: description,
+          listPrice: listPrice,
+        };
+        return true; // Continue iterating
+      });
+
+      log.debug(
+        loggerTitle,
+        'Item Details Map: ' + JSON.stringify(itemDetailsMap)
+      );
+    } catch (error) {
+      log.error(loggerTitle + ' Error:', error);
+    }
+
+    return itemDetailsMap;
+  }
+  /* *********************** Get Item Details - End *********************** */
   //
   /* ------------------------- Helpers Functions - End ------------------------ */
   //
