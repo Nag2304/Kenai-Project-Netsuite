@@ -99,29 +99,38 @@ define(['N/record', 'N/email', 'N/search', 'N/runtime'], (
       loggerTitle,
       '|>-------------------' + loggerTitle + '- Entry-------------------<| '
     );
-    //
+
     let userAddress = '';
     let recipientEmail = '';
+
     try {
       const scriptObj = runtime.getCurrentScript();
-      userAddress = scriptObj.getParameter({
-        name: 'custscript_wdym_user_addr',
-      });
-      recipientEmail = scriptObj.getParameter({
-        name: 'custscript_wdym_rec_email',
-      });
+      userAddress =
+        scriptObj.getParameter({
+          name: 'custscript_wdym_user_addr',
+        }) || ''; // Ensure it's at least an empty string
+
+      recipientEmail =
+        scriptObj.getParameter({
+          name: 'custscript_wdym_rec_email',
+        }) || ''; // Prevent null/undefined issues
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
+
     log.debug(
       loggerTitle,
-      `User Addres: ${userAddress} To Email: ${recipientEmail}`
+      `User Address: ${userAddress} To Email: ${recipientEmail}`
     );
-    //
+
+    // Ensure recipientEmail is a valid array
+    recipientEmail = recipientEmail ? recipientEmail.split(',') : [];
+
     log.debug(
       loggerTitle,
       '|>-------------------' + loggerTitle + '- Exit-------------------<| '
     );
+
     return { userAddress, recipientEmail };
   };
   /* *********************** Get Script Parameters - End *********************** */
