@@ -51,7 +51,7 @@ define(['N/search', 'N/record'], (search, record) => {
       //
 
       // Key
-      const email =
+      const agent =
         mapContextValues.values['GROUP(custrecord_hms_agent_id_number)'];
       //
 
@@ -70,7 +70,7 @@ define(['N/search', 'N/record'], (search, record) => {
 
       // Form Key Values
       mapContext.write({
-        key: email,
+        key: agent,
         value: reduceValues,
       });
       //
@@ -121,41 +121,56 @@ define(['N/search', 'N/record'], (search, record) => {
       const [record1, record2] = agentIds;
 
       // Define comparison logic
-      // Define comparison logic
       const determineKeepPurge = (rec1, rec2) => {
-        const rec1Verified = rec1.verifiedFromRETSFeeds === true;
-        const rec2Verified = rec2.verifiedFromRETSFeeds === true;
+        const rec1Verified =
+          rec1.verifiedFromRETSFeeds === true ||
+          rec1.verifiedFromRETSFeeds == 'T';
+        const rec2Verified =
+          rec2.verifiedFromRETSFeeds === true ||
+          rec2.verifiedFromRETSFeeds == 'T';
+
+        log.debug(
+          'Determine Keep/Purge',
+          `REC1 VERIFIED: ${rec1Verified}, REC2 VERIFIED: ${rec2Verified}`
+        );
 
         const rec1HasRelatedRecords =
           rec1.cCount > 0 || rec1.sCount > 0 || rec1.spCount > 0;
         const rec2HasRelatedRecords =
           rec2.cCount > 0 || rec2.sCount > 0 || rec2.spCount > 0;
 
+        log.debug(
+          'Determine Keep/Purge',
+          `REC1 RELATED RECORDS: ${rec1HasRelatedRecords}, REC2 RELATED RECORDS: ${rec2HasRelatedRecords}`
+        );
+
+        // 1. If both records have related records, do not purge any record.
+        if (rec1HasRelatedRecords && rec2HasRelatedRecords) {
+          return { keep: rec1, keep2: rec2 }; // Keeping both
+        }
+
+        // 2. If one record is verified and the other is not, keep the verified one.
         if (rec1Verified && !rec2Verified) {
           return { keep: rec1, purge: rec2 };
         } else if (!rec1Verified && rec2Verified) {
           return { keep: rec2, purge: rec1 };
-        } else if (rec1Verified && rec2Verified) {
-          if (rec1HasRelatedRecords && !rec2HasRelatedRecords) {
-            return { keep: rec1, purge: rec2 };
-          } else if (!rec1HasRelatedRecords && rec2HasRelatedRecords) {
-            return { keep: rec2, purge: rec1 };
-          } else {
-            return { purge1: rec1, purge2: rec2 }; // Both Verified but neither has related records
-          }
+        }
+
+        // 3. If one record has related records and the other does not, keep the one with related records.
+        if (rec1HasRelatedRecords && !rec2HasRelatedRecords) {
+          return { keep: rec1, purge: rec2 };
+        } else if (!rec1HasRelatedRecords && rec2HasRelatedRecords) {
+          return { keep: rec2, purge: rec1 };
+        }
+
+        // 4. If neither is verified and neither has related records, keep the most recently updated one.
+        const rec1LastUpdate = new Date(rec1.lastUpdate);
+        const rec2LastUpdate = new Date(rec2.lastUpdate);
+
+        if (rec1LastUpdate > rec2LastUpdate) {
+          return { keep: rec1, purge: rec2 };
         } else {
-          if (rec1HasRelatedRecords && !rec2HasRelatedRecords) {
-            return { keep: rec1, purge: rec2 };
-          } else if (!rec1HasRelatedRecords && rec2HasRelatedRecords) {
-            return { keep: rec2, purge: rec1 };
-          } else {
-            // Check if last names are different
-            if (rec1.lastName !== rec2.lastName) {
-              return { keep: rec1, keep2: rec2 }; // Mark both as 'Keep' if last names are not the same
-            } else {
-              return { purge1: rec1, purge2: rec2 }; // Neither Verified and neither has related records
-            }
-          }
+          return { keep: rec2, purge: rec1 };
         }
       };
 
@@ -164,6 +179,14 @@ define(['N/search', 'N/record'], (search, record) => {
         record1,
         record2
       );
+
+      log.debug(loggerTitle + ' Determin Keep Purge ', {
+        keep,
+        keep2,
+        purge,
+        purge1,
+        purge2,
+      });
 
       // Update records based on determination
       if (keep) updateAgentUpdateProjectRecord(keep.id, 'keep');
@@ -278,6 +301,10 @@ define(['N/search', 'N/record'], (search, record) => {
             name: 'custrecord_hms_last_name',
             label: 'Last Name',
           }),
+          search.createColumn({
+            name: 'custrecord_hms_last_update',
+            label: 'Last Update',
+          }),
         ],
       });
       var searchResultCount =
@@ -299,6 +326,7 @@ define(['N/search', 'N/record'], (search, record) => {
           resultObj.spCount = result.getValue('custrecord_hms_sold_properties');
           resultObj.firstName = result.getValue('custrecord_hms_first_name');
           resultObj.lastName = result.getValue('custrecord_hms_last_name');
+          resultObj.lastUpdate = result.getValue('custrecord_hms_last_update');
           resultValuesArr.push(resultObj);
           return true;
         });
