@@ -36,6 +36,8 @@ define(['N/record', 'N/search'], (record, search) => {
       type: 'customrecord_agent',
       filters: [
         ['custrecord_agent_mls_region.internalidnumber', 'equalto', '3'],
+        'AND',
+        ['isinactive', 'is', 'F'],
       ],
       columns: [
         search.createColumn({
@@ -222,8 +224,7 @@ define(['N/record', 'N/search'], (record, search) => {
             const callbackNumber = data.preferredCallbackNumber;
             const nrdsId = data.nrdsId;
             const changeAgent = data.changeAgent;
-            const verifiedFromRETSFeed =
-              data.verifiedFromRETSFeed === 'T' ? true : false;
+            const verifiedFromRETSFeed = data.verifiedFromRETSFeed;
             const agentInternalId = data.agentInternalId;
             //
             /* ------------------------- Create Custom Record - Begin ------------------------ */
@@ -301,10 +302,20 @@ define(['N/record', 'N/search'], (record, search) => {
               value: true,
             });
             // Update the Verified RETS Feed
-            agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_verified_from_rets_feed',
-              value: verifiedFromRETSFeed,
-            });
+            if (verifiedFromRETSFeed == 'T' || verifiedFromRETSFeed == true) {
+              agentProjectUpdateRecord.setValue({
+                fieldId: 'custrecord_hms_verified_from_rets_feed',
+                value: true,
+              });
+            } else if (
+              verifiedFromRETSFeed == 'F' ||
+              verifiedFromRETSFeed == false
+            ) {
+              agentProjectUpdateRecord.setValue({
+                fieldId: 'custrecord_hms_verified_from_rets_feed',
+                value: false,
+              });
+            }
             if (agentInternalId) {
               // CRM Record Count
               agentProjectUpdateRecord.setValue({
