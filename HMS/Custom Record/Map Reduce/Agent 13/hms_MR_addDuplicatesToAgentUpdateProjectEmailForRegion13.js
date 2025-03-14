@@ -36,6 +36,8 @@ define(['N/record', 'N/search'], (record, search) => {
       type: 'customrecord_agent',
       filters: [
         ['custrecord_agent_mls_region.internalidnumber', 'equalto', '13'],
+        'AND',
+        ['isinactive', 'is', 'F'],
       ],
       columns: [
         search.createColumn({
@@ -222,8 +224,7 @@ define(['N/record', 'N/search'], (record, search) => {
             const callbackNumber = data.preferredCallbackNumber;
             const nrdsId = data.nrdsId;
             const changeAgent = data.changeAgent;
-            const verifiedFromRETSFeed =
-              data.verifiedFromRETSFeed === 'T' ? true : false;
+            const verifiedFromRETSFeed = data.verifiedFromRETSFeed;
             const agentInternalId = data.agentInternalId;
             //
             /* ------------------------- Create Custom Record - Begin ------------------------ */
@@ -301,10 +302,21 @@ define(['N/record', 'N/search'], (record, search) => {
               value: true,
             });
             // Update the Verified RETS Feed
-            agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_verified_from_rets_feed_13',
-              value: verifiedFromRETSFeed,
-            });
+            if (verifiedFromRETSFeed == 'T' || verifiedFromRETSFeed == true) {
+              agentProjectUpdateRecord.setValue({
+                fieldId: 'custrecord_hms_verified_from_rets_feed_13',
+                value: true,
+              });
+            } else if (
+              verifiedFromRETSFeed == 'F' ||
+              verifiedFromRETSFeed == false
+            ) {
+              agentProjectUpdateRecord.setValue({
+                fieldId: 'custrecord_hms_verified_from_rets_feed_13',
+                value: false,
+              });
+            }
+
             if (agentInternalId) {
               // CRM Record Count
               agentProjectUpdateRecord.setValue({
@@ -403,7 +415,7 @@ define(['N/record', 'N/search'], (record, search) => {
         filters: [
           ['isinactive', 'is', 'F'],
           'AND',
-          ['custrecord_agent_mls_region', 'anyof', '3'],
+          ['custrecord_agent_mls_region', 'anyof', '13'],
           'AND',
           ['internalidnumber', 'equalto', agentId],
         ],
@@ -472,7 +484,7 @@ define(['N/record', 'N/search'], (record, search) => {
         filters: [
           ['isinactive', 'is', 'F'],
           'AND',
-          ['custrecord_agent_mls_region', 'anyof', '3'],
+          ['custrecord_agent_mls_region', 'anyof', '13'],
           'AND',
           ['internalidnumber', 'equalto', agentId],
         ],
@@ -541,7 +553,7 @@ define(['N/record', 'N/search'], (record, search) => {
         filters: [
           ['isinactive', 'is', 'F'],
           'AND',
-          ['custrecord_agent_mls_region', 'anyof', '3'],
+          ['custrecord_agent_mls_region', 'anyof', '13'],
           'AND',
           ['internalidnumber', 'equalto', agentId],
         ],
