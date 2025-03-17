@@ -113,77 +113,52 @@ define(['N/search', 'N/record'], (search, record) => {
       const [record1, record2] = agentIds;
 
       // Define comparison logic
-      const determineKeepPurge = (rec1, rec2) => {
-        const rec1Verified =
-          rec1.verifiedFromRETSFeeds === true ||
-          rec1.verifiedFromRETSFeeds == 'T';
-        const rec2Verified =
-          rec2.verifiedFromRETSFeeds === true ||
-          rec2.verifiedFromRETSFeeds == 'T';
+const determineKeepPurge = (rec1, rec2) => {
+    const rec1Verified = rec1.verifiedFromRETSFeeds === true || rec1.verifiedFromRETSFeeds == 'T';
+    const rec2Verified = rec2.verifiedFromRETSFeeds === true || rec2.verifiedFromRETSFeeds == 'T';
 
-        log.debug(
-          'Determine Keep/Purge',
-          `REC1 VERIFIED: ${rec1Verified}, REC2 VERIFIED: ${rec2Verified}`
-        );
+    log.debug('Determine Keep/Purge', `REC1 VERIFIED: ${rec1Verified}, REC2 VERIFIED: ${rec2Verified}`);
 
-        const rec1HasRelatedRecords =
-          rec1.cCount > 0 || rec1.sCount > 0 || rec1.spCount > 0;
-        const rec2HasRelatedRecords =
-          rec2.cCount > 0 || rec2.sCount > 0 || rec2.spCount > 0;
+    const rec1HasRelatedRecords = rec1.cCount > 0 || rec1.sCount > 0 || rec1.spCount > 0;
+    const rec2HasRelatedRecords = rec2.cCount > 0 || rec2.sCount > 0 || rec2.spCount > 0;
 
-        log.debug(
-          'Determine Keep/Purge',
-          `REC1 RELATED RECORDS: ${rec1HasRelatedRecords}, REC2 RELATED RECORDS: ${rec2HasRelatedRecords}`
-        );
+    log.debug('Determine Keep/Purge', `REC1 RELATED RECORDS: ${rec1HasRelatedRecords}, REC2 RELATED RECORDS: ${rec2HasRelatedRecords}`);
 
-        const rec1LastUpdate = new Date(rec1.lastUpdate);
-        const rec2LastUpdate = new Date(rec2.lastUpdate);
+    const rec1LastUpdate = new Date(rec1.lastUpdate);
+    const rec2LastUpdate = new Date(rec2.lastUpdate);
 
-        // 1️⃣ If both records have related records, keep both.
-        if (rec1HasRelatedRecords && rec2HasRelatedRecords) {
-          return { keep: rec1, keep2: rec2 };
-        }
-
-        // 2️⃣ If one record is verified and the other is not, keep the verified one.
+    // 1. If both records have related records
+    if (rec1HasRelatedRecords && rec2HasRelatedRecords) {
         if (rec1Verified && !rec2Verified) {
-          return { keep: rec1, purge: rec2 };
+            return { keep: rec1, purge: rec2 };
         } else if (!rec1Verified && rec2Verified) {
-          return { keep: rec2, purge: rec1 };
-        }
-
-        // 3️⃣ If both records are verified:
-        else if (rec1Verified && rec2Verified) {
-          if (rec1HasRelatedRecords && !rec2HasRelatedRecords) {
-            return { keep: rec1, purge: rec2 };
-          } else if (!rec1HasRelatedRecords && rec2HasRelatedRecords) {
             return { keep: rec2, purge: rec1 };
-          } else {
-            return { purge1: rec1, purge2: rec2 }; // 🔴 Scenario: Both verified, but neither has related records → Purge both.
-          }
+        } else if (!rec1Verified && !rec2Verified) {
+            return rec1LastUpdate > rec2LastUpdate
+                ? { keep: rec1, purge: rec2 }
+                : { keep: rec2, purge: rec1 };
         }
-
-        // 4️⃣ If neither record is verified:
-        else if (!rec1Verified && !rec2Verified) {
-          if (rec1HasRelatedRecords && !rec2HasRelatedRecords) {
-            return { keep: rec1, purge: rec2 };
-          } else if (!rec1HasRelatedRecords && rec2HasRelatedRecords) {
-            return { keep: rec2, purge: rec1 };
-          } else {
-            if (rec1.lastName !== rec2.lastName) {
-              return { keep: rec1, keep2: rec2 }; // ✅ Scenario: Different last names → Keep both.
-            } else {
-              return { purge1: rec1, purge2: rec2 }; // 🔴 Scenario: Same last name, neither verified, no related records → Purge both.
-            }
-          }
-        }
-
-        // 5️⃣ If all else fails, keep the most recently updated record.
-        else {
-          return rec1LastUpdate > rec2LastUpdate
+    } 
+    // 2. If one record is verified and the other is not, keep the verified one
+    else if (rec1Verified && !rec2Verified) {
+        return { keep: rec1, purge: rec2 };
+    } else if (!rec1Verified && rec2Verified) {
+        return { keep: rec2, purge: rec1 };
+    }
+    // 3. If one record has related records and the other does not
+    else if (rec1HasRelatedRecords && !rec2HasRelatedRecords) {
+        return { keep: rec1, purge: rec2 };
+    } else if (!rec1HasRelatedRecords && rec2HasRelatedRecords) {
+        return { keep: rec2, purge: rec1 };
+    }
+    // 4. If neither record has related records and neither is verified, keep the latest one
+    else {
+        return rec1LastUpdate > rec2LastUpdate
             ? { keep: rec1, purge: rec2 }
             : { keep: rec2, purge: rec1 };
-        }
-      };
+    }
+};
+
 
       // Get the keep and purge records
       const { keep, keep2, purge, purge1, purge2 } = determineKeepPurge(
