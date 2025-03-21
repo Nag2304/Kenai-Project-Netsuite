@@ -114,9 +114,9 @@ define(['N/search', 'N/record'], (search, record) => {
       log.debug(loggerTitle + ' Agent Ids ', agentIds);
 
       // Ensure we have exactly two records
-      // if (agentIds.length < 2) {
-      //   return true;
-      // }
+      if (agentIds.length < 2) {
+        return true;
+      }
 
       const [record1, record2] = agentIds;
 
@@ -326,25 +326,26 @@ define(['N/search', 'N/record'], (search, record) => {
         customrecord_hms_agent_upd_projectSearchObj.runPaged().count;
       log.debug(loggerTitle, `Search Result Count: ${searchResultCount}`);
       //
-
-      customrecord_hms_agent_upd_projectSearchObj.run().each((result) => {
-        let resultObj = {};
-        resultObj.id = result.id;
-        resultObj.agentIdNumber = result.getValue(
-          'custrecord_hms_agent_id_number'
-        );
-        resultObj.verifiedFromRETSFeeds = result.getValue(
-          'custrecord_hms_verified_from_rets_feed'
-        );
-        resultObj.cCount = result.getValue('custrecord_hms_crm_record_count');
-        resultObj.sCount = result.getValue('custrecord_hms_survery_count');
-        resultObj.spCount = result.getValue('custrecord_hms_sold_properties');
-        resultObj.firstName = result.getValue('custrecord_hms_first_name');
-        resultObj.lastName = result.getValue('custrecord_hms_last_name');
-        resultObj.lastUpdate = result.getValue('custrecord_hms_last_update');
-        resultValuesArr.push(resultObj);
-        return true;
-      });
+      if (searchResultCount == 2) {
+        customrecord_hms_agent_upd_projectSearchObj.run().each((result) => {
+          let resultObj = {};
+          resultObj.id = result.id;
+          resultObj.agentIdNumber = result.getValue(
+            'custrecord_hms_agent_id_number'
+          );
+          resultObj.verifiedFromRETSFeeds = result.getValue(
+            'custrecord_hms_verified_from_rets_feed'
+          );
+          resultObj.cCount = result.getValue('custrecord_hms_crm_record_count');
+          resultObj.sCount = result.getValue('custrecord_hms_survery_count');
+          resultObj.spCount = result.getValue('custrecord_hms_sold_properties');
+          resultObj.firstName = result.getValue('custrecord_hms_first_name');
+          resultObj.lastName = result.getValue('custrecord_hms_last_name');
+          resultObj.lastUpdate = result.getValue('custrecord_hms_last_update');
+          resultValuesArr.push(resultObj);
+          return true;
+        });
+      }
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
@@ -376,6 +377,8 @@ define(['N/search', 'N/record'], (search, record) => {
         ['custrecord_hms_keep', 'is', 'F'],
         'AND',
         ['custrecord_hms_purge', 'is', 'F'],
+        'AND',
+        ['count(internalid)', 'equalto', '2'],
       ],
       columns: [
         search.createColumn({
