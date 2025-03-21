@@ -113,65 +113,94 @@ define(['N/search', 'N/record'], (search, record) => {
       const [record1, record2] = agentIds;
 
       // Define comparison logic
-const determineKeepPurge = (rec1, rec2) => {
-    const rec1Verified = rec1.verifiedFromRETSFeeds === true || rec1.verifiedFromRETSFeeds == 'T';
-    const rec2Verified = rec2.verifiedFromRETSFeeds === true || rec2.verifiedFromRETSFeeds == 'T';
+      const determineKeepPurge = (rec1, rec2) => {
+        const rec1Verified =
+          rec1.verifiedFromRETSFeeds === true ||
+          rec1.verifiedFromRETSFeeds == 'T';
+        const rec2Verified =
+          rec2.verifiedFromRETSFeeds === true ||
+          rec2.verifiedFromRETSFeeds == 'T';
 
-    log.debug('Determine Keep/Purge', `REC1 VERIFIED: ${rec1Verified}, REC2 VERIFIED: ${rec2Verified}`);
+        log.debug(
+          'Determine Keep/Purge',
+          `REC1 VERIFIED: ${rec1Verified}, REC2 VERIFIED: ${rec2Verified}`
+        );
 
-    const rec1HasRelatedRecords = rec1.cCount > 0 || rec1.sCount > 0 || rec1.spCount > 0;
-    const rec2HasRelatedRecords = rec2.cCount > 0 || rec2.sCount > 0 || rec2.spCount > 0;
+        const rec1HasRelatedRecords =
+          rec1.cCount > 0 || rec1.sCount > 0 || rec1.spCount > 0;
+        const rec2HasRelatedRecords =
+          rec2.cCount > 0 || rec2.sCount > 0 || rec2.spCount > 0;
 
-    log.debug('Determine Keep/Purge', `REC1 RELATED RECORDS: ${rec1HasRelatedRecords}, REC2 RELATED RECORDS: ${rec2HasRelatedRecords}`);
+        log.debug(
+          'Determine Keep/Purge',
+          `REC1 RELATED RECORDS: ${rec1HasRelatedRecords}, REC2 RELATED RECORDS: ${rec2HasRelatedRecords}`
+        );
 
-    const rec1LastUpdate = new Date(rec1.lastUpdate);
-    const rec2LastUpdate = new Date(rec2.lastUpdate);
+        const rec1LastUpdate = new Date(rec1.lastUpdate);
+        const rec2LastUpdate = new Date(rec2.lastUpdate);
+        log.debug('Determine Keep Purge ', { rec1LastUpdate, rec2LastUpdate });
 
-    // 1. If both records have related records
-    if (rec1HasRelatedRecords && rec2HasRelatedRecords) {
-        if (rec1Verified && !rec2Verified) {
+        // 1. If both records have related records
+        if (rec1HasRelatedRecords && rec2HasRelatedRecords) {
+          if (rec1Verified && !rec2Verified) {
             return { keep: rec1, purge: rec2 };
-        } else if (!rec1Verified && rec2Verified) {
+          } else if (!rec1Verified && rec2Verified) {
             return { keep: rec2, purge: rec1 };
-        } else if (!rec1Verified && !rec2Verified) {
+          } else if (!rec1Verified && !rec2Verified) {
             return rec1LastUpdate > rec2LastUpdate
-                ? { keep: rec1, purge: rec2 }
-                : { keep: rec2, purge: rec1 };
+              ? { keep: rec1, purge: rec2 }
+              : { keep: rec2, purge: rec1 };
+          } else if (rec1Verified && rec2Verified) {
+            return rec1LastUpdate > rec2LastUpdate
+              ? { keep: rec1, purge: rec2 }
+              : { keep: rec2, purge: rec1 };
+          }
         }
-    } 
-    // 2. If one record is verified and the other is not, keep the verified one
-    else if (rec1Verified && !rec2Verified) {
-        return { keep: rec1, purge: rec2 };
-    } else if (!rec1Verified && rec2Verified) {
-        return { keep: rec2, purge: rec1 };
-    }
-    // 3. If one record has related records and the other does not
-    else if (rec1HasRelatedRecords && !rec2HasRelatedRecords) {
-        return { keep: rec1, purge: rec2 };
-    } else if (!rec1HasRelatedRecords && rec2HasRelatedRecords) {
-        return { keep: rec2, purge: rec1 };
-    }
-    // 4. If neither record has related records and neither is verified, keep the latest one
-    else {
-        return rec1LastUpdate > rec2LastUpdate
+        // 2. If one record is verified and the other is not, keep the verified one
+        else if (rec1Verified && !rec2Verified) {
+          return { keep: rec1, purge: rec2 };
+        } else if (!rec1Verified && rec2Verified) {
+          return { keep: rec2, purge: rec1 };
+        }
+        // 3. If one record has related records and the other does not
+        else if (rec1HasRelatedRecords && !rec2HasRelatedRecords) {
+          return { keep: rec1, purge: rec2 };
+        } else if (!rec1HasRelatedRecords && rec2HasRelatedRecords) {
+          return { keep: rec2, purge: rec1 };
+        }
+        // 4. If neither record has related records and neither is verified, keep the latest one
+        else {
+          return rec1LastUpdate > rec2LastUpdate
             ? { keep: rec1, purge: rec2 }
             : { keep: rec2, purge: rec1 };
-    }
-};
+        }
 
+        // Fallback return (should never reach here, but prevents undefined errors)
+        return { keep: null, purge: null };
+      };
 
-      // Get the keep and purge records
-      const { keep, keep2, purge, purge1, purge2 } = determineKeepPurge(
-        record1,
-        record2
-      );
+      // Call the function correctly
+      const { keep, purge } = determineKeepPurge(record1, record2);
 
-      // Update records based on determination
-      if (keep) updateAgentUpdateProjectRecord(keep.id, 'keep');
-      if (keep2) updateAgentUpdateProjectRecord(keep2.id, 'keep');
-      if (purge) updateAgentUpdateProjectRecord(purge.id, 'purge');
-      if (purge1) updateAgentUpdateProjectRecord(purge1.id, 'purge');
-      if (purge2) updateAgentUpdateProjectRecord(purge2.id, 'purge');
+      // Ensure values exist before using them
+      if (keep && purge) {
+        log.debug('Final Keep/Purge Records', { keep, purge });
+        updateAgentUpdateProjectRecord(keep.id, 'keep');
+        updateAgentUpdateProjectRecord(purge.id, 'purge');
+      } else {
+        log.error(
+          loggerTitle + 'Error: Unable to determine keep/purge records',
+          {
+            keep,
+            purge,
+          }
+        );
+      }
+
+      log.debug(loggerTitle + ' Determin Keep Purge ', {
+        keep,
+        purge,
+      });
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
