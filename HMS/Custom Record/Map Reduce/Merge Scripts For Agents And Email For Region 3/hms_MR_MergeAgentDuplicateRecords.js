@@ -645,13 +645,22 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
     );
     //
     try {
-      record.submitFields({
+      // record.submitFields({
+      //   type: 'phonecall',
+      //   id: phoneCallId,
+      //   values: {
+      //     custevent_caller_name: agentId,
+      //   },
+      // });
+      const phoneCallRecord = record.load({
         type: 'phonecall',
         id: phoneCallId,
-        values: {
-          custevent_caller_name: agentId,
-        },
       });
+      phoneCallRecord.setValue({
+        fieldId: 'custevent_caller_name',
+        value: agentId,
+      });
+      phoneCallRecord.save();
       log.debug(
         loggerTitle,
         ' Phone Call Record Saved Successfully: ' + phoneCallId
