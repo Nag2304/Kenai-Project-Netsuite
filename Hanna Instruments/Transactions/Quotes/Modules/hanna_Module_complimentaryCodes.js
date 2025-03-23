@@ -18,7 +18,7 @@ define(['N/search'], function (search) {
   /* ------------------------- Global Variables - End ------------------------- */
   //
   /* ----------------------- Complimentary Codes - Begin ---------------------- */
-  function complimentaryCodes(context) {
+  function complimentaryCodes(context, priceLevelValue) {
     var loggerTitle = ' Complimentary Codes ';
     try {
       var currentRecord = context.currentRecord;
@@ -51,7 +51,11 @@ define(['N/search'], function (search) {
 
         // Add complimentary items to the quote
         if (complimentaryItems.length > 0) {
-          addComplimentaryItems(currentRecord, complimentaryItems);
+          addComplimentaryItems(
+            currentRecord,
+            complimentaryItems,
+            priceLevelValue
+          );
         }
       }
     } catch (error) {
@@ -100,7 +104,11 @@ define(['N/search'], function (search) {
   /* *********************** Get Complimentary Items - End *********************** */
   //
   /* *********************** Add Complimentary Items - Begin *********************** */
-  function addComplimentaryItems(currentRecord, complimentaryItems) {
+  function addComplimentaryItems(
+    currentRecord,
+    complimentaryItems,
+    priceLevelValue
+  ) {
     var loggerTitle = 'Add Complimentary Items';
 
     log.debug(
@@ -145,19 +153,47 @@ define(['N/search'], function (search) {
           fieldId: 'item',
           value: itemId,
           ignoreFieldChange: true,
+          forceSyncSourcing: true,
         });
         currentRecord.setCurrentSublistValue({
           sublistId: 'item',
           fieldId: 'quantity',
           value: 1,
           ignoreFieldChange: true,
+          forceSyncSourcing: true,
         });
+        if (priceLevelValue.text) {
+          log.debug(
+            loggerTitle,
+            ' Setting the Price Level from Customer: ' + priceLevelValue.text
+          );
+          currentRecord.setCurrentSublistValue({
+            sublistId: 'item',
+            fieldId: 'price',
+            value: priceLevelValue.value,
+            ignoreFieldChange: true,
+            forceSyncSourcing: true,
+          });
+        } else if (itemDetails.priceLevelText) {
+          log.debug(
+            loggerTitle,
+            ' Setting the Price Level from Item: ' + itemDetails.priceLevelText
+          );
+          currentRecord.setCurrentSublistValue({
+            sublistId: 'item',
+            fieldId: 'price',
+            value: itemDetails.priceLevelValue,
+            ignoreFieldChange: true,
+            forceSyncSourcing: true,
+          });
+        }
 
         currentRecord.setCurrentSublistValue({
           sublistId: 'item',
           fieldId: 'rate',
           value: itemDetails.listPrice,
           ignoreFieldChange: true,
+          forceSyncSourcing: true,
         });
 
         // Calculate amount = rate * quantity
@@ -172,18 +208,35 @@ define(['N/search'], function (search) {
           fieldId: 'amount',
           value: amount,
           ignoreFieldChange: true,
+          forceSyncSourcing: true,
         });
         currentRecord.setCurrentSublistValue({
           sublistId: 'item',
           fieldId: 'description',
           value: itemDetails.description || '',
           ignoreFieldChange: true,
+          forceSyncSourcing: true,
         });
         currentRecord.setCurrentSublistValue({
           sublistId: 'item',
           fieldId: 'taxcode',
           value: '79279',
           ignoreFieldChange: true,
+          forceSyncSourcing: true,
+        });
+        currentRecord.setCurrentSublistValue({
+          sublistId: 'item',
+          fieldId: 'custcol_expiration_date',
+          value: null,
+          ignoreFieldChange: true,
+          forceSyncSourcing: true,
+        });
+        currentRecord.setCurrentSublistValue({
+          sublistId: 'item',
+          fieldId: 'custcol_msrp_baseprice',
+          value: itemDetails.listPrice,
+          ignoreFieldChange: true,
+          forceSyncSourcing: true,
         });
 
         currentRecord.commitLine({ sublistId: 'item' });
@@ -228,6 +281,11 @@ define(['N/search'], function (search) {
             label: 'Unit Price',
           }),
           search.createColumn({ name: 'internalid', label: 'Internal ID' }),
+          search.createColumn({
+            name: 'pricelevel',
+            join: 'pricing',
+            label: 'Price Level',
+          }),
         ],
       });
 
@@ -241,9 +299,25 @@ define(['N/search'], function (search) {
             label: 'Unit Price',
           }) || 1; // Default to 1 if no price
 
+        var priceLevelValue =
+          result.getValue({
+            name: 'pricelevel',
+            join: 'pricing',
+            label: 'Price Level',
+          }) || '';
+
+        var priceLevelText =
+          result.getText({
+            name: 'pricelevel',
+            join: 'pricing',
+            label: 'Price Level',
+          }) || '';
+
         itemDetailsMap[itemId] = {
           description: description,
           listPrice: listPrice,
+          priceLevelValue: priceLevelValue,
+          priceLevelText: priceLevelText,
         };
         return true; // Continue iterating
       });
