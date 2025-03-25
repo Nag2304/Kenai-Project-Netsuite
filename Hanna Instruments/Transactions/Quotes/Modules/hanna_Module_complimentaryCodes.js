@@ -18,6 +18,12 @@ define(['N/search'], function (search) {
   /* ------------------------- Global Variables - End ------------------------- */
   //
   /* ----------------------- Complimentary Codes - Begin ---------------------- */
+  /**
+   *
+   * @param {Object} context
+   * @param {Object} priceLevelValue
+   * @returns
+   */
   function complimentaryCodes(context, priceLevelValue) {
     var loggerTitle = ' Complimentary Codes ';
     try {
@@ -67,6 +73,11 @@ define(['N/search'], function (search) {
   /* ------------------------ Helpers Functions - Begin ----------------------- */
   //
   /* *********************** Get Complimentary Items - Begin *********************** */
+  /**
+   *
+   * @param {Number} primaryItemId
+   * @returns {Array}
+   */
   function getComplimentaryItems(primaryItemId) {
     var complimentaryItems = [];
 
@@ -104,6 +115,12 @@ define(['N/search'], function (search) {
   /* *********************** Get Complimentary Items - End *********************** */
   //
   /* *********************** Add Complimentary Items - Begin *********************** */
+  /**
+   *
+   * @param {Object} currentRecord
+   * @param {Array} complimentaryItems
+   * @param {Object} priceLevelValue
+   */
   function addComplimentaryItems(
     currentRecord,
     complimentaryItems,
@@ -121,7 +138,7 @@ define(['N/search'], function (search) {
     );
 
     // Get all item details in one shot
-    var itemDetailsMap = getItemDetails(complimentaryItems);
+    var itemDetailsMap = getItemDetails(complimentaryItems, priceLevelValue);
 
     complimentaryItems.forEach(function (itemId) {
       var exists = false;
@@ -251,7 +268,13 @@ define(['N/search'], function (search) {
   /* *********************** Add Complimentary Items - End *********************** */
   //
   /* *********************** Get Item Details - Optimized (Batch Search) *********************** */
-  function getItemDetails(itemIds) {
+  /**
+   *
+   * @param {Array} itemIds
+   * @param {Object} priceLevelValue
+   * @returns {Array}
+   */
+  function getItemDetails(itemIds, priceLevelValue) {
     var loggerTitle = 'Get Item Details';
     var itemDetailsMap = {};
 
@@ -266,7 +289,7 @@ define(['N/search'], function (search) {
         filters: [
           ['internalid', 'anyof', itemIds],
           'AND',
-          ['pricing.pricelevel', 'anyof', '1'],
+          ['pricing.pricelevel', 'anyof', priceLevelValue.value],
           'AND',
           ['pricing.currency', 'anyof', '1'],
         ],
