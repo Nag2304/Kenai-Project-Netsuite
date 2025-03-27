@@ -57,6 +57,14 @@ define(['N/search'], function (search) {
 
         // Add complimentary items to the quote
         if (complimentaryItems.length > 0) {
+          var linePriceLevel = currentRecord.getCurrentSublistValue({
+            sublistId: 'item',
+            fieldId: 'price',
+          });
+          log.debug(loggerTitle, ' Line Price Level: ' + linePriceLevel);
+          if (!priceLevelValue) {
+            priceLevelValue = linePriceLevel;
+          }
           addComplimentaryItems(
             currentRecord,
             complimentaryItems,
@@ -179,27 +187,27 @@ define(['N/search'], function (search) {
           ignoreFieldChange: true,
           forceSyncSourcing: true,
         });
-        if (priceLevelValue.text) {
+        if (priceLevelValue) {
           log.debug(
             loggerTitle,
-            ' Setting the Price Level from Customer: ' + priceLevelValue.text
+            ' Setting the Price Level from Customer: ' + priceLevelValue
           );
           currentRecord.setCurrentSublistValue({
             sublistId: 'item',
             fieldId: 'price',
-            value: priceLevelValue.value,
+            value: priceLevelValue,
             ignoreFieldChange: true,
             forceSyncSourcing: true,
           });
-        } else if (itemDetails.priceLevelText) {
+        } else if (itemDetails.priceLevel) {
           log.debug(
             loggerTitle,
-            ' Setting the Price Level from Item: ' + itemDetails.priceLevelText
+            ' Setting the Price Level from Item: ' + itemDetails.priceLevel
           );
           currentRecord.setCurrentSublistValue({
             sublistId: 'item',
             fieldId: 'price',
-            value: itemDetails.priceLevelValue,
+            value: itemDetails.priceLevel,
             ignoreFieldChange: true,
             forceSyncSourcing: true,
           });
@@ -251,7 +259,7 @@ define(['N/search'], function (search) {
         currentRecord.setCurrentSublistValue({
           sublistId: 'item',
           fieldId: 'custcol_msrp_baseprice',
-          value: itemDetails.listPrice,
+          value: itemDetails.msrp,
           ignoreFieldChange: true,
           forceSyncSourcing: true,
         });
@@ -289,9 +297,13 @@ define(['N/search'], function (search) {
         filters: [
           ['internalid', 'anyof', itemIds],
           'AND',
-          ['pricing.pricelevel', 'anyof', priceLevelValue.value],
-          'AND',
           ['pricing.currency', 'anyof', '1'],
+          'AND',
+          [
+            ['pricing.pricelevel', 'anyof', '1'],
+            'OR',
+            ['pricing.pricelevel', 'anyof', priceLevelValue],
+          ],
         ],
         columns: [
           search.createColumn({
@@ -316,32 +328,24 @@ define(['N/search'], function (search) {
         var itemId = result.getValue('internalid');
         var description = result.getValue('salesdescription') || '';
         var listPrice =
-          result.getValue({
-            name: 'unitprice',
-            join: 'pricing',
-            label: 'Unit Price',
-          }) || 1; // Default to 1 if no price
+          result.getValue({ name: 'unitprice', join: 'pricing' }) || 1;
+        var priceLevel =
+          result.getValue({ name: 'pricelevel', join: 'pricing' }) || '';
 
-        var priceLevelValue =
-          result.getValue({
-            name: 'pricelevel',
-            join: 'pricing',
-            label: 'Price Level',
-          }) || '';
+        // Ensure we don't overwrite existing data
+        if (!itemDetailsMap[itemId]) {
+          itemDetailsMap[itemId] = {};
+        }
 
-        var priceLevelText =
-          result.getText({
-            name: 'pricelevel',
-            join: 'pricing',
-            label: 'Price Level',
-          }) || '';
+        itemDetailsMap[itemId].description = description;
+        itemDetailsMap[itemId].listPrice = listPrice;
+        itemDetailsMap[itemId].priceLevelValue = priceLevel;
 
-        itemDetailsMap[itemId] = {
-          description: description,
-          listPrice: listPrice,
-          priceLevelValue: priceLevelValue,
-          priceLevelText: priceLevelText,
-        };
+        // Set MSRP only if Price Level is 1 (List Price)
+        if (priceLevel === '1') {
+          itemDetailsMap[itemId].msrp = listPrice;
+        }
+
         return true; // Continue iterating
       });
 

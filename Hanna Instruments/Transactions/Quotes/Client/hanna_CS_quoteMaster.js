@@ -68,15 +68,14 @@ define([
    */
   function retrieveCustomerPriceLevel(customer) {
     var loggerTitle = 'Retrieve Customer PriceLevel';
-    var priceLevel = {};
+    var priceLevel = 0;
     try {
       var customerLookUpFields = search.lookupFields({
         type: search.Type.CUSTOMER,
         id: String(customer),
         columns: ['pricelevel'],
       });
-      priceLevel.value = customerLookUpFields.pricelevel[0].value || 0;
-      priceLevel.text = customerLookUpFields.pricelevel[0].text || '';
+      priceLevel = customerLookUpFields.pricelevel[0].value || 0;
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
@@ -86,6 +85,7 @@ define([
   /* *********************** Retrieve Customer PriceLevel - End *********************** */
   //
   /* ------------------------- Helper Functions - End ------------------------- */
+  //
   /* ------------------------------ Exports Begin ----------------------------- */
   exports.fieldChanged = fieldChanged;
   exports.sublistChanged = sublistChanged;
