@@ -40,6 +40,13 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
     //
     const scriptObj = runtime.getCurrentScript();
     const today = new Date();
+
+    const dateCriteria = scriptObj
+      .getParameter({
+        name: 'custscript_div_date_criteria',
+      })
+      .toUpperCase();
+
     const dateParam =
       scriptObj.getParameter({ name: 'custscript_div_adj_date_param' }) ||
       today;
@@ -53,14 +60,26 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
 
     let itemFulfillmentSearch = search.load({ id: '2026' });
 
-    // Apply date filter dynamically
-    itemFulfillmentSearch.filters.push(
-      search.createFilter({
-        name: 'trandate',
-        operator: search.Operator.ONORAFTER,
-        values: formattedDate,
-      })
-    );
+    if (dateCriteria == 'ONORAFTER') {
+      // Apply date filter dynamically
+      itemFulfillmentSearch.filters.push(
+        search.createFilter({
+          name: 'trandate',
+          operator: search.Operator.ONORAFTER,
+          values: formattedDate,
+        })
+      );
+    } else if (dateCriteria == 'ON') {
+      // Apply date filter dynamically
+      itemFulfillmentSearch.filters.push(
+        search.createFilter({
+          name: 'trandate',
+          operator: search.Operator.ON,
+          values: formattedDate,
+        })
+      );
+    }
+
     log.debug(loggerTitle + ' If Search ', itemFulfillmentSearch);
     //
     log.audit(
