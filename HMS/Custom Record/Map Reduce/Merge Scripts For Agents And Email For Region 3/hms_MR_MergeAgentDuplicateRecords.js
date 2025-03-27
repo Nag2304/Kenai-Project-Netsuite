@@ -606,13 +606,15 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
     );
     //
     try {
-      record.submitFields({
+      const propertyRecord = record.load({
         type: 'customrecord_property_record',
         id: propertyRecordId,
-        values: {
-          custrecord_real_estate_agent_name: agentId,
-        },
       });
+      propertyRecord.setValue({
+        fieldId: 'custrecord_real_estate_agent_name',
+        value: agentId,
+      });
+      propertyRecord.save();
       log.debug(
         loggerTitle,
         ' Property Record Saved Successfully: ' + propertyRecordId
