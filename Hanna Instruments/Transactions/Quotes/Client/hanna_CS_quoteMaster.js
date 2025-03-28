@@ -26,10 +26,14 @@ define([
 ], function (search, complimentaryCodes) {
   /* ------------------------ Global Variables - Begin ------------------------ */
   var exports = {};
-  var priceLevel = {};
+  var priceLevel = '';
   /* ------------------------- Global Variables - End ------------------------- */
   //
   /* -------------------------- Field Changed - Begin ------------------------- */
+  /**
+   *
+   * @param {Object} context
+   */
   function fieldChanged(context) {
     var loggerTitle = 'Field Changed';
     try {
@@ -48,6 +52,10 @@ define([
   /* -------------------------- Field Changed - End ------------------------- */
   //
   /* -------------------------- Sublist Changed - Begin ------------------------- */
+  /**
+   *
+   * @param {Object} context
+   */
   function sublistChanged(context) {
     var loggerTitle = ' Sublist Changed ';
     try {
@@ -57,6 +65,64 @@ define([
     }
   }
   /* -------------------------- Sublist Changed - End -------------------------- */
+  //
+  /* --------------------------- Save Record - Begin -------------------------- */
+  /**
+   *
+   * @param {Object} context
+   * @returns {Boolean}
+   */
+  function saveRecord(context) {
+    var loggerTitle = 'Save Record';
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+    );
+    //
+    try {
+      var record = context.currentRecord;
+      var lineCount = record.getLineCount({ sublistId: 'item' });
+      log.debug(loggerTitle, 'Line Count: ' + lineCount);
+      //
+      for (var index = 0; index < lineCount; index++) {
+        var itemId = record.getSublistValue({
+          sublistId: 'item',
+          fieldId: 'item',
+          line: index,
+        });
+        log.debug(loggerTitle, 'Item Id: ' + itemId);
+        if (itemId) {
+          var priceLevel = record.getSublistValue({
+            sublistId: 'item',
+            fieldId: 'price',
+            line: index,
+          });
+          if (!priceLevel) {
+            record.selectLine({ sublistId: 'item', line: index });
+            record.setCurrentSublistValue({
+              sublistId: 'item',
+              fieldId: 'price',
+              value: priceLevel,
+            });
+            record.commitLine({ sublistId: 'item' });
+            log.debug(
+              loggerTitle,
+              ' Price Level Set Successfully at index: ' + index
+            );
+          }
+        }
+      }
+    } catch (error) {
+      log.error(loggerTitle + ' Error:', error);
+    }
+    //
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
+    );
+    return true;
+  }
+  /* ---------------------------- Save Record - End --------------------------- */
   //
   /* ------------------------ Helper Functions - Begin ------------------------ */
   //
@@ -89,6 +155,7 @@ define([
   /* ------------------------------ Exports Begin ----------------------------- */
   exports.fieldChanged = fieldChanged;
   exports.sublistChanged = sublistChanged;
+  exports.saveRecord = saveRecord;
   return exports;
   /* ------------------------------- Exports End ------------------------------ */
 });
