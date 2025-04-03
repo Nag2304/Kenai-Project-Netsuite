@@ -276,7 +276,7 @@ define(['N/record', 'N/search'], (record, search) => {
           // Update the Verified RETS Feed
           if (verifiedFromRETSFeed == 'T' || verifiedFromRETSFeed == true) {
             agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_verified_from_rets_feed_13',
+              fieldId: 'custrecord_hms_verified_from_ret_feed_13',
               value: true,
             });
           } else if (
@@ -284,7 +284,7 @@ define(['N/record', 'N/search'], (record, search) => {
             verifiedFromRETSFeed == false
           ) {
             agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_verified_from_rets_feed_13',
+              fieldId: 'custrecord_hms_verified_from_ret_feed_13',
               value: false,
             });
           }
