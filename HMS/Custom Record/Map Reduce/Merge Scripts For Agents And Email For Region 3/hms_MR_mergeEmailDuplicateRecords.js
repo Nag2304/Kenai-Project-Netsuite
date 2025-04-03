@@ -189,6 +189,10 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
             name: 'custrecord_hms_agent_id_number',
             label: 'Agent ID Number',
           }),
+          search.createColumn({
+            name: 'custrecord_hms_agent_email',
+            label: 'Email',
+          }),
           search.createColumn({ name: 'custrecord_hms_nrds', label: 'NRDS' }),
           search.createColumn({
             name: 'custrecord_hms_agent_name',
@@ -225,13 +229,25 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
       customAgentUpdateProjectSearchObj.run().each((result) => {
         const internalId = result.id;
         // Get Agent ID
-        const agentIdNumber = result.getValue('custrecord_hms_agent_id_number');
+        const agentIdNumber = result.getValue('custrecord_hms_agent_email');
         const name = result.getValue('custrecord_hms_brokerage_name');
+        const agentName = removeSpecialCharacters(
+          result.getValue('custrecord_hms_agent_name')
+        );
+        const agentIdNumberNew = result.getValue(
+          'custrecord_hms_agent_id_number'
+        );
         log.debug(loggerTitle + ' Before callng the getAgent Record ID', {
           agentIdNumber,
           name,
+          agentIdNumberNew,
         });
-        const agentId = getAgentRecordId(agentIdNumber, name);
+        const agentId = getAgentRecordId(
+          agentIdNumber,
+          name,
+          agentName,
+          agentIdNumberNew
+        );
         //
         const keep = result.getValue('custrecord_hms_keep');
         const purge = result.getValue('custrecord_hms_purge');
@@ -244,12 +260,32 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
         // If Previous NRDS ID is Null and Current NRDS ID has value && Purge is true
         if (!previousNrdsId && nrdsId && purge) {
           if (previousKeep && previousInternalId) {
+            log.debug(
+              loggerTitle,
+              'Updating Keep Agent ID: ' +
+                previousInternalId +
+                ' Previous Keep: ' +
+                keep
+            );
             updateObject.agentUpdate = updateAgentUpdateProject(
               previousInternalId,
               nrdsId,
               'A'
             );
           }
+        } else if (previousKeep && previousInternalId) {
+          log.debug(
+            loggerTitle,
+            'Updating Keep Agent ID: ' +
+              previousInternalId +
+              ' Previous Keep: ' +
+              keep
+          );
+          updateObject.agentUpdate = updateAgentUpdateProject(
+            previousInternalId,
+            nrdsId,
+            'A'
+          );
         }
         //
 
@@ -281,7 +317,7 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
           );
         }
         //
-
+        log.debug(loggerTitle, { updateObject, purge, agentId });
         if (
           Object.values(updateObject).some((val) => val) &&
           purge &&
@@ -425,50 +461,59 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
   /* *********************** updateAgentUpdateProject - End *********************** */
   //
   /* *********************** getAgentRecordId - Begin *********************** */
-  /**
-   *
-   * @param {string} agentName
-   * @returns {number} agentId
-   */
-  const getAgentRecordId = (agentName, name) => {
+  const getAgentRecordId = (agentName, name, cleanedName, agentIdNumberNew) => {
     const loggerTitle = ' Get Agent Record Id ';
     log.debug(
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
-    //
+
     let agentId;
     try {
       const customAgentSearchObj = search.create({
         type: 'customrecord_agent',
         filters: [
-          [
-            ['custrecord_agent_id', 'is', agentName],
-            'AND',
-            ['custrecord_brokerage.internalidnumber', 'equalto', name],
-          ],
+          ['custrecord_agent_email', 'is', agentName],
+          'AND',
+          ['custrecord_brokerage.internalidnumber', 'equalto', name],
+          'AND',
+          ['custrecord_agent_id', 'is', agentIdNumberNew],
         ],
         columns: [
           search.createColumn({ name: 'internalid', label: 'Internal ID' }),
+          search.createColumn({
+            name: 'formulatext',
+            formula: "TRIM(REGEXP_REPLACE({name}, '[^a-zA-Z0-9]', ''))",
+            label: 'Formula (Text)',
+          }),
         ],
       });
+
       const searchResultCount = customAgentSearchObj.runPaged().count;
       log.debug(loggerTitle, ' Search Count: ' + searchResultCount);
-      //
+
       if (searchResultCount) {
         customAgentSearchObj.run().each((result) => {
-          agentId = result.id;
+          const name = result.getValue('formulatext');
+          log.debug(loggerTitle, `Checking Name: ${name === cleanedName}`);
+          if (name === cleanedName) {
+            agentId = result.id;
+            log.debug(loggerTitle, `Agent ID retrieved: ${agentId}`);
+            return;
+          }
+          return true;
         });
         log.debug(loggerTitle, ' Agent ID: ' + agentId);
       }
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
-    //
+
     log.debug(
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
     );
+
     return agentId;
   };
   /* *********************** getAgentRecordId - End *********************** */
@@ -793,6 +838,9 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
   };
   /* *********************** updateSupportCaseRecord - End *********************** */
   //
+  function removeSpecialCharacters(input) {
+    return input.replace(/[^a-zA-Z0-9]/g, '');
+  }
   /* ----------------------- Helper Functions - End ----------------------- */
   //
   /* ----------------------------- Exports - Begin ---------------------------- */
