@@ -235,11 +235,14 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
           'custrecord_hms_agent_id_number_13'
         );
         const name = result.getValue('custrecord_hms_brokerage_name_13');
+        const agentName = removeSpecialCharacters(
+          result.getValue('custrecord_hms_agent_name_13')
+        );
         log.debug(loggerTitle + ' Before callng the getAgent Record ID', {
           agentIdNumber,
           name,
         });
-        const agentId = getAgentRecordId(agentIdNumber, name);
+        const agentId = getAgentRecordId(agentIdNumber, name, agentName);
         //
         const keep = result.getValue('custrecord_hms_keep_13');
         const purge = result.getValue('custrecord_hms_purge_13');
@@ -257,6 +260,12 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
               'A'
             );
           }
+        } else if (previousKeep && previousInternalId) {
+          updateObject.agentUpdate = updateAgentUpdateProject(
+            previousInternalId,
+            nrdsId,
+            'A'
+          );
         }
         //
 
@@ -288,7 +297,7 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
           );
         }
         //
-
+        log.debug(loggerTitle, { updateObject, purge, agentId });
         if (
           Object.values(updateObject).some((val) => val) &&
           purge &&
@@ -423,18 +432,13 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
   /* *********************** updateAgentUpdateProject - End *********************** */
   //
   /* *********************** getAgentRecordId - Begin *********************** */
-  /**
-   *
-   * @param {string} agentName
-   * @returns {number} agentId
-   */
-  const getAgentRecordId = (agentName, name) => {
+  const getAgentRecordId = (agentName, name, cleanedName) => {
     const loggerTitle = ' Get Agent Record Id ';
     log.debug(
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
-    //
+
     let agentId;
     try {
       const customAgentSearchObj = search.create({
@@ -446,25 +450,39 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
         ],
         columns: [
           search.createColumn({ name: 'internalid', label: 'Internal ID' }),
+          search.createColumn({
+            name: 'formulatext',
+            formula: "TRIM(REGEXP_REPLACE({name}, '[^a-zA-Z0-9]', ''))",
+            label: 'Formula (Text)',
+          }),
         ],
       });
+
       const searchResultCount = customAgentSearchObj.runPaged().count;
       log.debug(loggerTitle, ' Search Count: ' + searchResultCount);
-      //
+
       if (searchResultCount) {
         customAgentSearchObj.run().each((result) => {
-          agentId = result.id;
+          const name = result.getValue('formulatext');
+          log.debug(loggerTitle, `Checking Name: ${name === cleanedName}`);
+          if (name === cleanedName) {
+            agentId = result.id;
+            log.debug(loggerTitle, `Agent ID retrieved: ${agentId}`);
+            return;
+          }
+          return true;
         });
         log.debug(loggerTitle, ' Agent ID: ' + agentId);
       }
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
-    //
+
     log.debug(
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
     );
+
     return agentId;
   };
   /* *********************** getAgentRecordId - End *********************** */
@@ -727,6 +745,9 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
   };
   /* *********************** updateSupportCaseRecord - End *********************** */
   //
+  function removeSpecialCharacters(input) {
+    return input.replace(/[^a-zA-Z0-9]/g, '');
+  }
   /* ----------------------- Helper Functions - End ----------------------- */
   //
   /* ----------------------------- Exports - Begin ---------------------------- */
