@@ -5,7 +5,7 @@
  */
 
 /**
- * File name: hms_MR_keepAndPurgeEmailDuplicateRecordsForRegion13.js
+ * File name: hms_MR_keepAndPurgeForAgent13EmailDuplicates.js
  * Script: HMS | MR K & P For Region 13 Email Dup
  * Author           Date       Version               Remarks
  * nagendrababu  24.11.2024     1.00     Initial Creation of the Script.
@@ -51,8 +51,8 @@ define(['N/search', 'N/record'], (search, record) => {
       //
 
       // Key
-      const agent =
-        mapContextValues.values['GROUP(custrecord_hms_agent_id_number_13)'];
+      const email =
+        mapContextValues.values['GROUP(custrecord_hms_agent_email_13)'];
       //
 
       // Values
@@ -70,7 +70,7 @@ define(['N/search', 'N/record'], (search, record) => {
 
       // Form Key Values
       mapContext.write({
-        key: agent,
+        key: email,
         value: reduceValues,
       });
       //
@@ -264,7 +264,7 @@ define(['N/search', 'N/record'], (search, record) => {
    * @param {string} agentId
    * @returns {object}
    */
-  const retrieveAgentInternalIds = (agentId) => {
+  const retrieveAgentInternalIds = (email) => {
     const loggerTitle = ' Retrieve Agent Internal Ids';
     log.debug(
       loggerTitle,
@@ -277,7 +277,7 @@ define(['N/search', 'N/record'], (search, record) => {
       const customrecord_hms_agent_upd_projectSearchObj = search.create({
         type: 'customrecord_hms_agent_upd_prjct_reg_13',
         filters: [
-          ['custrecord_hms_agent_id_number_13', 'is', agentId],
+          ['custrecord_hms_agent_email_13', 'is', email],
           'AND',
           ['custrecord_hms_email_dupe_13', 'is', 'T'],
           'AND',
@@ -388,9 +388,9 @@ define(['N/search', 'N/record'], (search, record) => {
       ],
       columns: [
         search.createColumn({
-          name: 'custrecord_hms_agent_id_dupe_13',
+          name: 'custrecord_hms_email_dupe_13',
           summary: 'GROUP',
-          label: 'Agent Duplicate',
+          label: 'Email ID Duplicate',
         }),
         search.createColumn({
           name: 'custrecord_hms_mls_region_13',
@@ -410,12 +410,12 @@ define(['N/search', 'N/record'], (search, record) => {
         search.createColumn({
           name: 'custrecord_hms_sold_properties_13',
           summary: 'SUM',
-          label: 'Sold Properties',
+          label: 'Sold Properties Count',
         }),
         search.createColumn({
-          name: 'custrecord_hms_agent_id_number_13',
+          name: 'custrecord_hms_agent_email_13',
           summary: 'GROUP',
-          label: 'Agent Number',
+          label: 'EMAIL',
         }),
       ],
     });
