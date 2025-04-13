@@ -15,7 +15,7 @@
 define(['N/record', 'N/search'], (record, search) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
-  const CLEANING_CHARGE_ITEM_ID = 8677; // Internal ID for the Cleaning Charge item
+  const CLEANING_CHARGE_ITEM_ID = '9001'; // Internal ID for the Cleaning Charge item
   const CLEANING_CHARGE_FIELD_ID = 'custitem_dct_cleaning_charge';
   const VALID_ITEM_TYPES = ['InvtPart', 'Assembly', 'Service'];
   /* ------------------------- Global Variables - End ------------------------- */
