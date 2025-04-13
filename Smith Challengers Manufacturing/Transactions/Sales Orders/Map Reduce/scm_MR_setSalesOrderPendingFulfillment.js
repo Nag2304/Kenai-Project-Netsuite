@@ -31,13 +31,11 @@ define(['N/search', 'N/record'], (search, record) => {
       filters: [
         ['type', 'anyof', 'SalesOrd'],
         'AND',
-        ['status', 'anyof', 'SalesOrd:A'],
+        ['status', 'anyof', 'SalesOrd:A'], // Pending Approval
         'AND',
         ['custbody_scm_sweeper_order', 'is', 'F'],
         'AND',
-        ['mainline', 'is', 'F'],
-        'AND',
-        ['rate', 'greaterthan', '0.00'],
+        ['mainline', 'is', 'T'], // Changed to mainline true
         'AND',
         ['terms', 'noneof', '10'],
       ],
@@ -65,13 +63,44 @@ define(['N/search', 'N/record'], (search, record) => {
       const key = reduceContext.key;
       log.debug(loggerTitle + ' Reduce Context Keys', key);
       //
+      let approvalStatus = true;
       const salesOrderRecord = record.load({ type: 'salesorder', id: key });
       log.debug(loggerTitle, 'Sales Order Record Loaded Successfully');
       //
-      salesOrderRecord.setValue({ fieldId: 'orderstatus', value: 'B' });
+
+      const lineItemCount = salesOrderRecord.getLineCount({
+        sublistId: 'item',
+      });
+
+      for (let index = 0; index < lineItemCount; index++) {
+        const rate = salesOrderRecord.getSublistValue({
+          sublistId: 'item',
+          fieldId: 'rate',
+          line: index,
+        });
+        if (rate == 0 || rate < 0 || rate == 0.0 || rate == null) {
+          approvalStatus = false;
+          break;
+        }
+      }
+
+      if (approvalStatus) {
+        salesOrderRecord.setValue({ fieldId: 'orderstatus', value: 'B' });
+        salesOrderRecord.save();
+        log.audit(
+          loggerTitle,
+          'Sales Order Record Updated Successfully: ' + key
+        );
+      } else {
+        log.audit(
+          loggerTitle,
+          'Skipped Sales Order ID ' +
+            key +
+            ': At least one line item has a rate of zero or less'
+        );
+      }
+
       //
-      salesOrderRecord.save();
-      log.audit(loggerTitle, 'Sales Order Record Updated Successfully');
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
