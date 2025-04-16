@@ -203,7 +203,7 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
             sort: search.Sort.DESC,
           }),
           search.createColumn({
-            name: 'custrecord_hms_purge_1',
+            name: 'custrecordhms_purge_1',
             label: 'Purge',
           }),
           search.createColumn({
@@ -245,7 +245,7 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
         const agentId = getAgentRecordId(agentIdNumber, name, agentName);
         //
         const keep = result.getValue('custrecord_hms_keep_1');
-        const purge = result.getValue('custrecord_hms_purge_1');
+        const purge = result.getValue('custrecordhms_purge_1');
         const nrdsId = result.getValue('custrecord_hms_nrds_1');
         const crmCount = result.getValue('custrecord_hms_crm_record_count_1');
         const soldPropertiesCount = result.getValue(
