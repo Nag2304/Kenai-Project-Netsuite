@@ -2,13 +2,12 @@
  * @NApiVersion 2.1
  * @NScriptType MapReduceScript
  * @NModuleScope SameAccount
- */
-
-/**
  * File name: rrb_MR_emailTransactions.js
  * Script: RRB | MR Email Transactions
  * Author           Date       Version               Remarks
  * nagendrababu  7th Nov 2024     1.00        Initial creation of the script
+ * Charles.Bastian  2025-01-30  v25.1.30-1    Updated for case 6164328 to patch broken code, and update email send to link to transaction and customer.
+ * Charles.Bastian  2025-02-11  v25.2.11-1    Updated email.send subject to use tranid instead of internalid.
  *
  */
 
@@ -39,6 +38,7 @@ define(['N/search', 'N/record', 'N/file', 'N/email', 'N/render', 'N/runtime'], (
     customers.forEach(function (customer) {
       filterArr.push(customer);
     });
+    log.debug('getInputData.filterArr', JSON.stringify(filterArr));
     return search.create({
       type: 'invoice',
       filters: [
@@ -86,7 +86,7 @@ define(['N/search', 'N/record', 'N/file', 'N/email', 'N/render', 'N/runtime'], (
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
-    //
+
     try {
       // Retrieve Key & Values
       const key = reduceContext.key;
@@ -253,7 +253,7 @@ define(['N/search', 'N/record', 'N/file', 'N/email', 'N/render', 'N/runtime'], (
       log.debug(loggerTitle, { customer, entityId, salesRepId });
 
       // Fetch customer emails associated with the transaction
-      const recipientEmails = getCustomerEmails(entityId, salesRepId);
+      var recipientEmails = getCustomerEmails(entityId, salesRepId);
       log.debug(loggerTitle + ' Receipients Emails', recipientEmails);
 
       if (recipientEmails.length > 0) {
@@ -266,13 +266,21 @@ define(['N/search', 'N/record', 'N/file', 'N/email', 'N/render', 'N/runtime'], (
 
         authorId = parseInt(authorId);
 
+        log.debug(
+          'recipientEmails',
+          typeof recipientEmails + ' >> ' + JSON.stringify(recipientEmails)
+        );
         // Send the email with the PDF attachment to all collected email recipients
         email.send({
           author: authorId,
           recipients: recipientEmails,
-          subject: `Rare Beauty Brands: Invoice ${invoiceInternalId}`,
+          subject: `Rare Beauty Brands: Invoice ${documentNumber}`,
           body: `Please open the attached file to view your Invoice. To view the attachment, you first need the free Adobe Acrobat Reader. Visit Adobe's website at http://www.adobe.com/products/acrobat/readstep.html to download it.`,
           attachments: [attachment],
+          relatedRecords: {
+            entityId: entityId,
+            transactionId: invoiceInternalId,
+          },
         });
 
         log.audit(loggerTitle, 'Emails Sent Successfully');
