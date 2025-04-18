@@ -30,46 +30,52 @@ define(['N/search'], function (search) {
       var currentRecord = context.currentRecord;
       var sublistId = context.sublistId;
 
-      // Ensure we are working on the 'item' field in the 'item' sublist
-      if (sublistId === 'item') {
-        var lineCount = currentRecord.getLineCount({ sublistId: 'item' });
-        if (lineCount === 0) return;
+      var includeComplimentaryItems = currentRecord.getValue({
+        fieldId: 'custbody_hi_include_comp_items',
+      });
 
-        var primaryItemId = currentRecord.getCurrentSublistValue({
-          sublistId: 'item',
-          fieldId: 'item',
-        });
+      if (includeComplimentaryItems) {
+        // Ensure we are working on the 'item' field in the 'item' sublist
+        if (sublistId === 'item') {
+          var lineCount = currentRecord.getLineCount({ sublistId: 'item' });
+          if (lineCount === 0) return;
 
-        if (!primaryItemId) {
-          return;
-        }
-
-        // Check if customer is excluded from complimentary items
-        var excludeComplimentary = currentRecord.getValue({
-          fieldId: 'custbody_exclude_complimentary',
-        });
-        if (excludeComplimentary) {
-          return;
-        }
-
-        // Lookup complimentary items from the custom table
-        var complimentaryItems = getComplimentaryItems(primaryItemId);
-
-        // Add complimentary items to the quote
-        if (complimentaryItems.length > 0) {
-          var linePriceLevel = currentRecord.getCurrentSublistValue({
+          var primaryItemId = currentRecord.getCurrentSublistValue({
             sublistId: 'item',
-            fieldId: 'price',
+            fieldId: 'item',
           });
-          log.debug(loggerTitle, ' Line Price Level: ' + linePriceLevel);
-          if (!priceLevelValue) {
-            priceLevelValue = linePriceLevel;
+
+          if (!primaryItemId) {
+            return;
           }
-          addComplimentaryItems(
-            currentRecord,
-            complimentaryItems,
-            priceLevelValue
-          );
+
+          // Check if customer is excluded from complimentary items
+          var excludeComplimentary = currentRecord.getValue({
+            fieldId: 'custbody_exclude_complimentary',
+          });
+          if (excludeComplimentary) {
+            return;
+          }
+
+          // Lookup complimentary items from the custom table
+          var complimentaryItems = getComplimentaryItems(primaryItemId);
+
+          // Add complimentary items to the quote
+          if (complimentaryItems.length > 0) {
+            var linePriceLevel = currentRecord.getCurrentSublistValue({
+              sublistId: 'item',
+              fieldId: 'price',
+            });
+            log.debug(loggerTitle, ' Line Price Level: ' + linePriceLevel);
+            if (!priceLevelValue) {
+              priceLevelValue = linePriceLevel;
+            }
+            addComplimentaryItems(
+              currentRecord,
+              complimentaryItems,
+              priceLevelValue
+            );
+          }
         }
       }
     } catch (error) {
