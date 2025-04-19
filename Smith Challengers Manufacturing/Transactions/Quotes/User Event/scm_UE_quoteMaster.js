@@ -23,7 +23,8 @@
 define([
   'SuiteScripts/Transactions/Modules/scm_Module_stickyHeaders',
   'SuiteScripts/Transactions/Quotes/Modules/scm_Module_setListPriceQuote',
-], (stickyHeaders, setListPrice) => {
+  'SuiteScripts/Transactions/Quotes/Modules/scm_Module_setQuoteStatus',
+], (stickyHeaders, setListPrice, setQuoteStatus) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -64,7 +65,10 @@ define([
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
     try {
-      setListPrice.beforeSubmit(scriptContext);
+      if (scriptContext.type !== scriptContext.UserEventType.DELETE) {
+        setListPrice.beforeSubmit(scriptContext);
+        setQuoteStatus.beforeSubmit(scriptContext);
+      }
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
