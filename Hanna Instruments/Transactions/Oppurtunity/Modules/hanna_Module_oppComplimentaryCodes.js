@@ -4,7 +4,7 @@
  */
 
 /**
- * File name: hanna_Module_complimentaryCodes.js
+ * File name: hanna_Module_oppComplimentaryCodes.js
  * Author           Date       Version               Remarks
  * nagendrababu  02.18.2025      1.00        Initial creation of the script
  *
@@ -21,13 +21,13 @@ define(['N/search'], function (search) {
   /**
    *
    * @param {Object} context
+   * @param {Object} currentRecord
    * @param {Object} priceLevelValue
    * @returns
    */
-  function complimentaryCodes(context, priceLevelValue) {
+  function complimentaryCodes(context, currentRecord, priceLevelValue) {
     var loggerTitle = ' Complimentary Codes ';
     try {
-      var currentRecord = context.currentRecord;
       var sublistId = context.sublistId;
 
       var includeComplimentaryItems = currentRecord.getValue({
@@ -167,6 +167,7 @@ define(['N/search'], function (search) {
         var itemDetails = itemDetailsMap[itemId] || {
           description: '',
           listPrice: 1,
+          priceLevel: priceLevelValue || '',
         };
         log.debug(loggerTitle, 'Adding item: ' + itemId);
 
@@ -185,22 +186,10 @@ define(['N/search'], function (search) {
           ignoreFieldChange: true,
           forceSyncSourcing: true,
         });
-        if (priceLevelValue) {
+        if (itemDetails.priceLevel) {
           log.debug(
             loggerTitle,
-            ' Setting the Price Level from Customer: ' + priceLevelValue
-          );
-          currentRecord.setCurrentSublistValue({
-            sublistId: 'item',
-            fieldId: 'price',
-            value: priceLevelValue,
-            ignoreFieldChange: true,
-            forceSyncSourcing: true,
-          });
-        } else if (itemDetails.priceLevel) {
-          log.debug(
-            loggerTitle,
-            ' Setting the Price Level from Item: ' + itemDetails.priceLevel
+            'Setting the Price Level: ' + itemDetails.priceLevel
           );
           currentRecord.setCurrentSublistValue({
             sublistId: 'item',
@@ -257,7 +246,7 @@ define(['N/search'], function (search) {
         currentRecord.setCurrentSublistValue({
           sublistId: 'item',
           fieldId: 'custcol_msrp_baseprice',
-          value: itemDetails.msrp,
+          value: itemDetails.msrp || itemDetails.listPrice,
           ignoreFieldChange: true,
           forceSyncSourcing: true,
         });
@@ -278,7 +267,7 @@ define(['N/search'], function (search) {
    *
    * @param {Array} itemIds
    * @param {Object} priceLevelValue
-   * @returns {Array}
+   * @returns {Object}
    */
   function getItemDetails(itemIds, priceLevelValue) {
     var loggerTitle = 'Get Item Details';
@@ -290,19 +279,22 @@ define(['N/search'], function (search) {
     }
 
     try {
+      var filters = [
+        ['internalid', 'anyof', itemIds],
+        'AND',
+        ['pricing.currency', 'anyof', '1'],
+      ];
+      if (priceLevelValue) {
+        filters.push('AND', [
+          ['pricing.pricelevel', 'anyof', '1'],
+          'OR',
+          ['pricing.pricelevel', 'anyof', priceLevelValue],
+        ]);
+      }
+
       var itemSearch = search.create({
         type: search.Type.ITEM,
-        filters: [
-          ['internalid', 'anyof', itemIds],
-          'AND',
-          ['pricing.currency', 'anyof', '1'],
-          'AND',
-          [
-            ['pricing.pricelevel', 'anyof', '1'],
-            'OR',
-            ['pricing.pricelevel', 'anyof', priceLevelValue],
-          ],
-        ],
+        filters: filters,
         columns: [
           search.createColumn({
             name: 'salesdescription',
@@ -337,7 +329,7 @@ define(['N/search'], function (search) {
 
         itemDetailsMap[itemId].description = description;
         itemDetailsMap[itemId].listPrice = listPrice;
-        itemDetailsMap[itemId].priceLevelValue = priceLevel;
+        itemDetailsMap[itemId].priceLevel = priceLevel;
 
         // Set MSRP only if Price Level is 1 (List Price)
         if (priceLevel === '1') {
@@ -363,6 +355,7 @@ define(['N/search'], function (search) {
   //
   /* ------------------------------ Exports Begin ----------------------------- */
   exports.sublistChanged = complimentaryCodes;
+  exports.getItemDetails = getItemDetails;
   return exports;
   /* ------------------------------- Exports End ------------------------------ */
 });
