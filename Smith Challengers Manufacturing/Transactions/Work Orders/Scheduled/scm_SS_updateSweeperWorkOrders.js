@@ -9,6 +9,8 @@
  * Script: SCM | SS Update Sweeper Work Orders
  * Author           Date       Version               Remarks
  * Nagendra Babu   04.19.2025      1.00        Initial creation of the script
+ * Nagendra Babu   04.21.2025      1.01        Fixed SSS_INVALID_SUBLIST_OPERATION by using item sublist and adding validation
+ * Nagendra Babu   04.21.2025      1.02        Removed status check to allow updates in any status, fixed item lookup to use itemid
  *
  */
 
@@ -26,7 +28,7 @@
 
 /* global define, log */
 
-define(['N/record', 'N/search'], function (record, search) {
+define(['N/record', 'N/search'], (record, search) => {
   /* ------------------------ Global Constants - Begin ------------------------ */
   const SCRIPT_NAME = 'SCM | SS Update Sweeper Work Orders';
   const GENERIC_BROOM_ITEM_ID = '1119'; // SC-40-0000
@@ -141,6 +143,63 @@ define(['N/record', 'N/search'], function (record, search) {
   }
   /* *********************** Get Qualifying Work Orders - End *********************** */
 
+  /* *********************** Get Item Internal ID - Begin *********************** */
+  /**
+   * Retrieves the internal ID of an item based on its item name.
+   * @param {string} itemName - The name of the item (e.g., SC-40-0009)
+   * @returns {string|null} The internal ID of the item, or null if not found
+   */
+  function getItemInternalId(itemName) {
+    const loggerTitle = `${SCRIPT_NAME} - Get Item Internal ID`;
+    try {
+      if (!itemName) {
+        log.error({
+          title: loggerTitle,
+          details: 'Item name is empty or undefined',
+        });
+        return null;
+      }
+
+      log.debug({
+        title: loggerTitle,
+        details: `Looking up internal ID for item name: ${itemName}`,
+      });
+
+      const itemSearch = search.create({
+        type: search.Type.ITEM,
+        filters: [['name', 'is', itemName]],
+        columns: ['internalid'],
+      });
+
+      let internalId = null;
+      itemSearch.run().each((result) => {
+        internalId = result.getValue('internalid');
+        return false; // Stop after first result
+      });
+
+      if (internalId) {
+        log.debug({
+          title: loggerTitle,
+          details: `Found internal ID: ${internalId} for item: ${itemName}`,
+        });
+      } else {
+        log.error({
+          title: loggerTitle,
+          details: `No item found with item name: ${itemName}`,
+        });
+      }
+
+      return internalId;
+    } catch (error) {
+      log.error({
+        title: `${loggerTitle} - Error`,
+        details: `Error looking up item internal ID: ${JSON.stringify(error)}`,
+      });
+      return null;
+    }
+  }
+  /* *********************** Get Item Internal ID - End *********************** */
+
   /* *********************** Process Work Order - Begin *********************** */
   /**
    * Processes a single Work Order by applying the required updates.
@@ -162,16 +221,53 @@ define(['N/record', 'N/search'], function (record, search) {
         isDynamic: true,
       });
 
+      // Log Work Order status for debugging
+      const woStatus = woRecord.getValue({ fieldId: 'status' });
+      log.debug({
+        title: loggerTitle,
+        details: `Work Order status: ${woStatus}`,
+      });
+
       // First Update: Replace Generic Broom with Broom from custom field
-      const broomItemId = woRecord.getValue({
+      const broomItemName = woRecord.getValue({
         fieldId: 'custbody_scm_broom_for_sweeper',
       });
+      log.debug({
+        title: loggerTitle,
+        details: `Broom item name from custbody_scm_broom_for_sweeper: ${
+          broomItemName || 'None'
+        }`,
+      });
+
+      let broomItemId = null;
+      if (broomItemName) {
+        broomItemId = getItemInternalId(broomItemName);
+        log.debug({
+          title: loggerTitle,
+          details: `Retrieved internal ID: ${
+            broomItemId || 'None'
+          } for item name: ${broomItemName}`,
+        });
+      }
+
+      let changesMade = false;
       if (broomItemId) {
-        updateBroomItem(woRecord, broomItemId);
+        try {
+          updateBroomItem(woRecord, broomItemId);
+          changesMade = true;
+        } catch (updateError) {
+          log.error({
+            title: `${loggerTitle} - Broom Update Error`,
+            details: `Failed to update Broom item: ${JSON.stringify(
+              updateError
+            )}`,
+          });
+        }
       } else {
         log.audit({
           title: loggerTitle,
-          details: 'No Broom item specified in custbody_scm_broom_for_sweeper',
+          details:
+            'No valid Broom item ID found for custbody_scm_broom_for_sweeper; skipping Broom update',
         });
       }
 
@@ -179,28 +275,50 @@ define(['N/record', 'N/search'], function (record, search) {
       const includesVSReverse = woRecord.getValue({
         fieldId: 'custbody_scm_vs_reverse',
       });
+      log.debug({
+        title: loggerTitle,
+        details: `Includes V/S with Reverse: ${includesVSReverse}`,
+      });
+
       if (includesVSReverse) {
-        removeVSReverseItem(woRecord);
+        try {
+          removeVSReverseItem(woRecord);
+          changesMade = true;
+        } catch (vsError) {
+          log.error({
+            title: `${loggerTitle} - V/S Reverse Update Error`,
+            details: `Failed to remove V/S Reverse item: ${JSON.stringify(
+              vsError
+            )}`,
+          });
+        }
       }
 
-      // Third Update: Set Work Order Updated to TRUE
-      woRecord.setValue({
-        fieldId: 'custbody_scm_wo_updated',
-        value: true,
-      });
+      // Third Update: Set Work Order Updated to TRUE only if changes were made
+      if (changesMade) {
+        woRecord.setValue({
+          fieldId: 'custbody_scm_wo_updated',
+          value: true,
+        });
 
-      // Save the Work Order
-      const savedId = woRecord.save({
-        ignoreMandatoryFields: false,
-      });
-      log.audit({
-        title: loggerTitle,
-        details: `Successfully updated Work Order ID: ${savedId}`,
-      });
+        // Save the Work Order
+        const savedId = woRecord.save({
+          ignoreMandatoryFields: false,
+        });
+        log.audit({
+          title: loggerTitle,
+          details: `Successfully updated Work Order ID: ${savedId}`,
+        });
+      } else {
+        log.audit({
+          title: loggerTitle,
+          details: `No updates applied to Work Order ID: ${workOrderId}; skipping save`,
+        });
+      }
     } catch (error) {
       log.error({
         title: `${loggerTitle} - Error`,
-        details: error,
+        details: `Error processing Work Order: ${JSON.stringify(error)}`,
       });
     }
   }
@@ -208,25 +326,34 @@ define(['N/record', 'N/search'], function (record, search) {
 
   /* *********************** Update Broom Item - Begin *********************** */
   /**
-   * Replaces the generic Broom item with the specified Broom item at the component level.
+   * Replaces the generic Broom item with the specified Broom item at the item sublist.
    * @param {Object} woRecord - Work Order record in dynamic mode
    * @param {string} broomItemId - Internal ID of the Broom item to add
    * @returns {void}
    */
   function updateBroomItem(woRecord, broomItemId) {
     const loggerTitle = `${SCRIPT_NAME} - Update Broom Item`;
+    const sublistId = 'item';
     try {
-      // Get the current line count and log sublist state
-      const lineCount = woRecord.getLineCount({ sublistId: 'component' });
+      // Get the current line count and validate sublist
+      const lineCount = woRecord.getLineCount({ sublistId });
       log.debug({
         title: loggerTitle,
-        details: `Component sublist has ${lineCount} lines`,
+        details: `${sublistId} sublist has ${lineCount} lines`,
       });
 
-      if (lineCount <= 0) {
+      if (lineCount < 0) {
+        log.error({
+          title: loggerTitle,
+          details: `Invalid line count for ${sublistId} sublist: ${lineCount}`,
+        });
+        return;
+      }
+
+      if (lineCount === 0) {
         log.audit({
           title: loggerTitle,
-          details: 'Component sublist is empty; adding new Broom item directly',
+          details: `${sublistId} sublist is empty; adding new Broom item directly`,
         });
       }
 
@@ -234,59 +361,104 @@ define(['N/record', 'N/search'], function (record, search) {
       const linesToRemove = [];
       const existingItems = [];
       for (let i = 0; i < lineCount; i++) {
-        const itemId = woRecord.getSublistValue({
-          sublistId: 'component',
-          fieldId: 'item',
-          line: i,
-        });
-        existingItems.push({ line: i, itemId: itemId });
-        if (itemId === GENERIC_BROOM_ITEM_ID) {
-          linesToRemove.push(i);
+        try {
+          const itemId = woRecord.getSublistValue({
+            sublistId,
+            fieldId: 'item',
+            line: i,
+          });
+          const normalizedItemId = String(itemId);
+          existingItems.push({ line: i, itemId: normalizedItemId });
+          if (normalizedItemId === GENERIC_BROOM_ITEM_ID) {
+            linesToRemove.push(i);
+          }
+        } catch (lineError) {
+          log.error({
+            title: `${loggerTitle} - Line Access Error`,
+            details: `Failed to access line ${i} in ${sublistId} sublist: ${JSON.stringify(
+              lineError
+            )}`,
+          });
         }
       }
       log.debug({
         title: loggerTitle,
-        details: `Existing items: ${JSON.stringify(existingItems)}`,
+        details: `Existing items in ${sublistId} sublist: ${JSON.stringify(
+          existingItems
+        )}`,
       });
 
       // Remove generic Broom item(s) if found (in reverse order to avoid index issues)
       if (linesToRemove.length > 0) {
         linesToRemove.sort((a, b) => b - a); // Sort descending
-        linesToRemove.forEach((line) => {
-          woRecord.removeLine({
-            sublistId: 'component',
-            line: line,
-          });
-          log.debug({
-            title: loggerTitle,
-            details: `Removed generic Broom item (ID: ${GENERIC_BROOM_ITEM_ID}) at line ${line}`,
-          });
-        });
+        for (let line of linesToRemove) {
+          try {
+            log.debug({
+              title: loggerTitle,
+              details: `Attempting to remove line ${line} from ${sublistId} sublist`,
+            });
+            woRecord.selectLine({ sublistId, line });
+            woRecord.removeLine({ sublistId, line });
+            log.debug({
+              title: loggerTitle,
+              details: `Removed generic Broom item (ID: ${GENERIC_BROOM_ITEM_ID}) at line ${line}`,
+            });
+          } catch (removeError) {
+            log.error({
+              title: `${loggerTitle} - Remove Line Error`,
+              details: `Failed to remove line ${line} from ${sublistId} sublist: ${JSON.stringify(
+                removeError
+              )}`,
+            });
+          }
+        }
       } else {
         log.audit({
           title: loggerTitle,
-          details: `Generic Broom item (ID: ${GENERIC_BROOM_ITEM_ID}) not found`,
+          details: `Generic Broom item (ID: ${GENERIC_BROOM_ITEM_ID}) not found in ${sublistId} sublist`,
         });
       }
 
-      // Add the new Broom item with quantity 1
-      woRecord.selectNewLine({ sublistId: 'component' });
-      woRecord.setCurrentSublistValue({
-        sublistId: 'component',
-        fieldId: 'item',
-        value: broomItemId,
-      });
-      woRecord.setCurrentSublistValue({
-        sublistId: 'component',
-        fieldId: 'quantity',
-        value: 1,
-      });
-      woRecord.commitLine({ sublistId: 'component' });
+      // Validate broomItemId before adding
+      if (!broomItemId || isNaN(parseInt(broomItemId))) {
+        log.error({
+          title: loggerTitle,
+          details: `Invalid Broom item ID: ${broomItemId}; skipping addition`,
+        });
+        return;
+      }
 
-      log.debug({
-        title: loggerTitle,
-        details: `Added Broom item (ID: ${broomItemId}) with quantity 1`,
-      });
+      // Add the new Broom item with quantity 1
+      try {
+        log.debug({
+          title: loggerTitle,
+          details: `Attempting to add new Broom item (ID: ${broomItemId}) to ${sublistId} sublist`,
+        });
+        woRecord.selectNewLine({ sublistId });
+        woRecord.setCurrentSublistValue({
+          sublistId,
+          fieldId: 'item',
+          value: broomItemId,
+        });
+        woRecord.setCurrentSublistValue({
+          sublistId,
+          fieldId: 'quantity',
+          value: 1,
+        });
+        woRecord.commitLine({ sublistId });
+        log.debug({
+          title: loggerTitle,
+          details: `Added Broom item (ID: ${broomItemId}) with quantity 1`,
+        });
+      } catch (addError) {
+        log.error({
+          title: `${loggerTitle} - Add Item Error`,
+          details: `Failed to add new Broom item (ID: ${broomItemId}) to ${sublistId} sublist: ${JSON.stringify(
+            addError
+          )}`,
+        });
+        throw addError; // Re-throw to allow processWorkOrder to handle
+      }
     } catch (error) {
       log.error({
         title: `${loggerTitle} - Error`,
@@ -299,53 +471,73 @@ define(['N/record', 'N/search'], function (record, search) {
 
   /* *********************** Remove V/S Reverse Item - Begin *********************** */
   /**
-   * Removes the V/S with Reverse item (SC-70-0287, ID: 3228) from the component sublist.
+   * Removes the V/S with Reverse item (SC-70-0287, ID: 3228) from the item sublist.
    * @param {Object} woRecord - Work Order record in dynamic mode
    * @returns {void}
    */
   function removeVSReverseItem(woRecord) {
     const loggerTitle = `${SCRIPT_NAME} - Remove V/S Reverse Item`;
+    const sublistId = 'item';
     try {
-      const lineCount = woRecord.getLineCount({ sublistId: 'component' });
+      const lineCount = woRecord.getLineCount({ sublistId });
       let vsReverseLine = -1;
 
       // Find the V/S with Reverse item (SC-70-0287, ID: 3228)
       for (let i = 0; i < lineCount; i++) {
-        const itemId = woRecord.getSublistValue({
-          sublistId: 'component',
-          fieldId: 'item',
-          line: i,
-        });
-        if (itemId === VS_REVERSE_ITEM_ID) {
-          vsReverseLine = i;
-          break;
+        try {
+          const itemId = woRecord.getSublistValue({
+            sublistId,
+            fieldId: 'item',
+            line: i,
+          });
+          const normalizedItemId = String(itemId);
+          if (normalizedItemId === VS_REVERSE_ITEM_ID) {
+            vsReverseLine = i;
+            break;
+          }
+        } catch (lineError) {
+          log.error({
+            title: `${loggerTitle} - Line Access Error`,
+            details: `Failed to access line ${i} in ${sublistId} sublist: ${JSON.stringify(
+              lineError
+            )}`,
+          });
         }
       }
 
       if (vsReverseLine !== -1) {
-        woRecord.removeLine({
-          sublistId: 'component',
-          line: vsReverseLine,
-        });
-        log.debug({
-          title: loggerTitle,
-          details: `Removed V/S Reverse item (ID: ${VS_REVERSE_ITEM_ID}) at line ${vsReverseLine}`,
-        });
+        try {
+          log.debug({
+            title: loggerTitle,
+            details: `Attempting to remove V/S Reverse item at line ${vsReverseLine} from ${sublistId} sublist`,
+          });
+          woRecord.selectLine({ sublistId, line: vsReverseLine });
+          woRecord.removeLine({ sublistId, line: vsReverseLine });
+          log.debug({
+            title: loggerTitle,
+            details: `Removed V/S Reverse item (ID: ${VS_REVERSE_ITEM_ID}) at line ${vsReverseLine}`,
+          });
+        } catch (removeError) {
+          log.error({
+            title: `${loggerTitle} - Remove Line Error`,
+            details: `Failed to remove V/S Reverse item at line ${vsReverseLine} from ${sublistId} sublist: ${JSON.stringify(
+              removeError
+            )}`,
+          });
+        }
       } else {
         log.audit({
           title: loggerTitle,
-          details: `V/S Reverse item (ID: ${VS_REVERSE_ITEM_ID}) not found`,
+          details: `V/S Reverse item (ID: ${VS_REVERSE_ITEM_ID}) not found in ${sublistId} sublist`,
         });
       }
     } catch (error) {
       log.error({
         title: `${loggerTitle} - Error`,
-        details: error,
+        details: `Error removing V/S Reverse item: ${JSON.stringify(error)}`,
       });
     }
   }
-  /* *********************** Remove V/S Reverse Item - End *********************** */
-
   /* ------------------------- Helper Functions - End ------------------------- */
 
   /* ------------------------------ Exports Begin ----------------------------- */
