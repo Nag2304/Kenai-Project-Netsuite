@@ -447,6 +447,8 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
           ['custrecord_agent_id', 'is', agentName],
           'AND',
           ['custrecord_brokerage.internalidnumber', 'equalto', name],
+          'AND',
+          ['custrecord_agent_mls_region', 'anyof', '7'],
         ],
         columns: [
           search.createColumn({ name: 'internalid', label: 'Internal ID' }),
