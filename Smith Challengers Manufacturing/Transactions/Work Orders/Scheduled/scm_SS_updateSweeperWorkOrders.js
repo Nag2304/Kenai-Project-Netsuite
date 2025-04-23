@@ -11,6 +11,8 @@
  * Nagendra Babu   04.19.2025      1.00        Initial creation of the script
  * Nagendra Babu   04.21.2025      1.01        Fixed SSS_INVALID_SUBLIST_OPERATION by using item sublist and adding validation
  * Nagendra Babu   04.21.2025      1.02        Removed status check to allow updates in any status, fixed item lookup to use itemid
+ * Nagendra Babu   04.21.2025      1.03        Updated item lookup to use name filter, added usage monitoring
+ * Nagendra Babu   04.21.2025      1.04        Updated usage threshold to 9,000 for 10,000-unit Scheduled Script limit
  *
  */
 
@@ -28,11 +30,12 @@
 
 /* global define, log */
 
-define(['N/record', 'N/search'], (record, search) => {
+define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
   /* ------------------------ Global Constants - Begin ------------------------ */
   const SCRIPT_NAME = 'SCM | SS Update Sweeper Work Orders';
   const GENERIC_BROOM_ITEM_ID = '1119'; // SC-40-0000
   const VS_REVERSE_ITEM_ID = '3228'; // SC-70-0287
+  const USAGE_THRESHOLD = 9000; // Warn if usage exceeds 90% of 10,000-unit limit
   /* ------------------------- Global Constants - End ------------------------- */
 
   /* ------------------------- Execute Function - Begin ----------------------- */
@@ -48,6 +51,13 @@ define(['N/record', 'N/search'], (record, search) => {
       log.debug({
         title: loggerTitle,
         details: '|>------------------- Execute - Entry -------------------<|',
+      });
+
+      // Log initial usage
+      const scriptObj = runtime.getCurrentScript();
+      log.debug({
+        title: loggerTitle,
+        details: `Initial governance units remaining: ${scriptObj.getRemainingUsage()}`,
       });
 
       // Search for Work Orders where Sweeper Work Order is TRUE and Updated is FALSE
@@ -75,8 +85,24 @@ define(['N/record', 'N/search'], (record, search) => {
       // Process each Work Order
       workOrders.forEach((wo) => {
         processWorkOrder(wo.id);
+        // Check usage after each Work Order
+        const remainingUsage = scriptObj.getRemainingUsage();
+        log.debug({
+          title: loggerTitle,
+          details: `Remaining governance units after WO ${wo.id}: ${remainingUsage}`,
+        });
+        if (remainingUsage < 10000 - USAGE_THRESHOLD) {
+          log.audit({
+            title: `${loggerTitle} - Usage Warning`,
+            details: `Usage approaching limit: ${remainingUsage} units remaining`,
+          });
+        }
       });
 
+      log.debug({
+        title: loggerTitle,
+        details: `Final governance units remaining: ${scriptObj.getRemainingUsage()}`,
+      });
       log.debug({
         title: loggerTitle,
         details: '|>------------------- Execute - Exit -------------------<|',
@@ -168,19 +194,21 @@ define(['N/record', 'N/search'], (record, search) => {
       const itemSearch = search.create({
         type: search.Type.ITEM,
         filters: [['name', 'is', itemName]],
-        columns: ['internalid'],
+        columns: ['internalid', 'itemid'],
       });
 
       let internalId = null;
+      let foundItemId = null;
       itemSearch.run().each((result) => {
         internalId = result.getValue('internalid');
+        foundItemId = result.getValue('itemid');
         return false; // Stop after first result
       });
 
       if (internalId) {
         log.debug({
           title: loggerTitle,
-          details: `Found internal ID: ${internalId} for item: ${itemName}`,
+          details: `Found internal ID: ${internalId} for item name: ${itemName}, itemid: ${foundItemId}`,
         });
       } else {
         log.error({
