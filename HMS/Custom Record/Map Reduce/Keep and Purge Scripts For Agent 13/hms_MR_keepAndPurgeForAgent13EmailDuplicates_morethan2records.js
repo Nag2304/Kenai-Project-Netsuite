@@ -18,7 +18,7 @@
 
 /* global define,log*/
 
-define(['N/search', 'N/record'], (search, record) => {
+define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -176,52 +176,58 @@ define(['N/search', 'N/record'], (search, record) => {
    */
   const searchAgentEmailDuplicates = () => {
     const loggerTitle = 'Search Agent Email Duplicates';
+    log.audit(
+      loggerTitle,
+      '|>------------------- ' + loggerTitle + ' -Entry-------------------<|'
+    );
+
+    const scriptObj = runtime.getCurrentScript();
+    const emailParam = scriptObj.getParameter({
+      name: 'custscript_hms_email13_val',
+    });
+
+    const filters = emailParam
+      ? [
+          ['custrecord_hms_agent_email', 'is', emailParam],
+          'AND',
+          ['custrecord_hms_email_dupe', 'is', 'T'],
+          'AND',
+          ['isinactive', 'is', 'F'],
+          'AND',
+          ['custrecord_hms_keep', 'is', 'F'],
+          'AND',
+          ['custrecord_hms_purge', 'is', 'F'],
+        ]
+      : [
+          ['custrecord_hms_email_dupe', 'is', 'T'],
+          'AND',
+          ['isinactive', 'is', 'F'],
+          'AND',
+          ['custrecord_hms_keep', 'is', 'F'],
+          'AND',
+          ['custrecord_hms_purge', 'is', 'F'],
+        ];
+
+    log.debug(
+      loggerTitle,
+      `Using ${emailParam ? 'email parameter filter' : 'default filters'}`
+    );
 
     const searchObj = search.create({
       type: 'customrecord_hms_agent_upd_project',
-      filters: [
-        ['custrecord_hms_email_dupe', 'is', 'T'],
-        'AND',
-        ['isinactive', 'is', 'F'],
-        'AND',
-        ['custrecord_hms_keep', 'is', 'F'],
-        'AND',
-        ['custrecord_hms_purge', 'is', 'F'],
-      ],
+      filters: filters,
       columns: [
         search.createColumn({
-          name: 'custrecord_hms_email_dupe_13',
+          name: 'custrecord_hms_agent_email',
           summary: 'GROUP',
-          label: 'Email ID Duplicate',
-        }),
-        search.createColumn({
-          name: 'custrecord_hms_mls_region_13',
-          summary: 'GROUP',
-          label: 'MLS Region',
-        }),
-        search.createColumn({
-          name: 'custrecord_hms_crm_record_count_13',
-          summary: 'SUM',
-          label: 'CRM Record Count',
-        }),
-        search.createColumn({
-          name: 'custrecord_hms_survery_count_13',
-          summary: 'SUM',
-          label: 'Survey Count',
-        }),
-        search.createColumn({
-          name: 'custrecord_hms_sold_properties_13',
-          summary: 'SUM',
-          label: 'Sold Properties Count',
-        }),
-        search.createColumn({
-          name: 'custrecord_hms_agent_email_13',
-          summary: 'GROUP',
-          label: 'EMAIL',
         }),
       ],
     });
 
+    log.audit(
+      loggerTitle,
+      '|>------------------- ' + loggerTitle + ' -Exit-------------------<|'
+    );
     return searchObj;
   };
   /**
