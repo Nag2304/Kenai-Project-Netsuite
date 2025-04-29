@@ -39,7 +39,7 @@ define([], () => {
           fieldId: 'custbody_scm_sweeper_order',
         });
         if (!sweeperSalesOrder) {
-          const quoteLineCount = Record.getLineCount({
+          const quoteLineCount = record.getLineCount({
             sublistId: 'item',
           });
           log.debug(loggerTitle, `Line Count: ${quoteLineCount}`);
@@ -53,8 +53,8 @@ define([], () => {
             log.debug(loggerTitle, `Rate:${rate} Line:${index + 1}`);
             //
             if (rate < 0 || rate == 0.0 || rate == 0 || rate == null) {
-              break;
               approvalStatus = false;
+              break;
             }
           }
           //
@@ -78,7 +78,7 @@ define([], () => {
   /* ------------------------- Set Quote Status - End ------------------------- */
   //
   /* ------------------------------ Exports Begin ----------------------------- */
-  exports.setQuoteStatus = setQuoteStatus;
+  exports.beforeSubmit = setQuoteStatus;
   return exports;
   /* ------------------------------- Exports End ------------------------------ */
 });
