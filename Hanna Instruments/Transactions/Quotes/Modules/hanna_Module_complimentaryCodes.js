@@ -103,6 +103,10 @@ define(['N/search'], function (search) {
         'custrecord_hi_comp_code_10',
         'custrecord_hi_comp_code_11',
         'custrecord_hi_comp_code_12',
+        'custrecord_hi_comp_code_13',
+        'custrecord_hi_comp_code_14',
+        'custrecord_hi_comp_code_15',
+        'custrecord_hi_comp_code_16',
       ],
     });
 
