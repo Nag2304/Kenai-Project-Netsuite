@@ -240,10 +240,9 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
         );
         log.debug(loggerTitle + ' Before callng the getAgent Record ID', {
           agentIdNumber,
-          name,
+          brokeragename: name,
         });
-        const agentId = getAgentRecordId(agentIdNumber, name, agentName);
-        //
+
         const keep = result.getValue('custrecord_hms_keep_13');
         const purge = result.getValue('custrecord_hms_purge_13');
         const nrdsId = result.getValue('custrecord_hms_nrds_13');
@@ -251,6 +250,16 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
         const soldPropertiesCount = result.getValue(
           'custrecord_hms_sold_properties_13'
         );
+
+        const agentId = getAgentRecordId(
+          agentIdNumber,
+          name,
+          agentName,
+          crmCount,
+          soldPropertiesCount
+        );
+        //
+
         // If Previous NRDS ID is Null and Current NRDS ID has value && Purge is true
         if (!previousNrdsId && nrdsId && purge) {
           if (previousKeep && previousInternalId) {
@@ -432,7 +441,13 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
   /* *********************** updateAgentUpdateProject - End *********************** */
   //
   /* *********************** getAgentRecordId - Begin *********************** */
-  const getAgentRecordId = (agentName, name, cleanedName) => {
+  const getAgentRecordId = (
+    agentName,
+    name,
+    cleanedName,
+    crmCount,
+    soldPropertiesCount
+  ) => {
     const loggerTitle = ' Get Agent Record Id ';
     log.debug(
       loggerTitle,
@@ -465,10 +480,23 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
         customAgentSearchObj.run().each((result) => {
           const name = result.getValue('formulatext');
           log.debug(loggerTitle, `Checking Name: ${name === cleanedName}`);
-          if (name === cleanedName) {
-            agentId = result.id;
-            log.debug(loggerTitle, `Agent ID retrieved: ${agentId}`);
+          agentId = result.id;
+          const cCount = getCRMRecordCount(agentId);
+          const soCount = getSoldPropertiesCount(agentId);
+          if (
+            name === cleanedName &&
+            cCount == crmCount &&
+            soCount == soldPropertiesCount
+          ) {
             return;
+          } else if (name === cleanedName) {
+            log.debug(
+              loggerTitle,
+              `Agent ID retrieved: ${agentId} cCount: ${cCount} soCount: ${soCount}`
+            );
+            if (cCount == crmCount && soCount == soldPropertiesCount) {
+              return;
+            }
           }
           return true;
         });
@@ -744,6 +772,144 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
     return true;
   };
   /* *********************** updateSupportCaseRecord - End *********************** */
+  //
+  /* *********************** Get CRM Record Count - Begin *********************** */
+  /**
+   * Get CRM Record Count Results
+   * @param {string} agentId
+   * @returns {number}
+   */
+  const getCRMRecordCount = (agentId) => {
+    const loggerTitle = ' Get CRM Record Count ';
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+    );
+    //
+    let crmRecordCount = 0;
+    try {
+      const customrecord_agentSearchObj = search.create({
+        type: 'customrecord_agent',
+        filters: [
+          ['isinactive', 'is', 'F'],
+          'AND',
+          ['custrecord_agent_mls_region', 'anyof', '13'],
+          'AND',
+          ['internalidnumber', 'equalto', agentId],
+        ],
+        columns: [
+          search.createColumn({
+            name: 'name',
+            summary: 'GROUP',
+            label: 'Name',
+          }),
+          search.createColumn({
+            name: 'internalid',
+            join: 'CUSTEVENT_CALLER_NAME',
+            summary: 'COUNT',
+            label: 'Internal ID',
+          }),
+        ],
+      });
+      const searchResultCount = customrecord_agentSearchObj.runPaged().count;
+      log.debug(loggerTitle, ' Search Result Count: ' + searchResultCount);
+      //
+      if (searchResultCount) {
+        // .run().each has a limit of 4,000 results
+        customrecord_agentSearchObj.run().each((result) => {
+          crmRecordCount = parseInt(
+            result.getValue({
+              name: 'internalid',
+              join: 'CUSTEVENT_CALLER_NAME',
+              summary: 'COUNT',
+              label: 'Internal ID',
+            })
+          );
+          return true;
+        });
+      }
+      //
+      log.debug(loggerTitle, ' CRM Record Count: ' + crmRecordCount);
+    } catch (error) {
+      log.error(loggerTitle + ' caught with an exception', error);
+    }
+    //
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
+    );
+    return crmRecordCount;
+  };
+  /* *********************** Get CRM Record Count - End *********************** */
+  //
+  /* *********************** Get Sold Properties Count - Begin *********************** */
+  /**
+   * Get Sold Properties Count
+   * @param {string} agentId
+   * @returns {number}
+   */
+  const getSoldPropertiesCount = (agentId) => {
+    const loggerTitle = ' Get Sold Properties Count ';
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+    );
+    //
+    let soldPropertiesCount = 0;
+    try {
+      const customrecord_agentSearchObj = search.create({
+        type: 'customrecord_agent',
+        filters: [
+          ['isinactive', 'is', 'F'],
+          'AND',
+          ['custrecord_agent_mls_region', 'anyof', '13'],
+          'AND',
+          ['internalidnumber', 'equalto', agentId],
+        ],
+        columns: [
+          search.createColumn({
+            name: 'name',
+            summary: 'GROUP',
+            label: 'Name',
+          }),
+          search.createColumn({
+            name: 'internalid',
+            join: 'CUSTRECORD_REAL_ESTATE_AGENT_NAME',
+            summary: 'COUNT',
+            label: 'Internal ID',
+          }),
+        ],
+      });
+      const searchResultCount = customrecord_agentSearchObj.runPaged().count;
+      log.debug(loggerTitle, ' Search Result Count: ' + searchResultCount);
+      //
+      if (searchResultCount) {
+        // .run().each has a limit of 4,000 results
+        customrecord_agentSearchObj.run().each((result) => {
+          soldPropertiesCount = parseInt(
+            result.getValue({
+              name: 'internalid',
+              join: 'CUSTRECORD_REAL_ESTATE_AGENT_NAME',
+              summary: 'COUNT',
+              label: 'Internal ID',
+            })
+          );
+          return true;
+        });
+      }
+      //
+      log.debug(loggerTitle, ' CRM Record Count: ' + soldPropertiesCount);
+    } catch (error) {
+      log.error(loggerTitle + ' caught with an exception', error);
+    }
+    //
+    log.debug(
+      loggerTitle,
+      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
+    );
+    return soldPropertiesCount;
+  };
+  /* *********************** Get Sold Properties Count - End *********************** */
   //
   function removeSpecialCharacters(input) {
     return input.replace(/[^a-zA-Z0-9]/g, '');
