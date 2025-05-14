@@ -50,7 +50,7 @@ define([], function () {
 
         if (exFactoryDate) {
           var receiveByDate = new Date(exFactoryDate);
-          receiveByDate.setDate(receiveByDate.getDate() + 6 * 7); // Adding 8 weeks
+          receiveByDate.setDate(receiveByDate.getDate() + 60); // Adding 60 days
 
           currentRecord.setValue({
             fieldId: 'duedate',
