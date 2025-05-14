@@ -108,12 +108,14 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
       log.debug(loggerTitle + ' After Parsing Results', searchResult);
       //
       /* ---------------------- Form Key Value Pairs - Begin ---------------------- */
-      const key =
+      const tranDate = searchResult.values['trandate'];
+      const key = tranDate;
+      const values = {};
+      values.id = searchResult.id;
+      values.boxType =
         searchResult.values[
           'custrecord_spkg_pack_material.CUSTRECORD_SPKG_ITEM_FULFILLMENT'
         ].text;
-      const values = {};
-      values.id = searchResult.id;
       // Write Key & Values
       mapContext.write({
         key: key,
@@ -147,25 +149,26 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
     );
     //
     try {
-      const key = reduceContext.key;
-      log.debug(loggerTitle, `Key: ${key}`);
-      // Read Values
-      const values = reduceContext.values;
-      //
-      const createInvAdjstId = createInventoryAdjustment(key, values.length);
-      if (createInvAdjstId > 0) {
-        const processedIFs = new Set(); // Track processed Item Fulfillments
+      const values = reduceContext.values.map(JSON.parse);
+      const boxTypeCounts = {};
+      const itemFulfillmentIds = new Set();
 
-        // Loop through the values
-        for (let index = 0; index < values.length; index++) {
-          const result = JSON.parse(values[index]);
-          log.debug(loggerTitle + ' Results', result);
+      values.forEach((entry) => {
+        const boxType = entry.boxType;
+        boxTypeCounts[boxType] = (boxTypeCounts[boxType] || 0) + 1;
+        itemFulfillmentIds.add(entry.id);
+      });
 
-          if (!processedIFs.has(result.id)) {
-            updateItemFulfillment(result.id);
-            processedIFs.add(result.id); // Mark as processed
-          }
-        }
+      const invAdjId = createInventoryAdjustment(
+        reduceContext.key,
+        boxTypeCounts
+      );
+      log.debug(loggerTitle, 'Inventory Adjustment ID: ' + invAdjId);
+
+      if (invAdjId > 0) {
+        itemFulfillmentIds.forEach((id) => {
+          updateItemFulfillment(id);
+        });
       }
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
@@ -223,7 +226,7 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
    * @param {Number} quantity
    * @returns
    */
-  const createInventoryAdjustment = (item, quantity) => {
+  const createInventoryAdjustment = (date, boxTypeCounts) => {
     const loggerTitle = 'Create Inventory Adjustment';
     log.debug(
       loggerTitle,
@@ -232,93 +235,75 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
     //
     let invAdjstRecordId = 0;
     try {
-      const itemId = retrieveItemId(item);
-      if (!itemId) {
-        log.error(loggerTitle, 'Item ID not found for: ' + item);
-        return;
-      }
       const invAdjstRecord = record.create({
         type: record.Type.INVENTORY_ADJUSTMENT,
         isDynamic: true,
       });
-      invAdjstRecord.setValue({ fieldId: 'subsidiary', value: '2' });
-      invAdjstRecord.setValue({
-        fieldId: 'department',
-        value: String(department),
-      });
-      invAdjstRecord.setValue({ fieldId: 'account', value: '289' });
-      const externalId = generateExternalId();
-      log.debug('Generated External ID', externalId);
 
+      invAdjstRecord.setValue({ fieldId: 'subsidiary', value: '2' });
+      invAdjstRecord.setValue({ fieldId: 'department', value: department });
+      invAdjstRecord.setValue({ fieldId: 'account', value: '289' });
       invAdjstRecord.setValue({
         fieldId: 'externalid',
-        value: externalId,
-      });
-      // invAdjstRecord.setValue({
-      //   fieldId: 'trandate',
-      //   value: formatDate(today),
-      // });
-      // const postingPeriodId = getPostingPeriodId();
-      // log.debug(loggerTitle, 'Posting Period ID: ' + postingPeriodId);
-      // invAdjstRecord.setValue({
-      //   fieldId: 'postingperiod',
-      //   value: postingPeriodId,
-      // });
-      // Select and set line item details
-      invAdjstRecord.selectNewLine({ sublistId: 'inventory' });
-
-      invAdjstRecord.setCurrentSublistValue({
-        sublistId: 'inventory',
-        fieldId: 'item',
-        value: itemId,
-      });
-      invAdjstRecord.setCurrentSublistValue({
-        sublistId: 'inventory',
-        fieldId: 'location',
-        value: '1',
+        value: generateExternalId(),
       });
 
-      invAdjstRecord.setCurrentSublistValue({
-        sublistId: 'inventory',
-        fieldId: 'adjustqtyby',
-        value: -quantity, // Ensure negative adjustment
-      });
+      for (const boxType in boxTypeCounts) {
+        const quantity = boxTypeCounts[boxType];
+        const itemId = retrieveItemId(boxType);
+        if (!itemId) {
+          log.error('Missing Item ID for', boxType);
+          continue;
+        }
 
-      var subrecord = invAdjstRecord.getCurrentSublistSubrecord({
-        sublistId: 'inventory',
-        fieldId: 'inventorydetail',
-      });
+        invAdjstRecord.selectNewLine({ sublistId: 'inventory' });
+        invAdjstRecord.setCurrentSublistValue({
+          sublistId: 'inventory',
+          fieldId: 'item',
+          value: itemId,
+        });
+        invAdjstRecord.setCurrentSublistValue({
+          sublistId: 'inventory',
+          fieldId: 'location',
+          value: '1',
+        });
+        invAdjstRecord.setCurrentSublistValue({
+          sublistId: 'inventory',
+          fieldId: 'adjustqtyby',
+          value: -quantity,
+        });
 
-      subrecord.selectNewLine({
-        sublistId: 'inventoryassignment',
-      });
-      subrecord.setCurrentSublistValue({
-        sublistId: 'inventoryassignment',
-        fieldId: 'issueinventorynumber',
-        value: 2805,
-      });
-      subrecord.setCurrentSublistValue({
-        sublistId: 'inventoryassignment',
-        fieldId: 'inventorystatus',
-        value: 1,
-      });
-      subrecord.setCurrentSublistValue({
-        sublistId: 'inventoryassignment',
-        fieldId: 'quantity',
-        value: -quantity,
-      });
+        const subrecord = invAdjstRecord.getCurrentSublistSubrecord({
+          sublistId: 'inventory',
+          fieldId: 'inventorydetail',
+        });
+        subrecord.selectNewLine({ sublistId: 'inventoryassignment' });
+        subrecord.setCurrentSublistValue({
+          sublistId: 'inventoryassignment',
+          fieldId: 'issueinventorynumber',
+          value: 2805,
+        });
+        subrecord.setCurrentSublistValue({
+          sublistId: 'inventoryassignment',
+          fieldId: 'inventorystatus',
+          value: 1,
+        });
+        subrecord.setCurrentSublistValue({
+          sublistId: 'inventoryassignment',
+          fieldId: 'quantity',
+          value: -quantity,
+        });
+        subrecord.commitLine({
+          sublistId: 'inventoryassignment',
+        });
 
-      subrecord.commitLine({
-        sublistId: 'inventoryassignment',
-      });
+        subrecord.removeLine({
+          sublistId: 'inventoryassignment',
+          line: 1,
+        });
 
-      subrecord.removeLine({
-        sublistId: 'inventoryassignment',
-        line: 1,
-      });
-
-      // Commit the line
-      invAdjstRecord.commitLine({ sublistId: 'inventory' });
+        invAdjstRecord.commitLine({ sublistId: 'inventory' });
+      }
 
       // Save the record
       invAdjstRecordId = invAdjstRecord.save();
