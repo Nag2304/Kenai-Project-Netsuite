@@ -40,18 +40,14 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
     //
     const scriptObj = runtime.getCurrentScript();
     const today = new Date();
-
     const dateCriteria = scriptObj
       .getParameter({
         name: 'custscript_div_date_criteria',
       })
       .toUpperCase();
-
     const dateParam =
       scriptObj.getParameter({ name: 'custscript_div_adj_date_param' }) ||
       today;
-
-    // Convert date to MM/DD/YYYY format
     const formattedDate = format.format({
       value: dateParam,
       type: format.Type.DATE,
@@ -59,9 +55,7 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
     log.debug(loggerTitle, 'Date Param: ' + formattedDate);
 
     let itemFulfillmentSearch = search.load({ id: '2026' });
-
-    if (dateCriteria == 'ONORAFTER') {
-      // Apply date filter dynamically
+    if (dateCriteria === 'ONORAFTER') {
       itemFulfillmentSearch.filters.push(
         search.createFilter({
           name: 'trandate',
@@ -69,8 +63,7 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
           values: formattedDate,
         })
       );
-    } else if (dateCriteria == 'ON') {
-      // Apply date filter dynamically
+    } else if (dateCriteria === 'ON') {
       itemFulfillmentSearch.filters.push(
         search.createFilter({
           name: 'trandate',
@@ -103,28 +96,17 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
     );
     //
     try {
-      // Read & parse the data
       const searchResult = JSON.parse(mapContext.value);
       log.debug(loggerTitle + ' After Parsing Results', searchResult);
-      //
-      /* ---------------------- Form Key Value Pairs - Begin ---------------------- */
-      const tranDate = searchResult.values['trandate'];
-      const key = tranDate;
-      const values = {};
-      values.id = searchResult.id;
-      values.boxType =
-        searchResult.values[
-          'custrecord_spkg_pack_material.CUSTRECORD_SPKG_ITEM_FULFILLMENT'
-        ].text;
-      // Write Key & Values
-      mapContext.write({
-        key: key,
-        value: values,
-      });
-      log.debug(loggerTitle + ' Key & Value Pairs', [key, values]);
-      //
-      /* ---------------------- Form Key Value Pairs - End ---------------------- */
-      //
+      const values = {
+        id: searchResult.id,
+        boxType:
+          searchResult.values[
+            'custrecord_spkg_pack_material.CUSTRECORD_SPKG_ITEM_FULFILLMENT'
+          ].text,
+      };
+      mapContext.write({ key: 'ALL_BOXES', value: values });
+      log.debug(loggerTitle + ' Key & Value Pairs', ['ALL_BOXES', values]);
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
@@ -159,10 +141,7 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
         itemFulfillmentIds.add(entry.id);
       });
 
-      const invAdjId = createInventoryAdjustment(
-        reduceContext.key,
-        boxTypeCounts
-      );
+      const invAdjId = createInventoryAdjustment(boxTypeCounts);
       log.debug(loggerTitle, 'Inventory Adjustment ID: ' + invAdjId);
 
       if (invAdjId > 0) {
@@ -293,19 +272,17 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
           fieldId: 'quantity',
           value: -quantity,
         });
-        subrecord.commitLine({
-          sublistId: 'inventoryassignment',
-        });
+
+        invAdjstRecord.commitLine({ sublistId: 'inventory' });
 
         subrecord.removeLine({
           sublistId: 'inventoryassignment',
           line: 1,
         });
 
-        invAdjstRecord.commitLine({ sublistId: 'inventory' });
+        subrecord.commitLine({ sublistId: 'inventoryassignment' });
       }
 
-      // Save the record
       invAdjstRecordId = invAdjstRecord.save();
       log.debug(
         loggerTitle,
