@@ -180,168 +180,149 @@ define(['N/record', 'N/search'], (record, search) => {
       log.debug(loggerTitle + ' Values', values);
       //
 
-      // Maintain count of occurrences for each email + first name pair
-      const emailFirstNameCounts = new Map();
-
+      // Process exactly two records if duplicates exist
       if (values.length > 1) {
-        log.emergency(loggerTitle, 'Values Length:' + values.length);
+        log.debug(
+          loggerTitle,
+          `Processing exactly 2 records for email: ${key}`
+        );
         //
 
-        // Loop through values to identify duplicates based on email and first name
-        for (let index = 0; index < Math.min(values.length, 2); index++) {
+        // Loop through the first two records only
+        for (let index = 0; index < 2; index++) {
           const data = JSON.parse(values[index]);
-          log.debug(loggerTitle + ' Data', data);
+          log.emergency(loggerTitle + ` Record ${index}`, data);
 
           // Retrieve Values
+          const agentName = data.agentId;
+          const name = data.name;
+          const mlsRegion = data.mlsRegion;
           const agentFirstName = data.agentFirstName;
-          const keyValuePair = key + agentFirstName;
-
-          // Update count for the pair
-          const count = emailFirstNameCounts.get(keyValuePair) || 0;
-          emailFirstNameCounts.set(keyValuePair, count + 1);
-        }
-
-        // Second loop to perform actions without inserting duplicate records
-        for (let index = 0; index < values.length; index++) {
-          const data = JSON.parse(values[index]);
-          log.emergency(loggerTitle + index, data);
-
-          // Form Key Value Pair
-          const agentFirstName = data.agentFirstName;
-          const keyValuePair = key + agentFirstName;
-
-          // Check if count for the pair is greater than 1
-          if (emailFirstNameCounts.get(keyValuePair) > 1) {
-            // Retrieve Values
-            const agentName = data.agentId;
-            const name = data.name;
-            const mlsRegion = data.mlsRegion;
-            const agentLastName = data.agentLastName;
-            const brokerage = data.brokerage;
-            const agentMobileNumber = data.agentMobileNumber;
-            const agentType = data.agentType;
-            const lastmodified = data.lastmodifiedDate;
-            const callbackNumber = data.preferredCallbackNumber;
-            const nrdsId = data.nrdsId;
-            const changeAgent = data.changeAgent;
-            const verifiedFromRETSFeed = data.verifiedFromRETSFeed;
-            const agentInternalId = data.agentInternalId;
-            //
-            /* ------------------------- Create Custom Record - Begin ------------------------ */
-            const agentProjectUpdateRecord = record.create({
-              type: 'customrecord_hms_agent_upd_project',
-              isDynamic: true,
-            });
+          const agentLastName = data.agentLastName;
+          const brokerage = data.brokerage;
+          const agentMobileNumber = data.agentMobileNumber;
+          const agentType = data.agentType;
+          const lastmodified = data.lastmodifiedDate;
+          const callbackNumber = data.preferredCallbackNumber;
+          const nrdsId = data.nrdsId;
+          const changeAgent = data.changeAgent;
+          const verifiedFromRETSFeed = data.verifiedFromRETSFeed;
+          const agentInternalId = data.agentInternalId;
+          //
+          /* ------------------------- Create Custom Record - Begin ------------------------ */
+          const agentProjectUpdateRecord = record.create({
+            type: 'customrecord_hms_agent_upd_project',
+            isDynamic: true,
+          });
+          agentProjectUpdateRecord.setValue({
+            fieldId: 'custrecord_hms_agent_id_number',
+            value: agentName,
+          });
+          // Extracting name
+          agentProjectUpdateRecord.setValue({
+            fieldId: 'custrecord_hms_agent_name',
+            value: name,
+          });
+          // Extracting MLS region
+          agentProjectUpdateRecord.setValue({
+            fieldId: 'custrecord_hms_mls_region',
+            value: mlsRegion,
+          });
+          // Extracting Email
+          agentProjectUpdateRecord.setValue({
+            fieldId: 'custrecord_hms_agent_email',
+            value: key,
+          });
+          // Extracting agent's first name
+          agentProjectUpdateRecord.setValue({
+            fieldId: 'custrecord_hms_first_name',
+            value: agentFirstName,
+          });
+          // Extracting agent's last name
+          agentProjectUpdateRecord.setValue({
+            fieldId: 'custrecord_hms_last_name',
+            value: agentLastName,
+          });
+          // Extracting brokerage
+          agentProjectUpdateRecord.setValue({
+            fieldId: 'custrecord_hms_brokerage_name',
+            value: brokerage,
+          });
+          // Extracting agent's mobile number
+          agentProjectUpdateRecord.setValue({
+            fieldId: 'custrecord_hms_cell_phone',
+            value: agentMobileNumber,
+          });
+          // Extracting Agent Type
+          agentProjectUpdateRecord.setValue({
+            fieldId: 'custrecord_hms_agent_type',
+            value: agentType,
+          });
+          // Extracting Last Modified
+          agentProjectUpdateRecord.setValue({
+            fieldId: 'custrecord_hms_last_update',
+            value: lastmodified,
+          });
+          // Extracting Preferred Call Back Number
+          agentProjectUpdateRecord.setValue({
+            fieldId: 'custrecord_hms_pref_callback',
+            value: callbackNumber,
+          });
+          // Extracting NRDS ID
+          agentProjectUpdateRecord.setValue({
+            fieldId: 'custrecord_hms_nrds',
+            value: nrdsId,
+          });
+          // Extracting change agent
+          agentProjectUpdateRecord.setValue({
+            fieldId: 'custrecord_hms_latest_rets_chg',
+            value: changeAgent,
+          });
+          // Save the Duplicate Email ID field
+          agentProjectUpdateRecord.setValue({
+            fieldId: 'custrecord_hms_email_dupe',
+            value: true,
+          });
+          // Update the Verified RETS Feed
+          if (verifiedFromRETSFeed == 'T' || verifiedFromRETSFeed == true) {
             agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_agent_id_number',
-              value: agentName,
-            });
-            // Extracting name
-            agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_agent_name',
-              value: name,
-            });
-            // Extracting MLS region
-            agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_mls_region',
-              value: mlsRegion,
-            });
-            // Extracting Email
-            agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_agent_email',
-              value: key,
-            });
-            // Extracting agent's first name
-            agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_first_name',
-              value: agentFirstName,
-            });
-            // Extracting agent's last name
-            agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_last_name',
-              value: agentLastName,
-            });
-            // Extracting brokerage
-            agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_brokerage_name',
-              value: brokerage,
-            });
-            // Extracting agent's mobile number
-            agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_cell_phone',
-              value: agentMobileNumber,
-            });
-            // Extracting Agent Type
-            agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_agent_type',
-              value: agentType,
-            });
-            // Extracting Last Modified
-            agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_last_update',
-              value: lastmodified,
-            });
-            // Extracting Prefred Call Back Number
-            agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_pref_callback',
-              value: callbackNumber,
-            });
-            // Extracting NRDS ID
-            agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_nrds',
-              value: nrdsId,
-            });
-            // Extracting change agent
-            agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_latest_rets_chg',
-              value: changeAgent,
-            });
-            // Save the Duplicate Email ID field
-            agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_email_dupe',
+              fieldId: 'custrecord_hms_verified_from_rets_feed',
               value: true,
             });
-            // Update the Verified RETS Feed
-            if (verifiedFromRETSFeed == 'T' || verifiedFromRETSFeed == true) {
-              agentProjectUpdateRecord.setValue({
-                fieldId: 'custrecord_hms_verified_from_rets_feed',
-                value: true,
-              });
-            } else if (
-              verifiedFromRETSFeed == 'F' ||
-              verifiedFromRETSFeed == false
-            ) {
-              agentProjectUpdateRecord.setValue({
-                fieldId: 'custrecord_hms_verified_from_rets_feed',
-                value: false,
-              });
-            }
-            if (agentInternalId) {
-              // CRM Record Count
-              agentProjectUpdateRecord.setValue({
-                fieldId: 'custrecord_hms_crm_record_count',
-                value: getCRMRecordCount(agentInternalId),
-              });
-              // Survey Count
-              agentProjectUpdateRecord.setValue({
-                fieldId: 'custrecord_hms_survery_count',
-                value: getSurveyCount(agentInternalId),
-              });
-              // Sold Properties Count
-              agentProjectUpdateRecord.setValue({
-                fieldId: 'custrecord_hms_sold_properties',
-                value: getSoldPropertiesCount(agentInternalId),
-              });
-            }
-            // Save the custom Record
-            const agentProjectUpdateRecordId = agentProjectUpdateRecord.save();
-            log.emergency(
-              loggerTitle,
-              ' Agent Project Update Record: ' + agentProjectUpdateRecordId
-            );
-            /* ------------------------- Create Custom Record - End ------------------------ */
-            //
+          } else if (
+            verifiedFromRETSFeed == 'F' ||
+            verifiedFromRETSFeed == false
+          ) {
+            agentProjectUpdateRecord.setValue({
+              fieldId: 'custrecord_hms_verified_from_rets_feed',
+              value: false,
+            });
           }
+          if (agentInternalId) {
+            // CRM Record Count
+            agentProjectUpdateRecord.setValue({
+              fieldId: 'custrecord_hms_crm_record_count',
+              value: getCRMRecordCount(agentInternalId),
+            });
+            // Survey Count
+            agentProjectUpdateRecord.setValue({
+              fieldId: 'custrecord_hms_survery_count',
+              value: getSurveyCount(agentInternalId),
+            });
+            // Sold Properties Count
+            agentProjectUpdateRecord.setValue({
+              fieldId: 'custrecord_hms_sold_properties',
+              value: getSoldPropertiesCount(agentInternalId),
+            });
+          }
+          // Save the custom Record
+          const agentProjectUpdateRecordId = agentProjectUpdateRecord.save();
+          log.emergency(
+            loggerTitle,
+            ' Agent Project Update Record: ' + agentProjectUpdateRecordId
+          );
+          /* ------------------------- Create Custom Record - End ------------------------ */
+          //
         }
       }
     } catch (error) {
