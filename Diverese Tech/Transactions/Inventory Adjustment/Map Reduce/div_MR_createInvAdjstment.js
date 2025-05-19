@@ -132,6 +132,7 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
     //
     try {
       const values = reduceContext.values.map(JSON.parse);
+      log.debug(loggerTitle + ' Values', values);
       const boxTypeCounts = {};
       const itemFulfillmentIds = new Set();
 
@@ -140,6 +141,7 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
         boxTypeCounts[boxType] = (boxTypeCounts[boxType] || 0) + 1;
         itemFulfillmentIds.add(entry.id);
       });
+      log.debug(loggerTitle + 'Box type counts', boxTypeCounts);
 
       const invAdjId = createInventoryAdjustment(boxTypeCounts);
       log.debug(loggerTitle, 'Inventory Adjustment ID: ' + invAdjId);
@@ -201,11 +203,10 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
   /* *********************** createInventoryAdjustment - Begin *********************** */
   /**
    *
-   * @param {String} item
-   * @param {Number} quantity
+   * @param {Object} boxTypeCounts
    * @returns
    */
-  const createInventoryAdjustment = (date, boxTypeCounts) => {
+  const createInventoryAdjustment = (boxTypeCounts) => {
     const loggerTitle = 'Create Inventory Adjustment';
     log.debug(
       loggerTitle,
@@ -226,14 +227,17 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
         fieldId: 'externalid',
         value: generateExternalId(),
       });
+      log.debug(loggerTitle, `Box Type Counts: ${boxTypeCounts}`);
 
+      let index = 1;
       for (const boxType in boxTypeCounts) {
         const quantity = boxTypeCounts[boxType];
         const itemId = retrieveItemId(boxType);
         if (!itemId) {
-          log.error('Missing Item ID for', boxType);
+          log.error(loggerTitle, 'Missing Item ID for: ' + boxType);
           continue;
         }
+        log.debug(loggerTitle, { quantity, itemId });
 
         invAdjstRecord.selectNewLine({ sublistId: 'inventory' });
         invAdjstRecord.setCurrentSublistValue({
@@ -273,14 +277,14 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
           value: -quantity,
         });
 
-        invAdjstRecord.commitLine({ sublistId: 'inventory' });
+        subrecord.commitLine({ sublistId: 'inventoryassignment' });
 
         subrecord.removeLine({
           sublistId: 'inventoryassignment',
-          line: 1,
+          line: index,
         });
 
-        subrecord.commitLine({ sublistId: 'inventoryassignment' });
+        invAdjstRecord.commitLine({ sublistId: 'inventory' });
       }
 
       invAdjstRecordId = invAdjstRecord.save();
