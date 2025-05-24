@@ -9,7 +9,6 @@
  * Script: DIV | MR Create Inventory Adjustment
  * Author           Date       Version               Remarks
  * nagendrababu 03.21.2025       1.00      Initial creation of the script
- *
  */
 
 /* -------------------------- Script Usage - Begin -------------------------- */
@@ -26,8 +25,9 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
 ) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
-  const department = '2'; // Plastic Oddites
+  const department = '2'; // Plastic Oddities
   const today = new Date(); // Get today's date
+  const defaultInventoryStatus = '1'; // Replace with a valid inventory status ID from your NetSuite account
   /* ------------------------- Global Variables - End ------------------------- */
   //
   /* ------------------------- Get Input Data - Begin ------------------------- */
@@ -54,7 +54,9 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
     });
     log.debug(loggerTitle, 'Date Param: ' + formattedDate);
 
-    let itemFulfillmentSearch = search.load({ id: '2026' });
+    let itemFulfillmentSearch = search.load({
+      id: 'customsearch_div_mr_create_inv_adjst',
+    });
     if (dateCriteria === 'ONORAFTER') {
       itemFulfillmentSearch.filters.push(
         search.createFilter({
@@ -141,7 +143,7 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
         boxTypeCounts[boxType] = (boxTypeCounts[boxType] || 0) + 1;
         itemFulfillmentIds.add(entry.id);
       });
-      log.debug(loggerTitle + 'Box type counts', boxTypeCounts);
+      log.debug(loggerTitle + ' Box type counts', boxTypeCounts);
 
       const invAdjId = createInventoryAdjustment(boxTypeCounts);
       log.debug(loggerTitle, 'Inventory Adjustment ID: ' + invAdjId);
@@ -227,62 +229,88 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
         fieldId: 'externalid',
         value: generateExternalId(),
       });
-      log.debug(loggerTitle, `Box Type Counts: ${boxTypeCounts}`);
+      log.debug(
+        loggerTitle,
+        `Box Type Counts: ${JSON.stringify(boxTypeCounts)}`
+      );
 
-      let index = 1;
       for (const boxType in boxTypeCounts) {
         const quantity = boxTypeCounts[boxType];
-        const itemId = retrieveItemId(boxType);
-        if (!itemId) {
+        const itemDetails = retrieveItemId(boxType);
+        if (!itemDetails.itemId) {
           log.error(loggerTitle, 'Missing Item ID for: ' + boxType);
           continue;
         }
-        log.debug(loggerTitle, { quantity, itemId });
+        log.debug(loggerTitle, {
+          quantity,
+          itemId: itemDetails.itemId,
+          inventorylocation: itemDetails.inventorylocation,
+        });
 
         invAdjstRecord.selectNewLine({ sublistId: 'inventory' });
         invAdjstRecord.setCurrentSublistValue({
           sublistId: 'inventory',
           fieldId: 'item',
-          value: itemId,
+          value: itemDetails.itemId,
         });
         invAdjstRecord.setCurrentSublistValue({
           sublistId: 'inventory',
           fieldId: 'location',
-          value: '1',
+          value: itemDetails.inventorylocation,
         });
         invAdjstRecord.setCurrentSublistValue({
           sublistId: 'inventory',
           fieldId: 'adjustqtyby',
           value: -quantity,
         });
-
         const subrecord = invAdjstRecord.getCurrentSublistSubrecord({
           sublistId: 'inventory',
           fieldId: 'inventorydetail',
         });
-        subrecord.selectNewLine({ sublistId: 'inventoryassignment' });
-        subrecord.setCurrentSublistValue({
-          sublistId: 'inventoryassignment',
-          fieldId: 'issueinventorynumber',
-          value: 2805,
-        });
-        subrecord.setCurrentSublistValue({
-          sublistId: 'inventoryassignment',
-          fieldId: 'inventorystatus',
-          value: 1,
-        });
-        subrecord.setCurrentSublistValue({
-          sublistId: 'inventoryassignment',
-          fieldId: 'quantity',
-          value: -quantity,
-        });
 
-        subrecord.commitLine({ sublistId: 'inventoryassignment' });
-
-        subrecord.removeLine({
-          sublistId: 'inventoryassignment',
-          line: index,
-        });
+        try {
+          subrecord.selectNewLine({ sublistId: 'inventoryassignment' });
+          subrecord.setCurrentSublistValue({
+            sublistId: 'inventoryassignment',
+            fieldId: 'quantity',
+            value: -quantity,
+          });
+          subrecord.setCurrentSublistValue({
+            sublistId: 'inventoryassignment',
+            fieldId: 'issueinventorynumber',
+            value: '2025',
+          });
+          subrecord.setCurrentSublistValue({
+            sublistId: 'inventoryassignment',
+            fieldId: 'inventorystatus',
+            value: defaultInventoryStatus, // Use a valid inventory status ID
+          });
+          subrecord.commitLine({ sublistId: 'inventoryassignment' });
+          log.debug(loggerTitle, ' Inventory Detail Record Set');
+        } catch (error) {
+          log.error(
+            loggerTitle + ' caught with an exception for box type ' + boxType,
+            error
+          );
+        }
+        try {
+          subrecord.removeLine({
+            sublistId: 'inventoryassignment',
+            line: 1,
+          });
+          log.debug(
+            loggerTitle,
+            ' Inventory Detail Record Removed Successfully'
+          );
+        } catch (error) {
+          log.error(
+            loggerTitle +
+              ' caught with an exception for box type ' +
+              boxType +
+              ' When removing the line',
+            error
+          );
+        }
 
         invAdjstRecord.commitLine({ sublistId: 'inventory' });
       }
@@ -330,8 +358,8 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
       const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Last day of the month
 
       log.debug(
-        'Searching for Posting Period',
-        `Start: ${startDate}, End: ${endDate}`
+        loggerTitle,
+        `Searching for Posting Period, Start: ${startDate}, End: ${endDate}`
       );
 
       const searchResult = search
@@ -370,9 +398,10 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
   //
   /* *********************** retrieveItemId - Begin *********************** */
   /**
+   * Retrieves the item ID and the first inventory location where locationquantityonhand > 0, sorted by location ID.
    *
    * @param {String} itemText
-   * @returns {Number} itemId
+   * @returns {Object} { itemId: Number, inventorylocation: String }
    */
   const retrieveItemId = (itemText) => {
     const loggerTitle = 'Retrieve Item ID';
@@ -381,24 +410,64 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
     //
-    let itemId = 0;
+    let result = { itemId: 0, inventorylocation: null };
     try {
       const itemSearchObj = search.create({
         type: 'item',
-        filters: [['name', 'is', itemText]],
+        filters: [
+          ['name', 'is', itemText],
+          'AND',
+          ['locationquantityonhand', 'greaterthan', 0],
+        ],
         columns: [
           search.createColumn({ name: 'itemid', label: 'Name' }),
           search.createColumn({ name: 'internalid', label: 'Internal ID' }),
+          search.createColumn({
+            name: 'inventorylocation',
+            label: 'Inventory Location',
+            sort: search.Sort.ASC, // Sort by location internal ID in ascending order
+          }),
+          search.createColumn({
+            name: 'locationquantityonhand',
+            label: 'Location On Hand',
+          }),
         ],
       });
       const searchResultCount = itemSearchObj.runPaged().count;
-      log.debug(loggerTitle, searchResultCount);
-      //
-      itemSearchObj.run().each((result) => {
-        itemId = result.getValue({ name: 'internalid', label: 'Internal ID' });
-        return true;
-      });
-      log.debug(loggerTitle, 'Item ID: ' + itemId);
+      log.debug(loggerTitle, `Search Result Count: ${searchResultCount}`);
+
+      // Fetch only the first result
+      const searchResults = itemSearchObj.run().getRange({ start: 0, end: 1 });
+      if (searchResults.length > 0) {
+        const resultRow = searchResults[0];
+        const quantityOnHand = parseFloat(
+          resultRow.getValue({
+            name: 'locationquantityonhand',
+            label: 'Location On Hand',
+          })
+        );
+        if (quantityOnHand > 0) {
+          result.itemId = resultRow.getValue({
+            name: 'internalid',
+            label: 'Internal ID',
+          });
+          result.inventorylocation = resultRow.getValue({
+            name: 'inventorylocation',
+            label: 'Inventory Location',
+          });
+          log.debug(
+            loggerTitle,
+            `First Item ID: ${result.itemId}, Inventory Location: ${result.inventorylocation}, Quantity: ${quantityOnHand}`
+          );
+        } else {
+          log.debug(
+            loggerTitle,
+            `First result has no positive stock: ${quantityOnHand}`
+          );
+        }
+      } else {
+        log.debug(loggerTitle, 'No results found with positive stock');
+      }
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
@@ -407,7 +476,7 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
     );
-    return itemId;
+    return result;
   };
   /* *********************** retrieveItemId - End *********************** */
   //
