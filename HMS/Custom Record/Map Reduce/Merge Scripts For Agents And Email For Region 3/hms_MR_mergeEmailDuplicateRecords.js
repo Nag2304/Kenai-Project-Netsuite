@@ -6,7 +6,7 @@
 
 /**
  * File name: hms_MR_mergeEmailDuplicateRecords.js
- * Script: HMS | MR Merge Email Dup Dayton
+ * Script: HMS | MR Merge Email Duplicate Records
  * Author           Date       Version               Remarks
  * nagendrababu 14th sep 2024   1.00        Initial creation of the script.
  *
@@ -220,6 +220,10 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
             name: 'custrecord_hms_brokerage_name',
             label: 'brokerage name',
           }),
+          search.createColumn({
+            name: 'custrecord_hms_orig_agt_rec_3',
+            label: 'Original Agent Record',
+          }),
         ],
       });
       searchResultCount = customAgentUpdateProjectSearchObj.runPaged().count;
@@ -242,12 +246,7 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
           name,
           agentIdNumberNew,
         });
-        const agentId = getAgentRecordId(
-          agentIdNumber,
-          name,
-          agentName,
-          agentIdNumberNew
-        );
+        const agentId = result.getValue('custrecord_hms_orig_agt_rec_3');
         //
         const keep = result.getValue('custrecord_hms_keep');
         const purge = result.getValue('custrecord_hms_purge');
