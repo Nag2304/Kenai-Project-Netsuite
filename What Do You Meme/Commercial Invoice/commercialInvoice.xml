@@ -16,7 +16,7 @@
     <macrolist>
         <macro id="nlheader">
             <table class="header" style="width: 100%;"><tr>
-	<td rowspan="3"><img src="http://4994827-sb2.shop.netsuite.com/core/media/media.nl?id=4863&amp;c=4994827_SB2&amp;h=qtBzFeblcX2gR3xxb9xQ5OqhQ1A1f9Eogp84ZqKsK_374Y9K"
+	<td rowspan="3"><img src="https://4994827.app.netsuite.com/core/media/media.nl?id=4862&amp;c=4994827&amp;h=qvCHrajWdBE7V53y2HoyZSNgqwYlXgXaDiEGJoFlCe30dQFC"
               width="150px" height="100px" /></td>
 	<td rowspan="3"><span class="nameandaddress">${companyInformation.addressText}</span></td>
 	<td align="right"><span class="title">Commercial Invoice</span></td>
