@@ -633,6 +633,7 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
             updatePropertyRecord(propertyRecordId, pId);
             updateFlag = true;
           }
+          return true;
         });
       }
     } catch (error) {
