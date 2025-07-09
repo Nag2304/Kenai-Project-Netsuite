@@ -188,7 +188,7 @@ define(['N/record', 'N/search'], (record, search) => {
         //
 
         // Loop through values to identify duplicates based on email and first name
-        for (let index = 0; index < values.length; index++) {
+        for (let index = 0; index < Math.min(values.length, 2); index++) {
           const data = JSON.parse(values[index]);
           log.debug(loggerTitle + ' Data', data);
 

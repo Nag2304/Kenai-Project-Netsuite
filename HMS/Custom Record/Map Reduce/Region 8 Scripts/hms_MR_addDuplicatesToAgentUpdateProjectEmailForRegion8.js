@@ -202,7 +202,7 @@ define(['N/record', 'N/search'], (record, search) => {
         }
 
         // Second loop to perform actions without inserting duplicate records
-        for (let index = 0; index < values.length; index++) {
+        for (let index = 0; index < Math.min(values.length, 2); index++) {
           const data = JSON.parse(values[index]);
           log.emergency(loggerTitle + index, data);
 
