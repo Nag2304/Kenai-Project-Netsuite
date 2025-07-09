@@ -28,6 +28,7 @@ define(['N/search', 'N/record'], (search, record) => {
     SQ: 15,
     SQFT: 14,
     Ea: 1,
+    Each: 1,
     'Case3/6': 5,
     'Case2/6': 4,
     Case6: 3,
@@ -58,10 +59,9 @@ define(['N/search', 'N/record'], (search, record) => {
     try {
       log.debug(loggerTitle, context);
       //
-      const detailRecords = getWorkOrderDetailRecords();
-      log.debug(loggerTitle + ' Detail Records ', detailRecords);
-      //
+      const detailRecords = getUnprocessedDetails();
       detailRecords.forEach(processDetailRecord);
+      //
     } catch (error) {
       log.error(`${loggerTitle} caught with an exception`, error);
     }
@@ -79,8 +79,8 @@ define(['N/search', 'N/record'], (search, record) => {
    * Retrieves all work order detail records
    * @returns {Array} Array of result objects
    */
-  const getWorkOrderDetailRecords = () => {
-    const loggerTitle = 'Get Work Order Detail Records';
+  const getUnprocessedDetails = () => {
+    const loggerTitle = 'Get Un Processed Details';
     const results = [];
     log.debug(
       loggerTitle,
@@ -90,23 +90,29 @@ define(['N/search', 'N/record'], (search, record) => {
     try {
       const detailSearch = search.create({
         type: 'customrecord_as_workorder_details',
-        filters: ['custrecord_as_so_workorder', 'is', 'empty'],
+        filters: [['custrecord_as_so_workorder', 'isempty', '']],
         columns: [
           'custrecord_sc_job_number',
+          'custrecord_as_item',
+          'custrecord_as_qty',
           'custrecord_as_item_class',
+          'custrecord_as_sub_assy',
+          'custrecord_as_sub_assy_uom',
           'custrecord_as_component',
           'custrecord_as_comp_qty',
           'custrecord_as_comp_uom',
           'custrecord_as_comp_desc',
           'custrecord_as_so_workorder',
+          'custrecord_as_sub_workorder',
         ],
       });
-      log.debug(loggerTitle, detailSearch);
 
       detailSearch.run().each((result) => {
         results.push(result);
         return true;
       });
+
+      log.debug(loggerTitle, results);
     } catch (error) {
       log.error(`${loggerTitle} caught with an exception`, error);
     }
@@ -131,34 +137,61 @@ define(['N/search', 'N/record'], (search, record) => {
     );
     //
     try {
-      log.debug(loggerTitle + ' Result ', result);
       const jobNumber = result.getValue('custrecord_sc_job_number');
       const itemClass = result.getValue('custrecord_as_item_class');
+      const woItem = result.getValue('custrecord_as_item');
+      const woQty = parseFloat(result.getValue('custrecord_as_qty')) || 1;
+      const isSubAssembly = result.getValue('custrecord_as_sub_assy') === 'T';
+      //const woUom = result.getValue('custrecord_as_sub_assy_uom');
+
       const componentItem = result.getValue('custrecord_as_component');
       const componentQty =
         parseFloat(result.getValue('custrecord_as_comp_qty')) || 1;
-      const componentUOM = result.getValue('custrecord_as_comp_uom');
+      const componentUom = result.getValue('custrecord_as_comp_uom');
       const componentDesc = result.getValue('custrecord_as_comp_desc');
+
       const recordId = result.id;
 
-      const soId = findSalesOrderId(jobNumber);
-      log.debug(loggerTitle, `SO ID: ${soId}`);
-      if (!soId) return;
-
-      const woInfo = findWorkOrderForSalesOrder(soId, itemClass);
-      log.debug(loggerTitle, woInfo);
-      if (!woInfo) return;
-
-      const updatedId = addComponentToWorkOrder(
-        woInfo.id,
+      log.debug(loggerTitle, {
+        jobNumber,
+        itemClass,
+        woItem,
         componentItem,
         componentQty,
-        componentUOM,
-        componentDesc
-      );
-      log.debug(loggerTitle, `Updated ID: ${updatedId}`);
-      if (updatedId) {
-        updateCustomRecord(recordId, woInfo.tranid);
+        componentUom,
+        componentDesc,
+        isSubAssembly,
+      });
+
+      const soId = findSalesOrder(jobNumber);
+      if (!soId) {
+        log.error(loggerTitle, `No Sales Order found for Job #: ${jobNumber}`);
+        return;
+      }
+
+      const wo = isSubAssembly
+        ? findChildWorkOrder(soId, itemClass, woItem)
+        : findTopLevelWorkOrder(soId, itemClass, woItem);
+
+      if (!wo) return;
+      log.debug(loggerTitle, `Work Order: ${wo}`);
+
+      if (isSubAssembly) {
+        // Sub-Assembly ➜ Add new component line
+        const updatedId = addComponentToWorkOrder(
+          wo.id,
+          componentItem,
+          componentQty,
+          componentUom,
+          componentDesc
+        );
+        log.debug(loggerTitle, `Updated Subassembly ID: ${updatedId}`);
+        if (updatedId) updateCustomRecord(recordId, wo.tranid);
+      } else {
+        // Top-Level ➜ Update existing line quantity
+        const updatedId = updateWOItemQty(wo.id, woItem, woQty); // woQty comes from custrecord_as_qty
+        log.debug(loggerTitle, `Updated Top-Level WO ID: ${updatedId}`);
+        if (updatedId) updateCustomRecord(recordId, wo.tranid);
       }
     } catch (error) {
       log.error(`${loggerTitle} caught with an exception`, error);
@@ -175,7 +208,7 @@ define(['N/search', 'N/record'], (search, record) => {
    * @param {string} jobNumber
    * @returns {string|null} Sales Order internal ID
    */
-  const findSalesOrderId = (jobNumber) => {
+  const findSalesOrder = (jobNumber) => {
     const loggerTitle = 'Find Sales Order Id';
     log.debug(
       loggerTitle,
@@ -199,51 +232,117 @@ define(['N/search', 'N/record'], (search, record) => {
       loggerTitle,
       '|>--------------------' + loggerTitle + '-Exit--------------------<|'
     );
-    return results.length > 0 ? results[0].getValue('internalid') : null;
+    return results && results.length ? results[0].getValue('internalid') : null;
   };
-
   /**
-   * Finds a matching Work Order by SO ID and Class
-   * @param {string} soId - Internal ID of Sales Order
-   * @param {string} itemClass - Internal ID of Class
-   * @returns {{id: string, tranid: string}|null}
+   *
+   * @param {Number} soId
+   * @param {Number} itemClass
+   * @param {Number} woItem
+   * @returns {Object}
    */
-  const findWorkOrderForSalesOrder = (soId, itemClass) => {
-    const loggerTitle = 'Find WorkOrder For SalesOrder';
+  const findTopLevelWorkOrder = (soId, itemClass, woItem) => {
+    const loggerTitle = 'Find Top Level Work Order';
     log.debug(
       loggerTitle,
       '|>--------------------' + loggerTitle + '-Entry--------------------<|'
     );
     //
-    let results;
+    let result;
     try {
+      log.debug(loggerTitle, { soId, itemClass, woItem });
+
+      if (!soId || !itemClass || !woItem) {
+        log.error(
+          loggerTitle,
+          'Missing one of the required parameters: soId, itemClass, or woItem'
+        );
+        return null;
+      }
+
       const woSearch = search.create({
         type: 'workorder',
         filters: [
           ['createdfrom', 'anyof', soId],
           'AND',
           ['class', 'anyof', itemClass],
+          'AND',
+          ['item', 'anyof', woItem],
         ],
         columns: ['internalid', 'tranid'],
       });
-      results = woSearch.run().getRange({ start: 0, end: 1 });
-      log.debug(loggerTitle, results);
-      if (results.length === 0) return null;
+      result = woSearch.run().getRange({ start: 0, end: 1 });
+      log.debug(loggerTitle, result);
     } catch (error) {
       log.error(`${loggerTitle} caught with an exception`, error);
-      return null;
     }
     //
     log.debug(
       loggerTitle,
       '|>--------------------' + loggerTitle + '-Exit--------------------<|'
     );
-    return {
-      id: results[0].getValue('internalid'),
-      tranid: results[0].getValue('tranid'),
-    };
+    return result && result.length
+      ? {
+          id: result[0].getValue('internalid'),
+          tranid: result[0].getValue('tranid'),
+        }
+      : null;
   };
 
+  /**
+   *
+   * @param {Number} soId
+   * @param {Number} itemClass
+   * @param {Number} woItem
+   * @returns {Object}
+   */
+  const findChildWorkOrder = (soId, itemClass, woItem) => {
+    const loggerTitle = 'Find Child Work Order';
+    log.debug(
+      loggerTitle,
+      '|>--------------------' + loggerTitle + '-Entry--------------------<|'
+    );
+    //
+    let result;
+    try {
+      log.debug(loggerTitle, { soId, itemClass, woItem });
+
+      if (!soId || !itemClass || !woItem) {
+        log.error(
+          loggerTitle,
+          'Missing one of the required parameters: soId, itemClass, or woItem'
+        );
+        return null;
+      }
+
+      const woSearch = search.create({
+        type: 'workorder',
+        filters: [
+          ['createdfrom.createdfrom', 'anyof', soId],
+          'AND',
+          ['class', 'anyof', itemClass],
+          'AND',
+          ['item', 'anyof', woItem],
+        ],
+        columns: ['internalid', 'tranid'],
+      });
+      result = woSearch.run().getRange({ start: 0, end: 1 });
+      log.debug(loggerTitle, result);
+    } catch (error) {
+      log.error(`${loggerTitle} caught with an exception`, error);
+    }
+    //
+    log.debug(
+      loggerTitle,
+      '|>--------------------' + loggerTitle + '-Exit--------------------<|'
+    );
+    return result && result.length
+      ? {
+          id: result[0].getValue('internalid'),
+          tranid: result[0].getValue('tranid'),
+        }
+      : null;
+  };
   /**
    * Adds a component line to the specified Work Order
    * @param {string} woId - Work Order internal ID
@@ -285,13 +384,10 @@ define(['N/search', 'N/record'], (search, record) => {
         woRec.setCurrentSublistValue({
           sublistId: 'item',
           fieldId: 'units',
-          value: UOM_MAP[uom], //
+          value: UOM_MAP[uom],
         });
-      } else {
-        log.error(
-          `${loggerTitle} Invalid UOM provided:`,
-          `Unit "${uom}" not found in UOM_MAP.`
-        );
+      } else if (uom) {
+        log.error('Missing UOM Mapping', `UOM '${uom}' not found in map.`);
       }
 
       if (desc) {
@@ -304,10 +400,9 @@ define(['N/search', 'N/record'], (search, record) => {
 
       woRec.commitLine({ sublistId: 'item' });
       woRecId = woRec.save();
-      log.debug(loggerTitle, `Work Order Saved Successfully`);
+      log.debug('Work Order Updated', `ID: ${woRecId}`);
     } catch (error) {
       log.error(`${loggerTitle} caught with an exception`, error);
-      return null;
     }
     //
     log.debug(
@@ -336,10 +431,9 @@ define(['N/search', 'N/record'], (search, record) => {
       record.submitFields({
         type: 'customrecord_as_workorder_details',
         id: recordId,
-        values: {
-          custrecord_as_so_workorder: woTranid,
-        },
+        values: { custrecord_as_so_workorder: woTranid },
       });
+      //
       log.debug(loggerTitle, `Updated Custom Record Successfully.`);
     } catch (error) {
       log.error(`${loggerTitle} caught with an exception`, error);
@@ -350,6 +444,69 @@ define(['N/search', 'N/record'], (search, record) => {
       '|>--------------------' + loggerTitle + '-Exit--------------------<|'
     );
   };
+  /**
+   * Updates WO Item quantity on top-level work order
+   * @param {string} woId - Work Order ID
+   * @param {string} itemId - WO Item internal ID
+   * @param {number} woQty - Quantity to update
+   * @returns {string|null} Updated WO internal ID or null
+   */
+  const updateWOItemQty = (woId, itemId, woQty) => {
+    const loggerTitle = 'Update WO Item Quantity';
+    log.debug(
+      loggerTitle,
+      '|>--------------------' + loggerTitle + '-Entry--------------------<|'
+    );
+    //
+    log.debug(loggerTitle, `woId: ${woId}, itemId: ${itemId}, qty: ${woQty}`);
+
+    try {
+      const woRec = record.load({
+        type: record.Type.WORK_ORDER,
+        id: woId,
+        isDynamic: true,
+      });
+
+      const lineCount = woRec.getLineCount({ sublistId: 'item' });
+
+      for (let i = 0; i < lineCount; i++) {
+        const lineItemId = woRec.getSublistValue({
+          sublistId: 'item',
+          fieldId: 'item',
+          line: i,
+        });
+
+        if (parseInt(lineItemId) === parseInt(itemId)) {
+          woRec.selectLine({ sublistId: 'item', line: i });
+
+          woRec.setCurrentSublistValue({
+            sublistId: 'item',
+            fieldId: 'quantity',
+            value: woQty,
+          });
+
+          woRec.commitLine({ sublistId: 'item' });
+
+          const updatedId = woRec.save();
+          log.debug(loggerTitle, `Updated WO ${updatedId} for item ${itemId}`);
+          log.debug(
+            loggerTitle,
+            '|>--------------------' +
+              loggerTitle +
+              '-Exit--------------------<|'
+          );
+          return updatedId;
+        }
+      }
+
+      log.error(loggerTitle, `Item ${itemId} not found in WO ${woId}`);
+      return null;
+    } catch (error) {
+      log.error(`${loggerTitle} exception`, error);
+      return null;
+    }
+  };
+
   //
   /* ------------------------ Helper Functions - End ------------------------ */
   //
