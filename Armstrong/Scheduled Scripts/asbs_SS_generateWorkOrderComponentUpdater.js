@@ -177,7 +177,7 @@ define(['N/search', 'N/record'], (search, record) => {
       log.debug(loggerTitle, `Work Order: ${wo}`);
 
       if (isSubAssembly) {
-        // Sub-Assembly ➜ Add new component line
+        // Sub-Assembly -> Add new component line
         const updatedId = addComponentToWorkOrder(
           wo.id,
           componentItem,
@@ -188,7 +188,7 @@ define(['N/search', 'N/record'], (search, record) => {
         log.debug(loggerTitle, `Updated Subassembly ID: ${updatedId}`);
         if (updatedId) updateCustomRecord(recordId, wo.tranid);
       } else {
-        // Top-Level ➜ Update existing line quantity
+        // Top-Level -> Update existing line quantity
         const updatedId = updateWOItemQty(wo.id, woItem, woQty); // woQty comes from custrecord_as_qty
         log.debug(loggerTitle, `Updated Top-Level WO ID: ${updatedId}`);
         if (updatedId) updateCustomRecord(recordId, wo.tranid);
@@ -263,11 +263,11 @@ define(['N/search', 'N/record'], (search, record) => {
       const woSearch = search.create({
         type: 'workorder',
         filters: [
-          ['createdfrom', 'anyof', soId],
+          ['createdfrom.internalidnumber', 'equalto', soId],
           'AND',
           ['class', 'anyof', itemClass],
           'AND',
-          ['item', 'anyof', woItem],
+          ['item.internalidnumber', 'equalto', woItem],
         ],
         columns: ['internalid', 'tranid'],
       });
@@ -318,11 +318,11 @@ define(['N/search', 'N/record'], (search, record) => {
       const woSearch = search.create({
         type: 'workorder',
         filters: [
-          ['createdfrom.createdfrom', 'anyof', soId],
+          ['createdfrom.internalidnumber', 'equalto', soId],
           'AND',
           ['class', 'anyof', itemClass],
           'AND',
-          ['item', 'anyof', woItem],
+          ['item.internalidnumber', 'equalto', woItem],
         ],
         columns: ['internalid', 'tranid'],
       });
