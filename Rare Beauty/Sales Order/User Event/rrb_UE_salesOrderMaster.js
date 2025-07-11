@@ -40,37 +40,50 @@ define(['N/record'], (record) => {
     try {
       const salesOrderRecord = context.newRecord;
 
-      // Sales Channel
-      const salesChannel = salesOrderRecord.getValue({
-        fieldId: 'cseg_rbb_channel',
-      });
-      log.debug(strLoggerTitle, ' Sales Channel: ' + salesChannel);
-      //
+      // Retrieve Customer
+      const customerId = salesOrderRecord.getValue({ fieldId: 'entity' });
+      log.debug(strLoggerTitle, `Customer ID: ${customerId}`);
 
-      let soAmount = 0;
-      const soLineCount = salesOrderRecord.getLineCount({ sublistId: 'item' });
-      for (let index = 0; index < soLineCount; index++) {
-        const amount = salesOrderRecord.getSublistValue({
+      if (customerId !== '5648') {
+        // Sales Channel
+        const salesChannel = salesOrderRecord.getValue({
+          fieldId: 'cseg_rbb_channel',
+        });
+        log.debug(strLoggerTitle, ' Sales Channel: ' + salesChannel);
+        //
+
+        let soAmount = 0;
+        const soLineCount = salesOrderRecord.getLineCount({
           sublistId: 'item',
-          fieldId: 'amount',
-          line: index,
         });
-        soAmount += amount;
+        for (let index = 0; index < soLineCount; index++) {
+          const amount = salesOrderRecord.getSublistValue({
+            sublistId: 'item',
+            fieldId: 'amount',
+            line: index,
+          });
+          soAmount += amount;
+        }
+
+        log.debug(strLoggerTitle, ' Sales Amount: ' + soAmount);
+        const currentShippingCost = salesOrderRecord.getValue({
+          fieldId: 'shippingcost',
+        });
+        // Sales Channel = Indie
+        if (
+          salesChannel == '5' &&
+          soAmount > 0 &&
+          soAmount >= 250 &&
+          soAmount < 500 &&
+          !currentShippingCost
+        ) {
+          salesOrderRecord.setValue({
+            fieldId: 'shippingcost',
+            value: 19.95,
+          });
+        }
       }
 
-      log.debug(strLoggerTitle, ' Sales Amount: ' + soAmount);
-      // Sales Channel = Indie
-      if (
-        salesChannel == '5' &&
-        soAmount > 0 &&
-        soAmount >= 250 &&
-        soAmount < 500
-      ) {
-        salesOrderRecord.setValue({
-          fieldId: 'shippingcost',
-          value: 19.95,
-        });
-      }
       //
     } catch (error) {
       log.error(strLoggerTitle + ' caught with an exception', error);
