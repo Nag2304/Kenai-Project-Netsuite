@@ -112,7 +112,7 @@ define(['N/search', 'N/record'], (search, record) => {
         return true;
       });
 
-      log.debug(loggerTitle, results);
+      log.debug(loggerTitle, `Results Length: ${results.length}`);
     } catch (error) {
       log.error(`${loggerTitle} caught with an exception`, error);
     }
