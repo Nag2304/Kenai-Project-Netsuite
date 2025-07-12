@@ -193,7 +193,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
 
       const itemSearch = search.create({
         type: search.Type.ITEM,
-        filters: [['name', 'is', itemName]],
+        filters: [['name', 'haskeywords', itemName]],
         columns: ['internalid', 'itemid'],
       });
 
