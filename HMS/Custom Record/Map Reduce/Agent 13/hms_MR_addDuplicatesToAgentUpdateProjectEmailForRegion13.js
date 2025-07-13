@@ -334,6 +334,10 @@ define(['N/record', 'N/search'], (record, search) => {
                 value: getSoldPropertiesCount(agentInternalId),
               });
             }
+            agentProjectUpdateRecord.setValue({
+              fieldId: 'custrecord_hms_orig_agt_rec_13',
+              value: agentInternalId,
+            });
             // Save the custom Record
             const agentProjectUpdateRecordId = agentProjectUpdateRecord.save();
             log.emergency(

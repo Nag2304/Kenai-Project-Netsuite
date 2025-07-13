@@ -222,6 +222,10 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
             name: 'custrecord_hms_brokerage_name_13',
             label: 'brokerage name',
           }),
+          search.createColumn({
+            name: 'custrecord_hms_orig_agt_rec_13',
+            label: 'Original Agent Record',
+          }),
         ],
       });
       searchResultCount = customAgentUpdateProjectSearchObj.runPaged().count;
@@ -242,7 +246,7 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
           agentIdNumber,
           name,
         });
-        const agentId = getAgentRecordId(agentIdNumber, name, agentName);
+        const agentId = result.getValue('custrecord_hms_orig_agt_rec_13');
         //
         const keep = result.getValue('custrecord_hms_keep_13');
         const purge = result.getValue('custrecord_hms_purge_13');
@@ -613,6 +617,7 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
             updatePropertyRecord(propertyRecordId, pId);
             updateFlag = true;
           }
+          return true;
         });
       }
     } catch (error) {
