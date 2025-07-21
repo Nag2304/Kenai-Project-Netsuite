@@ -51,8 +51,8 @@ define(['N/search', 'N/record'], (search, record) => {
       //
 
       // Key
-      const agent =
-        mapContextValues.values['GROUP(custrecord_hms_agent_id_number_1)'];
+      const email =
+        mapContextValues.values['GROUP(custrecord_hms_agent_email_1)'];
       //
 
       // Values
@@ -70,7 +70,7 @@ define(['N/search', 'N/record'], (search, record) => {
 
       // Form Key Values
       mapContext.write({
-        key: agent,
+        key: email,
         value: reduceValues,
       });
       //
@@ -264,7 +264,7 @@ define(['N/search', 'N/record'], (search, record) => {
    * @param {string} agentId
    * @returns {object}
    */
-  const retrieveAgentInternalIds = (agentId) => {
+  const retrieveAgentInternalIds = (email) => {
     const loggerTitle = ' Retrieve Agent Internal Ids';
     log.debug(
       loggerTitle,
@@ -277,7 +277,7 @@ define(['N/search', 'N/record'], (search, record) => {
       const customrecord_hms_agent_upd_projectSearchObj = search.create({
         type: 'customrecord_hms_agent_upd_prjct_reg_1',
         filters: [
-          ['custrecord_hms_agent_id_number_1', 'is', agentId],
+          ['custrecord_hms_agent_email_1', 'is', email],
           'AND',
           ['custrecord_hms_email_dupe_1', 'is', 'T'],
           'AND',
@@ -388,9 +388,9 @@ define(['N/search', 'N/record'], (search, record) => {
       ],
       columns: [
         search.createColumn({
-          name: 'custrecord_hms_agent_id_dupe_1',
+          name: 'custrecord_hms_email_dupe_1',
           summary: 'GROUP',
-          label: 'Agent Duplicate',
+          label: 'Email ID Duplicate',
         }),
         search.createColumn({
           name: 'custrecord_hms_mls_region_1',
@@ -413,9 +413,9 @@ define(['N/search', 'N/record'], (search, record) => {
           label: 'Sold Properties',
         }),
         search.createColumn({
-          name: 'custrecord_hms_agent_id_number_1',
+          name: 'custrecord_hms_agent_email_1',
           summary: 'GROUP',
-          label: 'Agent Number',
+          label: 'EMAIL',
         }),
       ],
     });
