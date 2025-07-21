@@ -33,8 +33,7 @@ define(['N/search', 'N/format'], (search, format) => {
     try {
       const eventType = context.type;
       if (
-        eventType !== context.UserEventType.CREATE &&
-        eventType !== context.UserEventType.EDIT
+        eventType !== context.UserEventType.CREATE
       ) {
         return;
       }
