@@ -5,8 +5,8 @@
  */
 
 /**
- * File name: hms_MR_addDuplicatesToAgentUpdateProjectForRegion8.js
- * Script: HMS | MR Add Agent Dup for Region 8
+ * File name: hms_MR_addDuplicatesToAgentUpdateProjectForRegion10.js
+ * Script: HMS | MR Add Agent Dup for Region 10
  * Author           Date       Version               Remarks
  * nagendrababu     02.24.2025 1.00     Initial Creation of the Script
  *
@@ -35,7 +35,7 @@ define(['N/record', 'N/search'], (record, search) => {
     return search.create({
       type: 'customrecord_agent',
       filters: [
-        ['custrecord_agent_mls_region.internalidnumber', 'equalto', '8'],
+        ['custrecord_agent_mls_region.internalidnumber', 'equalto', '10'],
         'AND',
         ['isinactive', 'is', 'F'],
       ],
@@ -201,85 +201,85 @@ define(['N/record', 'N/search'], (record, search) => {
           //
           /* ------------------------- Create Custom Record - Begin ------------------------ */
           const agentProjectUpdateRecord = record.create({
-            type: 'customrecord_hms_agent_upd_prjct_reg_8',
+            type: 'customrecord_hms_agent_upd_prjct_reg_10',
             isDynamic: true,
           });
           agentProjectUpdateRecord.setValue({
-            fieldId: 'custrecord_hms_agent_id_number_8',
+            fieldId: 'custrecord_hms_agent_id_number_10',
             value: key,
           });
           // Extracting name
           agentProjectUpdateRecord.setValue({
-            fieldId: 'custrecord_hms_agent_name_8',
+            fieldId: 'custrecord_hms_agent_name_10',
             value: name,
           });
           // Extracting MLS region
           agentProjectUpdateRecord.setValue({
-            fieldId: 'custrecord_hms_mls_region_8',
+            fieldId: 'custrecord_hms_mls_region_10',
             value: mlsRegion,
           });
           // Extracting agent's first name
           agentProjectUpdateRecord.setValue({
-            fieldId: 'custrecord_hms_first_name_8',
+            fieldId: 'custrecord_hms_first_name_10',
             value: agentFirstName,
           });
           // Extracting agent's last name
           agentProjectUpdateRecord.setValue({
-            fieldId: 'custrecord_hms_last_name_8',
+            fieldId: 'custrecord_hms_last_name_10',
             value: agentLastName,
           });
           // Extracting Email
           agentProjectUpdateRecord.setValue({
-            fieldId: 'custrecord_hms_agent_email_8',
+            fieldId: 'custrecord_hms_agent_email_10',
             value: agentEmail,
           });
           // Extracting brokerage
           agentProjectUpdateRecord.setValue({
-            fieldId: 'custrecord_hms_brokerage_name_8',
+            fieldId: 'custrecord_hms_brokerage_name_10',
             value: brokerage,
           });
           // Extracting agent's mobile number
           agentProjectUpdateRecord.setValue({
-            fieldId: 'custrecord_hms_cell_phone_8',
+            fieldId: 'custrecord_hms_cell_phone_10',
             value: agentMobileNumber,
           });
           // Extracting Agent Type
           agentProjectUpdateRecord.setValue({
-            fieldId: 'custrecord_hms_agent_type_8',
+            fieldId: 'custrecord_hms_agent_type_10',
             value: agentType,
           });
           // Extracting Last Modified
           agentProjectUpdateRecord.setValue({
-            fieldId: 'custrecord_hms_last_update_8',
+            fieldId: 'custrecord_hms_last_update_10',
             value: lastmodified,
           });
           // Extracting Prefred Call Back Number
           agentProjectUpdateRecord.setValue({
-            fieldId: 'custrecord_hms_pref_callback_8',
+            fieldId: 'custrecord_hms_pref_callback_10',
             value: callbackNumber,
           });
           // Extracting NRDS ID
           agentProjectUpdateRecord.setValue({
-            fieldId: 'custrecord_hms_nrds_8',
+            fieldId: 'custrecord_hms_nrds_10',
             value: nrdsId,
           });
           // Extracting change agent
 
           agentProjectUpdateRecord.setValue({
-            fieldId: 'custrecord_hms_latest_rets_chg_8',
+            fieldId: 'custrecord_hms_latest_rets_chg_10',
             value: changeAgent,
           });
 
           // Save the Duplicate Agent ID field
 
           agentProjectUpdateRecord.setValue({
-            fieldId: 'custrecord_hms_agent_id_dupe_8',
+            fieldId: 'custrecord_hms_agent_id_dupe_10',
             value: true,
           });
           // Extracting change agent
           if (verifiedFromRETSFeed == 'T' || verifiedFromRETSFeed == true) {
             agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_verified_from_ret_feed_8',
+              fieldId: 'custrecord_hms_verified_from_ret_feed_10',
               value: true,
             });
           } else if (
@@ -287,7 +287,7 @@ define(['N/record', 'N/search'], (record, search) => {
             verifiedFromRETSFeed == false
           ) {
             agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_verified_from_ret_feed_8',
+              fieldId: 'custrecord_hms_verified_from_ret_feed_10',
               value: false,
             });
           }
@@ -295,22 +295,22 @@ define(['N/record', 'N/search'], (record, search) => {
           if (agentInternalId) {
             // CRM Record Count
             agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_crm_record_count_8',
+              fieldId: 'custrecord_hms_crm_record_count_10',
               value: getCRMRecordCount(agentInternalId),
             });
             // Survey Count
             agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_survery_count_8',
+              fieldId: 'custrecord_hms_survery_count_10',
               value: getSurveyCount(agentInternalId),
             });
             // Sold Properties Count
             agentProjectUpdateRecord.setValue({
-              fieldId: 'custrecord_hms_sold_properties_8',
+              fieldId: 'custrecord_hms_sold_properties_10',
               value: getSoldPropertiesCount(agentInternalId),
             });
           }
           agentProjectUpdateRecord.setValue({
-            fieldId: 'custrecord_hms_orig_agt_rec_8',
+            fieldId: 'custrecord_hms_orig_agt_rec_10',
             value: agentInternalId,
           });
           const agentProjectUpdateRecordId = agentProjectUpdateRecord.save();
@@ -393,7 +393,7 @@ define(['N/record', 'N/search'], (record, search) => {
         filters: [
           ['isinactive', 'is', 'F'],
           'AND',
-          ['custrecord_agent_mls_region', 'anyof', '8'],
+          ['custrecord_agent_mls_region', 'anyof', '10'],
           'AND',
           ['internalidnumber', 'equalto', agentId],
         ],
@@ -462,7 +462,7 @@ define(['N/record', 'N/search'], (record, search) => {
         filters: [
           ['isinactive', 'is', 'F'],
           'AND',
-          ['custrecord_agent_mls_region', 'anyof', '8'],
+          ['custrecord_agent_mls_region', 'anyof', '10'],
           'AND',
           ['internalidnumber', 'equalto', agentId],
         ],
@@ -531,7 +531,7 @@ define(['N/record', 'N/search'], (record, search) => {
         filters: [
           ['isinactive', 'is', 'F'],
           'AND',
-          ['custrecord_agent_mls_region', 'anyof', '8'],
+          ['custrecord_agent_mls_region', 'anyof', '10'],
           'AND',
           ['internalidnumber', 'equalto', agentId],
         ],
