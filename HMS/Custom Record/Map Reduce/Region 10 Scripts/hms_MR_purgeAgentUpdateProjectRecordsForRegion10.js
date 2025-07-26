@@ -5,8 +5,8 @@
  */
 
 /**
- * File name: hms_MR_purgeAgentUpdateProjectRecordsForRegion8.js
- * Script: HMS | MR Purge Agent Records Region 8
+ * File name: hms_MR_purgeAgentUpdateProjectRecordsForRegion10.js
+ * Script: HMS | MR Purge Agent Records Region 10
  * Author           Date       Version               Remarks
  * nagendrababu   04.19.2025    1.00     Initial Creation Of Script
  *
@@ -26,7 +26,7 @@ define(['N/record', 'N/search'], (record, search) => {
   /* ------------------------- Get Input Data - Begin ------------------------- */
   const getInputData = () => {
     return search.create({
-      type: 'customrecord_hms_agent_upd_prjct_reg_8',
+      type: 'customrecord_hms_agent_upd_prjct_reg_10',
       filters: [['isinactive', 'is', 'F']],
       columns: [
         search.createColumn({ name: 'internalid', label: 'Internal ID' }),
@@ -56,7 +56,7 @@ define(['N/record', 'N/search'], (record, search) => {
       //
       // Delete Records
       record.delete({
-        type: 'customrecord_hms_agent_upd_prjct_reg_8',
+        type: 'customrecord_hms_agent_upd_prjct_reg_10',
         id: internalId,
       });
       //
