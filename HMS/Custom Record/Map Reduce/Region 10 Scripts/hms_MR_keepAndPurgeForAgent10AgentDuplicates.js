@@ -5,8 +5,8 @@
  */
 
 /**
- * File name: hms_MR_keepAndPurgeForAgent8AgentDuplicates.js
- * Script: HMS | MR K & P For Region 8 Agent Dup
+ * File name: hms_MR_keepAndPurgeForAgent10AgentDuplicates.js
+ * Script: HMS | MR K & P For Region 10 Agent Dup
  * Author           Date       Version               Remarks
  * nagendrababu  02.24.2025     1.00     Initial Creation of the Script.
  *
@@ -52,19 +52,19 @@ define(['N/search', 'N/record'], (search, record) => {
 
       // Key
       const agent =
-        mapContextValues.values['GROUP(custrecord_hms_agent_id_number_8)'];
+        mapContextValues.values['GROUP(custrecord_hms_agent_id_number_10)'];
       //
 
       // Values
       const reduceValues = {};
       reduceValues.crmCount = parseInt(
-        mapContextValues.values['SUM(custrecord_hms_crm_record_count_8)']
+        mapContextValues.values['SUM(custrecord_hms_crm_record_count_10)']
       );
       reduceValues.surveyCount = parseInt(
-        mapContextValues.values['SUM(custrecord_hms_survery_count_8)']
+        mapContextValues.values['SUM(custrecord_hms_survery_count_10)']
       );
       reduceValues.soldPropertiesCount = parseInt(
-        mapContextValues.values['SUM(custrecord_hms_sold_properties_8)']
+        mapContextValues.values['SUM(custrecord_hms_sold_properties_10)']
       );
       //
 
@@ -275,49 +275,49 @@ define(['N/search', 'N/record'], (search, record) => {
     try {
       // Create Search
       const customrecord_hms_agent_upd_projectSearchObj = search.create({
-        type: 'customrecord_hms_agent_upd_prjct_reg_8',
+        type: 'customrecord_hms_agent_upd_prjct_reg_10',
         filters: [
-          ['custrecord_hms_agent_id_number_8', 'is', agentId],
+          ['custrecord_hms_agent_id_number_10', 'is', agentId],
           'AND',
-          ['custrecord_hms_agent_id_dupe_8', 'is', 'T'],
+          ['custrecord_hms_agent_id_dupe_10', 'is', 'T'],
           'AND',
           ['isinactive', 'is', 'F'],
           'AND',
-          ['custrecord_hms_keep_8', 'is', 'F'],
+          ['custrecord_hms_keep_10', 'is', 'F'],
           'AND',
-          ['custrecord_hms_purge_8', 'is', 'F'],
+          ['custrecord_hms_purge_10', 'is', 'F'],
         ],
         columns: [
           search.createColumn({
-            name: 'custrecord_hms_agent_id_number_8',
+            name: 'custrecord_hms_agent_id_number_10',
             label: 'Agent ID Number',
           }),
           search.createColumn({
-            name: 'custrecord_hms_verified_from_ret_feed_8',
+            name: 'custrecord_hms_verified_from_ret_feed_10',
             label: 'VERIFIED FROM RETS FEED',
           }),
           search.createColumn({
-            name: 'custrecord_hms_crm_record_count_8',
+            name: 'custrecord_hms_crm_record_count_10',
             label: 'CRM Record Count',
           }),
           search.createColumn({
-            name: 'custrecord_hms_survery_count_8',
+            name: 'custrecord_hms_survery_count_10',
             label: 'Survey Count',
           }),
           search.createColumn({
-            name: 'custrecord_hms_sold_properties_8',
+            name: 'custrecord_hms_sold_properties_10',
             label: 'Sold Properties',
           }),
           search.createColumn({
-            name: 'custrecord_hms_first_name_8',
+            name: 'custrecord_hms_first_name_10',
             label: 'First Name',
           }),
           search.createColumn({
-            name: 'custrecord_hms_last_name_8',
+            name: 'custrecord_hms_last_name_10',
             label: 'Last Name',
           }),
           search.createColumn({
-            name: 'custrecord_hms_last_update_8',
+            name: 'custrecord_hms_last_update_10',
             label: 'Last Update',
           }),
         ],
@@ -331,22 +331,22 @@ define(['N/search', 'N/record'], (search, record) => {
           let resultObj = {};
           resultObj.id = result.id;
           resultObj.agentIdNumber = result.getValue(
-            'custrecord_hms_agent_id_number_8'
+            'custrecord_hms_agent_id_number_10'
           );
           resultObj.verifiedFromRETSFeeds = result.getValue(
-            'custrecord_hms_verified_from_ret_feed_8'
+            'custrecord_hms_verified_from_ret_feed_10'
           );
           resultObj.cCount = result.getValue(
-            'custrecord_hms_crm_record_count_8'
+            'custrecord_hms_crm_record_count_10'
           );
-          resultObj.sCount = result.getValue('custrecord_hms_survery_count_8');
+          resultObj.sCount = result.getValue('custrecord_hms_survery_count_10');
           resultObj.spCount = result.getValue(
-            'custrecord_hms_sold_properties_8'
+            'custrecord_hms_sold_properties_10'
           );
-          resultObj.firstName = result.getValue('custrecord_hms_first_name_8');
-          resultObj.lastName = result.getValue('custrecord_hms_last_name_8');
+          resultObj.firstName = result.getValue('custrecord_hms_first_name_10');
+          resultObj.lastName = result.getValue('custrecord_hms_last_name_10');
           resultObj.lastUpdate = result.getValue(
-            'custrecord_hms_last_update_8'
+            'custrecord_hms_last_update_10'
           );
           resultValuesArr.push(resultObj);
           return true;
@@ -374,13 +374,13 @@ define(['N/search', 'N/record'], (search, record) => {
     const loggerTitle = ' Search Agent Duplicates With Two Records ';
     log.debug(loggerTitle, ' Search Started');
     return search.create({
-      type: 'customrecord_hms_agent_upd_prjct_reg_8',
+      type: 'customrecord_hms_agent_upd_prjct_reg_10',
       filters: [
-        ['custrecord_hms_agent_id_dupe_8', 'is', 'T'],
+        ['custrecord_hms_agent_id_dupe_10', 'is', 'T'],
         'AND',
-        ['custrecord_hms_keep_8', 'is', 'F'],
+        ['custrecord_hms_keep_10', 'is', 'F'],
         'AND',
-        ['custrecord_hms_purge_8', 'is', 'F'],
+        ['custrecord_hms_purge_10', 'is', 'F'],
         'AND',
         ['isinactive', 'is', 'F'],
         'AND',
@@ -388,32 +388,32 @@ define(['N/search', 'N/record'], (search, record) => {
       ],
       columns: [
         search.createColumn({
-          name: 'custrecord_hms_agent_id_dupe_8',
+          name: 'custrecord_hms_agent_id_dupe_10',
           summary: 'GROUP',
           label: 'Agent Duplicate',
         }),
         search.createColumn({
-          name: 'custrecord_hms_mls_region_8',
+          name: 'custrecord_hms_mls_region_10',
           summary: 'GROUP',
           label: 'MLS Region',
         }),
         search.createColumn({
-          name: 'custrecord_hms_crm_record_count_8',
+          name: 'custrecord_hms_crm_record_count_10',
           summary: 'SUM',
           label: 'CRM Record Count',
         }),
         search.createColumn({
-          name: 'custrecord_hms_survery_count_8',
+          name: 'custrecord_hms_survery_count_10',
           summary: 'SUM',
           label: 'Survey Count',
         }),
         search.createColumn({
-          name: 'custrecord_hms_sold_properties_8',
+          name: 'custrecord_hms_sold_properties_10',
           summary: 'SUM',
           label: 'Sold Properties',
         }),
         search.createColumn({
-          name: 'custrecord_hms_agent_id_number_8',
+          name: 'custrecord_hms_agent_id_number_10',
           summary: 'GROUP',
           label: 'Agent Number',
         }),
@@ -439,21 +439,21 @@ define(['N/search', 'N/record'], (search, record) => {
     try {
       if (customRecordId && flag == 'purge') {
         record.submitFields({
-          type: 'customrecord_hms_agent_upd_prjct_reg_8',
+          type: 'customrecord_hms_agent_upd_prjct_reg_10',
           id: customRecordId,
           values: {
-            custrecord_hms_purge_8: true,
-            custrecord_hms_keep_8: false,
+            custrecord_hms_purge_10: true,
+            custrecord_hms_keep_10: false,
           },
         });
         log.debug(loggerTitle, `Updated ID: ${customRecordId} for ${flag}`);
       } else if (customRecordId && flag == 'keep') {
         record.submitFields({
-          type: 'customrecord_hms_agent_upd_prjct_reg_8',
+          type: 'customrecord_hms_agent_upd_prjct_reg_10',
           id: customRecordId,
           values: {
-            custrecord_hms_keep_8: true,
-            custrecord_hms_purge_8: false,
+            custrecord_hms_keep_10: true,
+            custrecord_hms_purge_10: false,
           },
         });
         log.debug(loggerTitle, `Updated ID: ${customRecordId} for ${flag}`);
