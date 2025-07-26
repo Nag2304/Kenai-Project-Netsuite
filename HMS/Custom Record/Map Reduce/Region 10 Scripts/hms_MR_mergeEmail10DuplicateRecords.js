@@ -5,8 +5,8 @@
  */
 
 /**
- * File name: hms_MR_mergeEmail8DuplicateRecords.js
- * Script: HMS | MR Merge Email 8 Duplicate Records
+ * File name: hms_MR_mergeEmail10DuplicateRecords.js
+ * Script: HMS | MR Merge Email 10 Duplicate Records
  * Author           Date       Version               Remarks
  * nagendrababu  04.19.2025      1.00     Initial Creation of the Script.
  *
@@ -47,7 +47,7 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
       //
       // Read the Values
       const email =
-        reduceContextValues.values['GROUP(custrecord_hms_agent_email_8)'];
+        reduceContextValues.values['GROUP(custrecord_hms_agent_email_10)'];
       log.debug(loggerTitle, `Email ID:${email}`);
       //
       if (email) {
@@ -113,33 +113,33 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
 
     const scriptObj = runtime.getCurrentScript();
     const emailIdParameter = scriptObj.getParameter({
-      name: 'custscript_hms_emailid8',
+      name: 'custscript_hms_emailid10',
     });
 
     let filtersArr;
 
     if (emailIdParameter) {
       filtersArr = [
-        ['custrecord_hms_email_dupe_8', 'is', 'T'],
+        ['custrecord_hms_email_dupe_10', 'is', 'T'],
         'AND',
         ['isinactive', 'is', 'F'],
         'AND',
-        ['custrecord_hms_agent_email_8', 'is', emailIdParameter],
+        ['custrecord_hms_agent_email_10', 'is', emailIdParameter],
       ];
     } else {
       filtersArr = [
-        ['custrecord_hms_email_dupe_8', 'is', 'T'],
+        ['custrecord_hms_email_dupe_10', 'is', 'T'],
         'AND',
         ['isinactive', 'is', 'F'],
       ];
     }
 
     return search.create({
-      type: 'customrecord_hms_agent_upd_prjct_reg_8',
+      type: 'customrecord_hms_agent_upd_prjct_reg_10',
       filters: filtersArr,
       columns: [
         search.createColumn({
-          name: 'custrecord_hms_agent_email_8',
+          name: 'custrecord_hms_agent_email_10',
           summary: 'GROUP',
           label: 'Email',
         }),
@@ -176,54 +176,54 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
     };
     try {
       customAgentUpdateProjectSearchObj = search.create({
-        type: 'customrecord_hms_agent_upd_prjct_reg_8',
+        type: 'customrecord_hms_agent_upd_prjct_reg_10',
         filters: [
-          ['custrecord_hms_agent_email_8', 'is', email],
+          ['custrecord_hms_agent_email_10', 'is', email],
           'AND',
-          ['custrecord_hms_email_dupe_8', 'is', 'T'],
+          ['custrecord_hms_email_dupe_10', 'is', 'T'],
           'AND',
           ['isinactive', 'is', 'F'],
         ],
         columns: [
           search.createColumn({
-            name: 'custrecord_hms_agent_id_number_8',
+            name: 'custrecord_hms_agent_id_number_10',
             label: 'Agent ID Number',
           }),
           search.createColumn({
-            name: 'custrecord_hms_nrds_8',
+            name: 'custrecord_hms_nrds_10',
             label: 'NRDS',
           }),
           search.createColumn({
-            name: 'custrecord_hms_agent_name_8',
+            name: 'custrecord_hms_agent_name_10',
             label: 'Name',
           }),
           search.createColumn({
-            name: 'custrecord_hms_keep_8',
+            name: 'custrecord_hms_keep_10',
             label: 'Keep',
             sort: search.Sort.DESC,
           }),
           search.createColumn({
-            name: 'custrecord_hms_purge_8',
+            name: 'custrecord_hms_purge_10',
             label: 'Purge',
           }),
           search.createColumn({
-            name: 'custrecord_hms_crm_record_count_8',
+            name: 'custrecord_hms_crm_record_count_10',
             label: 'CRM Record Count',
           }),
           search.createColumn({
-            name: 'custrecord_hms_survery_count_8',
+            name: 'custrecord_hms_survery_count_10',
             label: 'Survey Count',
           }),
           search.createColumn({
-            name: 'custrecord_hms_sold_properties_8',
+            name: 'custrecord_hms_sold_properties_10',
             label: 'Sold Properties',
           }),
           search.createColumn({
-            name: 'custrecord_hms_brokerage_name_8',
+            name: 'custrecord_hms_brokerage_name_10',
             label: 'brokerage name',
           }),
           search.createColumn({
-            name: 'custrecord_hms_orig_agt_rec_8',
+            name: 'custrecord_hms_orig_agt_rec_10',
             label: 'Original Agent Record',
           }),
         ],
@@ -236,24 +236,24 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
         const internalId = result.id;
         // Get Agent ID
         const agentIdNumber = result.getValue(
-          'custrecord_hms_agent_id_number_8'
+          'custrecord_hms_agent_id_number_10'
         );
-        const name = result.getValue('custrecord_hms_brokerage_name_8');
+        const name = result.getValue('custrecord_hms_brokerage_name_10');
         const agentName = removeSpecialCharacters(
-          result.getValue('custrecord_hms_agent_name_8')
+          result.getValue('custrecord_hms_agent_name_10')
         );
         log.debug(loggerTitle + ' Before callng the getAgent Record ID', {
           agentIdNumber,
           name,
         });
-        const agentId = result.getValue('custrecord_hms_orig_agt_rec_8');
+        const agentId = result.getValue('custrecord_hms_orig_agt_rec_10');
         //
-        const keep = result.getValue('custrecord_hms_keep_8');
-        const purge = result.getValue('custrecord_hms_purge_8');
-        const nrdsId = result.getValue('custrecord_hms_nrds_8');
-        const crmCount = result.getValue('custrecord_hms_crm_record_count_8');
+        const keep = result.getValue('custrecord_hms_keep_10');
+        const purge = result.getValue('custrecord_hms_purge_10');
+        const nrdsId = result.getValue('custrecord_hms_nrds_10');
+        const crmCount = result.getValue('custrecord_hms_crm_record_count_10');
         const soldPropertiesCount = result.getValue(
-          'custrecord_hms_sold_properties_8'
+          'custrecord_hms_sold_properties_10'
         );
         const surveyCount = result.getValue('custrecord_hms_survery_count');
         // If Previous NRDS ID is Null and Current NRDS ID has value && Purge is true
@@ -413,17 +413,17 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
     try {
       if (flag == 'A') {
         record.submitFields({
-          type: 'customrecord_hms_agent_upd_prjct_reg_8',
+          type: 'customrecord_hms_agent_upd_prjct_reg_10',
           id: id,
           values: {
-            custrecord_hms_nrds_8: nrdsId,
+            custrecord_hms_nrds_10: nrdsId,
           },
         });
         log.debug(loggerTitle, `Updated ID: ${id} with NRDS ID:${nrdsId}`);
         updateFlag = true;
       } else if (flag == 'I') {
         record.submitFields({
-          type: 'customrecord_hms_agent_upd_prjct_reg_8',
+          type: 'customrecord_hms_agent_upd_prjct_reg_10',
           id: id,
           values: {
             isinactive: true,
