@@ -378,11 +378,11 @@ define(['N/search', 'N/record'], (search, record) => {
       filters: [
         ['custrecord_hms_email_dupe_10', 'is', 'T'],
         'AND',
-        ['isinactive', 'is', 'F'],
-        'AND',
         ['custrecord_hms_keep_10', 'is', 'F'],
         'AND',
-        ['custrecordhms_purge_10', 'is', 'F'],
+        ['custrecord_hms_purge_10', 'is', 'F'],
+        'AND',
+        ['isinactive', 'is', 'F'],
         'AND',
         ['count(internalid)', 'equalto', '2'],
       ],
@@ -393,14 +393,9 @@ define(['N/search', 'N/record'], (search, record) => {
           label: 'Email ID Duplicate',
         }),
         search.createColumn({
-          name: 'custrecord_hms_mls_region_10',
+          name: 'custrecord_hms_agent_email_10',
           summary: 'GROUP',
-          label: 'MLS Region',
-        }),
-        search.createColumn({
-          name: 'custrecord_hms_crm_record_count_10',
-          summary: 'SUM',
-          label: 'CRM Record Count',
+          label: 'EMAIL',
         }),
         search.createColumn({
           name: 'custrecord_hms_survery_count_10',
@@ -408,14 +403,19 @@ define(['N/search', 'N/record'], (search, record) => {
           label: 'Survey Count',
         }),
         search.createColumn({
-          name: 'custrecord_hms_sold_properties_10',
+          name: 'custrecord_hms_crm_record_count_10',
           summary: 'SUM',
-          label: 'Sold Properties',
+          label: 'CRM Record Count',
         }),
         search.createColumn({
-          name: 'custrecord_hms_agent_email_10',
+          name: 'custrecord_hms_sold_properties_10',
+          summary: 'SUM',
+          label: 'Sold Properties Count',
+        }),
+        search.createColumn({
+          name: 'custrecord_hms_mls_region_10',
           summary: 'GROUP',
-          label: 'EMAIL',
+          label: 'MLS Region',
         }),
       ],
     });
