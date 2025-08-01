@@ -2,9 +2,11 @@
  *@NApiVersion 2.0
  *@NScriptType ClientScript
  */
-define([], function () {
+/*global define,log*/
+define(['N/search'], function (search) {
   /* ------------------------ Global Variables - Begin ------------------------ */
   var exports = {};
+  var type = '';
   /* ------------------------- Global Variables - End ------------------------- */
   //
   /* --------------------------- pageInit - Begin -------------------------- */
@@ -12,6 +14,7 @@ define([], function () {
     var strLoggerTitle = 'Page Init';
     log.debug(strLoggerTitle, '|>------------------Entry------------------<|');
     //
+    type = scriptContext.mode;
     if (scriptContext.mode === 'edit') {
       var newRecord = scriptContext.currentRecord;
       var discLineNumber = newRecord.findSublistLineWithValue({
@@ -36,32 +39,115 @@ define([], function () {
   //
   /* -------------------------- FieldChanged - Begin -------------------------- */
   function fieldChanged(scriptContext) {
-    var strLoggerTitle = 'Page Init';
+    var strLoggerTitle = 'Field Changed';
     log.debug(strLoggerTitle, '|>------------------Entry------------------<|');
-    //
     try {
       var currentRecord = scriptContext.currentRecord;
       var fieldId = scriptContext.fieldId;
 
-      if (fieldId === 'custbody_ex_factory_date') {
-        var exFactoryDate = currentRecord.getValue({
-          fieldId: 'custbody_ex_factory_date',
+      // Only execute in edit mode
+      if (type !== 'edit') {
+        log.debug(strLoggerTitle, 'Skipping: Not in edit mode');
+        return;
+      }
+
+      // Handle changes to Receive By Date (duedate)
+      if (fieldId === 'duedate') {
+        var receiveByDate = currentRecord.getValue({
+          fieldId: 'duedate',
         });
 
-        if (exFactoryDate) {
-          var receiveByDate = new Date(exFactoryDate);
-          receiveByDate.setDate(receiveByDate.getDate() + 60); // Adding 60 days
-
-          currentRecord.setValue({
-            fieldId: 'duedate',
-            value: receiveByDate,
-          });
+        if (!receiveByDate) {
+          log.debug(strLoggerTitle, 'No Receive By Date set');
+          return;
         }
+
+        // Get location from the first item line
+        var locationId = currentRecord.getSublistValue({
+          sublistId: 'item',
+          fieldId: 'location',
+          line: 0,
+        });
+
+        if (!locationId) {
+          log.debug(strLoggerTitle, 'No location found on line 1');
+          return;
+        }
+
+        // Get vendor ID
+        var vendorId = currentRecord.getValue({
+          fieldId: 'entity',
+        });
+
+        if (!vendorId) {
+          log.debug(strLoggerTitle, 'No vendor selected');
+          return;
+        }
+
+        // Use N/search to lookup vendor lead times
+        var vendorFields = search.lookupFields({
+          type: search.Type.VENDOR,
+          id: vendorId,
+          columns: ['custentity_whq_lead_time', 'custentity_tbf_lead_time'],
+        });
+
+        var leadDays = 0;
+        if (
+          locationId === '115' &&
+          vendorFields.custentity_whq_lead_time &&
+          vendorFields.custentity_whq_lead_time.length
+        ) {
+          leadDays = parseInt(
+            vendorFields.custentity_whq_lead_time[0].text,
+            10
+          );
+        } else if (
+          locationId === '1' &&
+          vendorFields.custentity_tbf_lead_time &&
+          vendorFields.custentity_tbf_lead_time.length
+        ) {
+          leadDays = parseInt(
+            vendorFields.custentity_tbf_lead_time[0].text,
+            10
+          );
+        }
+
+        if (!leadDays || isNaN(leadDays)) {
+          log.debug(
+            strLoggerTitle,
+            'No valid lead time found for this location/vendor combo'
+          );
+          return;
+        }
+
+        // Calculate Ex-Factory Date
+        var exFactoryDate = new Date(receiveByDate);
+        exFactoryDate.setDate(exFactoryDate.getDate() - leadDays);
+
+        // Set Ex-Factory Date
+        currentRecord.setValue({
+          fieldId: 'custbody_ex_factory_date',
+          value: exFactoryDate,
+        });
+
+        log.audit(
+          strLoggerTitle,
+          'Ex-Factory Date set to ' +
+            exFactoryDate +
+            ' based on lead time ' +
+            leadDays +
+            ' days'
+        );
+      }
+
+      // Handle manual changes to Ex-Factory Date
+      if (fieldId === 'custbody_ex_factory_date') {
+        log.debug(strLoggerTitle, 'Ex-Factory Date manually updated');
+        // No action needed as manual updates should not affect duedate
       }
     } catch (error) {
       log.error(strLoggerTitle + ' caught with an exception', error);
     }
-    //
     log.debug(strLoggerTitle, '|>------------------Exit------------------<|');
   }
   /* --------------------------- FieldChanged - End --------------------------- */
