@@ -70,18 +70,18 @@ define(['N/record'], (record) => {
           fieldId: 'shippingcost',
         });
         // Sales Channel = Indie
-        if (
-          salesChannel == '5' &&
-          soAmount > 0 &&
-          soAmount >= 250 &&
-          soAmount < 500 &&
-          !currentShippingCost
-        ) {
-          salesOrderRecord.setValue({
-            fieldId: 'shippingcost',
-            value: 19.95,
-          });
-        }
+        // if (
+        //   salesChannel == '5' &&
+        //   soAmount > 0 &&
+        //   soAmount >= 250 &&
+        //   soAmount < 500 &&
+        //   !currentShippingCost
+        // ) {
+        //   salesOrderRecord.setValue({
+        //     fieldId: 'shippingcost',
+        //     value: 19.95,
+        //   });
+        // }
       }
 
       //
