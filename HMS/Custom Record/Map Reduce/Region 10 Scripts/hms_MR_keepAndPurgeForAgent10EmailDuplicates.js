@@ -285,7 +285,7 @@ define(['N/search', 'N/record'], (search, record) => {
           'AND',
           ['custrecord_hms_keep_10', 'is', 'F'],
           'AND',
-          ['custrecordhms_purge_10', 'is', 'F'],
+          ['custrecord_hms_purge_10', 'is', 'F'],
         ],
         columns: [
           search.createColumn({
@@ -442,7 +442,7 @@ define(['N/search', 'N/record'], (search, record) => {
           type: 'customrecord_hms_agent_upd_prjct_reg_10',
           id: customRecordId,
           values: {
-            custrecordhms_purge_10: true,
+            custrecord_hms_purge_10: true,
             custrecord_hms_keep_10: false,
           },
         });
@@ -453,7 +453,7 @@ define(['N/search', 'N/record'], (search, record) => {
           id: customRecordId,
           values: {
             custrecord_hms_keep_10: true,
-            custrecordhms_purge_10: false,
+            custrecord_hms_purge_10: false,
           },
         });
         log.debug(loggerTitle, `Updated ID: ${customRecordId} for ${flag}`);
