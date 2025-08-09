@@ -140,10 +140,31 @@ define(['N/search'], function (search) {
         );
       }
 
-      // Handle manual changes to Ex-Factory Date
+      // Handle manual changes to Ex-Factory Date and update Receive By Date if checkbox is true
       if (fieldId === 'custbody_ex_factory_date') {
         log.debug(strLoggerTitle, 'Ex-Factory Date manually updated');
-        // No action needed as manual updates should not affect duedate
+        var updateRecByDate = currentRecord.getValue({
+          fieldId: 'custbody_wdym_update_rec_date',
+        });
+        if (updateRecByDate) {
+          var exFactoryDate = currentRecord.getValue({
+            fieldId: 'custbody_ex_factory_date',
+          });
+          var newReceiveByDate = new Date(exFactoryDate);
+          newReceiveByDate.setDate(newReceiveByDate.getDate() + leadDays);
+          currentRecord.setValue({
+            fieldId: 'duedate',
+            value: newReceiveByDate,
+          });
+          log.audit(
+            strLoggerTitle,
+            'Receive By Date updated to ' +
+              newReceiveByDate +
+              ' based on Ex-Factory Date and lead time ' +
+              leadDays +
+              ' days'
+          );
+        }
       }
     } catch (error) {
       log.error(strLoggerTitle + ' caught with an exception', error);

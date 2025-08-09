@@ -20,6 +20,7 @@ define(['N/search', 'N/format'], (search, format) => {
   const FIELD_WHQ_LEADTIME = 'custentity_whq_lead_time';
   const FIELD_TBF_LEADTIME = 'custentity_tbf_lead_time';
   const FIELD_EX_FACTORY_DATE = 'custbody_ex_factory_date';
+  const FIELD_UPDATE_REC_BY_DATE = 'custbody_wdym_update_rec_date';
   /* ------------------------- Global Variables - End ------------------------- */
   //
   /* ---------------------- Set PO Exfactory Date - Begin --------------------- */
@@ -32,9 +33,7 @@ define(['N/search', 'N/format'], (search, format) => {
     //
     try {
       const eventType = context.type;
-      if (
-        eventType !== context.UserEventType.CREATE
-      ) {
+      if (eventType !== context.UserEventType.CREATE) {
         return;
       }
       const newRec = context.newRecord;
@@ -116,25 +115,49 @@ define(['N/search', 'N/format'], (search, format) => {
         return false;
       }
 
-      const exFactoryDate = new Date(receiveByDate);
-      exFactoryDate.setDate(exFactoryDate.getDate() - leadDays);
-
-      // No need to format date before setting it
-      newRec.setValue({
-        fieldId: FIELD_EX_FACTORY_DATE,
-        value: exFactoryDate,
+      const updateRecByDate = newRec.getValue({
+        fieldId: FIELD_UPDATE_REC_BY_DATE,
       });
 
-      const logDate = format.format({
-        value: exFactoryDate,
-        type: format.Type.DATE,
-      });
+      if (updateRecByDate) {
+        const exFactoryDate = new Date(receiveByDate);
+        exFactoryDate.setDate(exFactoryDate.getDate() - leadDays);
 
-      log.audit(
-        loggerTitle,
-        `Ex Factory Date Updated',
-        Set to ${logDate} based on location ${locationId} and lead time ${leadDays} days`
-      );
+        newRec.setValue({
+          fieldId: FIELD_EX_FACTORY_DATE,
+          value: exFactoryDate,
+        });
+
+        const logDate = format.format({
+          value: exFactoryDate,
+          type: format.Type.DATE,
+        });
+
+        log.audit(
+          loggerTitle,
+          `Ex Factory Date Updated',
+          Set to ${logDate} based on location ${locationId} and lead time ${leadDays} days`
+        );
+      } else {
+        const exFactoryDate = new Date(receiveByDate);
+        exFactoryDate.setDate(exFactoryDate.getDate() - leadDays);
+
+        newRec.setValue({
+          fieldId: FIELD_EX_FACTORY_DATE,
+          value: exFactoryDate,
+        });
+
+        const logDate = format.format({
+          value: exFactoryDate,
+          type: format.Type.DATE,
+        });
+
+        log.audit(
+          loggerTitle,
+          `Ex Factory Date Updated',
+          Set to ${logDate} based on location ${locationId} and lead time ${leadDays} days`
+        );
+      }
     } catch (error) {
       log.error(loggerTitle + ' caught with an exception', error);
     }
