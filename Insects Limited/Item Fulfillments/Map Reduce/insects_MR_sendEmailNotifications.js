@@ -124,6 +124,7 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
       values.createdFromInternalId =
         searchResult.values['internalid.createdFrom'].value;
       values.createdFromTranId = searchResult.values['tranid.createdFrom'];
+      values.ifId = searchResult.id;
       // Write Key & Values
       mapContext.write({
         key: key,
@@ -204,13 +205,26 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
         let content = emailTemplate.getValue({ fieldId: 'content' });
         content = content.replace('{tranid}', tranId);
         content = content.replace('{otherrefnum}', poCheckNumber);
+        // Determine public carrier tracking link if possible
+        let trackingUrl = getCarrierTrackingUrl(trackingNumber);
+
+        // If no public link found, fallback to NetSuite tracker using trackingnumberkey
+        if (!trackingUrl) {
+          const trackingNumberKey = getTrackingNumberKey(
+            eachValue.ifId,
+            trackingNumber
+          );
+          if (trackingNumberKey) {
+            trackingUrl =
+              'https://5749557.app.netsuite.com/app/common/shipping/packagetracker.nl?id=' +
+              trackingNumberKey;
+          }
+        }
+
+        // Replace token in email template
         content = content.replace(
           '{linkedtrackingnumbers}',
-          '<a href="https://5749557.app.netsuite.com/app/common/shipping/packagetracker.nl?type=ups&TypeOfInquiryNumber=T&InquiryNumber1=' +
-            trackingNumber +
-            '" target="_blank">' +
-            trackingNumber +
-            '</a>'
+          `<a href="${trackingUrl}" target="_blank">${trackingNumber}</a>`
         );
 
         content = content.replace('{actualshipdate}', ifDate);
@@ -339,6 +353,89 @@ define(['N/search', 'N/email', 'N/record', 'N/runtime'], (
   };
   /* ------------------------- Summarize Phase - End ------------------------ */
   //
+  /**
+   * Retrieves the trackingnumberkey from the package sublist by matching trackingNumber.
+   * @param {number} ifId - Internal ID of the Item Fulfillment record.
+   * @param {string} trackingNumber - Tracking number to match.
+   * @returns {string|null} trackingnumberkey or null if not found.
+   */
+  const getTrackingNumberKey = (ifId, trackingNumber) => {
+    const loggerTitle = 'Get Tracking Number Key';
+    log.debug(loggerTitle, `|>---- ${loggerTitle} - Entry ----<|`);
+    let trackingNumberKey = null;
+
+    try {
+      const ifRec = record.load({
+        type: record.Type.ITEM_FULFILLMENT,
+        id: ifId,
+        isDynamic: false,
+      });
+
+      const lineCount = ifRec.getLineCount({ sublistId: 'package' });
+
+      for (let i = 0; i < lineCount; i++) {
+        const pkgTrackingNum = ifRec.getSublistValue({
+          sublistId: 'package',
+          fieldId: 'trackingnumber',
+          line: i,
+        });
+
+        if (pkgTrackingNum && pkgTrackingNum === trackingNumber) {
+          trackingNumberKey = ifRec.getSublistValue({
+            sublistId: 'package',
+            fieldId: 'trackingnumberkey',
+            line: i,
+          });
+          break;
+        }
+      }
+    } catch (error) {
+      log.error(loggerTitle, error);
+    }
+
+    log.debug(loggerTitle, `Tracking Number Key found: ${trackingNumberKey}`);
+    log.debug(loggerTitle, `|>---- ${loggerTitle} - Exit ----<|`);
+    return trackingNumberKey;
+  };
+
+  /**
+   * Returns the carrier tracking URL based on tracking number prefix or pattern.
+   * @param {string} trackingNumber
+   * @returns {string|null} Fully qualified tracking URL or null if no match.
+   */
+  const getCarrierTrackingUrl = (trackingNumber) => {
+    if (!trackingNumber) return null;
+
+    const tn = trackingNumber.trim().toUpperCase();
+
+    // UPS: starts with 1Z
+    if (tn.startsWith('1Z')) {
+      return `https://www.ups.com/track?tracknum=${encodeURIComponent(tn)}`;
+    }
+
+    // FedEx: Numeric (12, 15, or 20 digits)
+    if (/^\d{12}$/.test(tn) || /^\d{15}$/.test(tn) || /^\d{20}$/.test(tn)) {
+      return `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(
+        tn
+      )}`;
+    }
+
+    // USPS: 20–22 digits or certain starting codes
+    if (/^\d{20,22}$/.test(tn) || /^(94|93|92|94|70|23|03)/.test(tn)) {
+      return `https://tools.usps.com/go/TrackConfirmAction?qtc_tLabels1=${encodeURIComponent(
+        tn
+      )}`;
+    }
+
+    // DHL: starts with 3S, JVGL, or 10-digit numeric
+    if (/^(3S|JVGL)/.test(tn) || /^\d{10}$/.test(tn)) {
+      return `https://www.dhl.com/en/express/tracking.html?AWB=${encodeURIComponent(
+        tn
+      )}&brand=DHL`;
+    }
+
+    return null; // No match found
+  };
 
   /* ----------------------------- Exports - Begin ---------------------------- */
   exports.getInputData = getInputData;
