@@ -18,7 +18,7 @@
 
 /* global define,log*/
 
-define(['N/search', 'N/record'], (search, record) => {
+define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -32,16 +32,33 @@ define(['N/search', 'N/record'], (search, record) => {
     const loggerTitle = 'getInputData';
     log.debug(loggerTitle, 'Fetching duplicate streets via saved search');
 
-    // 🔎 Saved Search: Summary search to identify duplicate streets
-    return search.create({
-      type: 'customrecord_street_name',
-      filters: [
-        ['custrecord_subdivision.internalidnumber', 'equalto', '2712'],
+    const scriptObj = runtime.getCurrentScript();
+    const subDivisionId = scriptObj.getParameter({
+      name: 'custscript_hms_subdivision_id',
+    });
+
+    let filtersArr = '';
+
+    if (subDivisionId) {
+      filtersArr = [
+        ['custrecord_subdivision.internalidnumber', 'equalto', subDivisionId],
         'AND',
         ['custrecord_hsm_primary_street', 'is', 'F'], // not primary
         'AND',
         ['count(internalid)', 'greaterthan', '1'], // duplicates only
-      ],
+      ];
+    } else {
+      filtersArr = [
+        ['custrecord_hsm_primary_street', 'is', 'F'], // not primary
+        'AND',
+        ['count(internalid)', 'greaterthan', '1'], // duplicates only
+      ];
+    }
+
+    // 🔎 Saved Search: Summary search to identify duplicate streets
+    return search.create({
+      type: 'customrecord_street_name',
+      filters: filtersArr,
       columns: [
         search.createColumn({
           name: 'custrecord_subdivision',
@@ -133,7 +150,7 @@ define(['N/search', 'N/record'], (search, record) => {
       const primaryStreetId = streetIds[0];
       const duplicateStreetIds = streetIds.slice(1);
 
-      // 3. Mark the primary street
+      // 3. Mark the primary street (only the first one)
       if (!markAsPrimary(primaryStreetId)) {
         log.error(
           loggerTitle,
@@ -142,9 +159,9 @@ define(['N/search', 'N/record'], (search, record) => {
         return;
       }
 
-      // 4. Get property records for duplicate streets and update to primary
+      // 4. Get property records for all duplicate streets and update to primary
       let allPropertyIds = [];
-      duplicateStreetIds.forEach((sid) => {
+      streetIds.forEach((sid) => {
         const propertyIds = getPropertyRecords(sid);
         allPropertyIds = allPropertyIds.concat(propertyIds);
       });
@@ -180,7 +197,7 @@ define(['N/search', 'N/record'], (search, record) => {
         }
       });
 
-      // 6. Mark duplicate streets as inactive
+      // 6. Mark all duplicate streets as inactive (except the primary)
       duplicateStreetIds.forEach((sid) => {
         if (!markAsInactive(sid)) {
           log.error(
