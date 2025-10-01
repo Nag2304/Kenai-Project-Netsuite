@@ -98,30 +98,55 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
-    //
     try {
       const searchResult = JSON.parse(mapContext.value);
       log.debug(loggerTitle + ' After Parsing Results', searchResult);
+
+      // Box type
+      const boxType =
+        searchResult.values[
+          'custrecord_spkg_pack_material.CUSTRECORD_SPKG_ITEM_FULFILLMENT'
+        ].text;
+
+      // Package content data JSON string
+      const packageContentRaw =
+        searchResult.values[
+          'custrecord_spkg_package_content.CUSTRECORD_SPKG_ITEM_FULFILLMENT'
+        ];
+      let boxQty = 0;
+
+      if (packageContentRaw) {
+        try {
+          const parsed = JSON.parse(packageContentRaw);
+          if (Array.isArray(parsed)) {
+            boxQty = parsed.length; // ✅ number of boxes = array length
+          }
+        } catch (e) {
+          log.error(loggerTitle + ' JSON parse error (packageContent)', {
+            raw: packageContentRaw,
+            e,
+          });
+        }
+      }
+
       const values = {
-        id: searchResult.id,
-        boxType:
-          searchResult.values[
-            'custrecord_spkg_pack_material.CUSTRECORD_SPKG_ITEM_FULFILLMENT'
-          ].text,
+        fulfillmentId: searchResult.id,
+        boxType: boxType,
+        boxQty: boxQty,
       };
+
       mapContext.write({ key: 'ALL_BOXES', value: values });
       log.debug(loggerTitle + ' Key & Value Pairs', ['ALL_BOXES', values]);
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
-    //
     log.audit(
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
     );
   };
   /* ----------------------------- Map Phase - End ---------------------------- */
-  //
+
   /* -------------------------- Reduce Phase - Begin -------------------------- */
   /**
    *
@@ -133,38 +158,74 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
     );
-    //
     try {
-      const values = reduceContext.values.map(JSON.parse);
-      log.debug(loggerTitle + ' Values', values);
+      // Parse values from map phase safely
+      const rows = reduceContext.values
+        .map((v) => {
+          try {
+            return JSON.parse(v);
+          } catch (e) {
+            log.error(`${loggerTitle} JSON parse error`, { v, e });
+            return null;
+          }
+        })
+        .filter(Boolean);
+
       const boxTypeCounts = {};
       const itemFulfillmentIds = new Set();
 
-      values.forEach((entry) => {
-        const boxType = entry.boxType;
-        boxTypeCounts[boxType] = (boxTypeCounts[boxType] || 0) + 1;
-        itemFulfillmentIds.add(entry.id);
+      rows.forEach((entry) => {
+        const fulfillmentId = entry && entry.fulfillmentId;
+        const rawBoxType = entry && entry.boxType;
+        const boxQty = entry && entry.boxQty;
+
+        if (!fulfillmentId || !rawBoxType) {
+          log.debug(`${loggerTitle} Skipping row without id/boxType`, entry);
+          return;
+        }
+
+        const boxType = String(rawBoxType).trim();
+
+        // ✅ accumulate actual box quantity
+        boxTypeCounts[boxType] = (boxTypeCounts[boxType] || 0) + (boxQty || 0);
+
+        // Track IF ids for update
+        itemFulfillmentIds.add(fulfillmentId);
       });
-      log.debug(loggerTitle + ' Box type counts', boxTypeCounts);
 
+      log.audit(`${loggerTitle} Box type counts (summed)`, boxTypeCounts);
+      log.audit(
+        `${loggerTitle} Item Fulfillment IDs`,
+        Array.from(itemFulfillmentIds)
+      );
+
+      // ✅ Step 1: Create Inventory Adjustment
       const invAdjId = createInventoryAdjustment(boxTypeCounts);
-      log.debug(loggerTitle, 'Inventory Adjustment ID: ' + invAdjId);
+      log.audit(loggerTitle, `Inventory Adjustment created: ${invAdjId}`);
 
-      if (invAdjId > 0) {
-        itemFulfillmentIds.forEach((id) => {
-          updateItemFulfillment(id);
-        });
+      // ✅ Step 2: Update Item Fulfillments only if invAdjId is valid
+      if (invAdjId && invAdjId > 0) {
+        updateItemFulfillment(Array.from(itemFulfillmentIds), invAdjId);
+        log.audit(
+          loggerTitle,
+          `Updated ${itemFulfillmentIds.size} Item Fulfillments with Inventory Adjustment ${invAdjId}`
+        );
+      } else {
+        log.error(
+          loggerTitle,
+          'Inventory Adjustment creation failed. Skipping Item Fulfillment update.'
+        );
       }
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
-    //
     log.audit(
       loggerTitle,
       '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
     );
   };
   /* --------------------------- Reduce Phase - End --------------------------- */
+
   //
   /* ------------------------- Summarize Phase - Begin ------------------------ */
   /**
@@ -225,11 +286,12 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
       });
 
       invAdjstRecord.setValue({ fieldId: 'subsidiary', value: '2' });
+      //Default Value as per Constants above
       invAdjstRecord.setValue({
         fieldId: 'department',
         value: PLASTIC_ODDITIES,
       });
-      invAdjstRecord.setValue({ fieldId: 'account', value: '289' });
+      invAdjstRecord.setValue({ fieldId: 'account', value: '581' });
       invAdjstRecord.setValue({
         fieldId: 'externalid',
         value: generateExternalId(),
@@ -240,14 +302,14 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
       );
 
       for (const boxType in boxTypeCounts) {
-        const quantity = boxTypeCounts[boxType];
+        const boxCount = boxTypeCounts[boxType]; // ✅ rename for clarity
         const itemDetails = retrieveItemId(boxType);
         if (!itemDetails.itemId) {
           log.error(loggerTitle, 'Missing Item ID for: ' + boxType);
           continue;
         }
         log.debug(loggerTitle, {
-          quantity,
+          boxCount,
           itemId: itemDetails.itemId,
           inventorylocation: itemDetails.inventorylocation,
         });
@@ -271,8 +333,12 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
         invAdjstRecord.setCurrentSublistValue({
           sublistId: 'inventory',
           fieldId: 'adjustqtyby',
-          value: -quantity,
+          value: -boxCount,
         });
+        log.emergency(
+          loggerTitle,
+          `For The Item ID ${itemDetails.itemId} the Quantity is set as ${boxCount}`
+        );
         const subrecord = invAdjstRecord.getCurrentSublistSubrecord({
           sublistId: 'inventory',
           fieldId: 'inventorydetail',
@@ -283,7 +349,7 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
           subrecord.setCurrentSublistValue({
             sublistId: 'inventoryassignment',
             fieldId: 'quantity',
-            value: -quantity,
+            value: -boxCount,
           });
           subrecord.setCurrentSublistValue({
             sublistId: 'inventoryassignment',
@@ -326,7 +392,7 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
       }
 
       invAdjstRecordId = invAdjstRecord.save();
-      log.debug(
+      log.audit(
         loggerTitle,
         'Inventory Adjustment Created with ID: ' + invAdjstRecordId
       );
@@ -408,54 +474,62 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
         .run()
         .getRange({ start: 0, end: 1000 });
       if (searchResults.length > 0) {
-        // First pass: Look for location '3' (NC01)
+        // First pass: Look for NC-01 (TARGET_LOCATION) with quantity > 1
         for (let i = 0; i < searchResults.length; i++) {
           const resultRow = searchResults[i];
-          const location = resultRow.getValue({
-            name: 'inventorylocation',
-            label: 'Inventory Location',
-          });
-          const quantityOnHand = parseFloat(
-            resultRow.getValue({
-              name: 'locationquantityonhand',
-              label: 'Location On Hand',
-            })
-          );
+          const location = resultRow.getValue({ name: 'inventorylocation' });
+          const quantityOnHand =
+            parseFloat(
+              resultRow.getValue({ name: 'locationquantityonhand' })
+            ) || 0;
 
-          if (location === TARGET_LOCATION) {
-            result.itemId = resultRow.getValue({
-              name: 'internalid',
-              label: 'Internal ID',
-            });
+          if (location === TARGET_LOCATION && quantityOnHand > 1) {
+            result.itemId = resultRow.getValue({ name: 'internalid' });
             result.inventorylocation = location;
             log.debug(
               loggerTitle,
-              `Found Priority Location '3' (NC01) for Item: ${itemText}, Item ID: ${result.itemId}, Quantity: ${quantityOnHand}`
+              `Using NC-01 (Loc ${location}) Qty: ${quantityOnHand}`
             );
             break;
           }
         }
 
-        // Second pass: If location '3' wasn't found, select the first available location
+        // Second pass: If NC-01 not selected, try Manufacturing Plant ('1') with qty > 1
         if (!result.inventorylocation) {
-          const resultRow = searchResults[0]; // First result since all have positive stock
-          result.itemId = resultRow.getValue({
-            name: 'internalid',
-            label: 'Internal ID',
-          });
+          for (let i = 0; i < searchResults.length; i++) {
+            const resultRow = searchResults[i];
+            const location = resultRow.getValue({ name: 'inventorylocation' });
+            const quantityOnHand =
+              parseFloat(
+                resultRow.getValue({ name: 'locationquantityonhand' })
+              ) || 0;
+
+            if (location === '1' && quantityOnHand > 1) {
+              result.itemId = resultRow.getValue({ name: 'internalid' });
+              result.inventorylocation = location;
+              log.debug(
+                loggerTitle,
+                `Using Manufacturing Plant (Loc ${location}) Qty: ${quantityOnHand}`
+              );
+              break;
+            }
+          }
+        }
+
+        // Third pass: fallback to first available > 0
+        if (!result.inventorylocation && searchResults.length > 0) {
+          const resultRow = searchResults[0];
+          result.itemId = resultRow.getValue({ name: 'internalid' });
           result.inventorylocation = resultRow.getValue({
             name: 'inventorylocation',
-            label: 'Inventory Location',
           });
-          const quantityOnHand = parseFloat(
-            resultRow.getValue({
-              name: 'locationquantityonhand',
-              label: 'Location On Hand',
-            })
-          );
+          const quantityOnHand =
+            parseFloat(
+              resultRow.getValue({ name: 'locationquantityonhand' })
+            ) || 0;
           log.debug(
             loggerTitle,
-            `Location '3' (NC01) not available; Selected Next Location: ${result.inventorylocation} for Item: ${itemText}, Item ID: ${result.itemId}, Quantity: ${quantityOnHand}`
+            `Fallback location ${result.inventorylocation} Qty: ${quantityOnHand}`
           );
         }
       } else {
@@ -475,43 +549,86 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
   //
   /* *********************** updateItemFulfillment - Begin *********************** */
   /**
+   * Bulk-update Item Fulfillments after a successful Inventory Adjustment.
    *
-   * @param {Number} ifId
+   * @param {Array.<number|string>} ifIds     Array of Item Fulfillment internal IDs.
+   * @param {number|string}         invAdjId  Internal ID of the created Inventory Adjustment.
+   * @returns {number} Number of IF records successfully updated.
    */
-  const updateItemFulfillment = (ifId) => {
-    const loggerTitle = 'Update Item Fulfillment';
-    log.debug(
+  const updateItemFulfillment = (ifIds, invAdjId) => {
+    const loggerTitle = 'Update Item Fulfillment (Bulk)';
+    log.audit(
       loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Entry-------------------<|'
+      '|>------------------- ' + loggerTitle + ' - Entry -------------------<|'
     );
-    //
+
+    let updatedCount = 0;
+
     try {
-      if (ifId > 0) {
-        record.submitFields({
-          type: 'itemfulfillment',
-          id: ifId,
-          values: {
-            custbody_dct_box_adj: true,
-          },
-          options: {
-            ignoreMandatoryFields: true,
-          },
-        });
+      // Basic guards
+      if (!Array.isArray(ifIds) || ifIds.length === 0) {
         log.debug(
           loggerTitle,
-          ' Item Fulfillment updated successfully: ' + ifId
+          'No Item Fulfillment IDs provided. Nothing to update.'
         );
+        return 0;
       }
+      if (!invAdjId || parseInt(invAdjId, 10) <= 0) {
+        log.error(
+          loggerTitle,
+          'Invalid Inventory Adjustment ID; skipping IF updates.'
+        );
+        return 0;
+      }
+
+      // De-duplicate and normalize IDs
+      const uniqueIds = Array.from(
+        new Set(ifIds.map((v) => String(v).trim()).filter(Boolean))
+      );
+      log.debug(
+        loggerTitle,
+        `About to update ${uniqueIds.length} Item Fulfillments. InvAdjId=${invAdjId}`
+      );
+
+      // Update each IF; isolate errors per record
+      uniqueIds.forEach((id) => {
+        try {
+          record.submitFields({
+            type: 'itemfulfillment',
+            id: id,
+            values: {
+              custbody_dct_box_adj: true,
+            },
+            options: { ignoreMandatoryFields: true },
+          });
+          updatedCount += 1;
+          log.debug(
+            loggerTitle,
+            `Updated Item Fulfillment ${id} (Inventory Adjustment ${invAdjId}).`
+          );
+        } catch (e) {
+          log.error(loggerTitle + ' - Update failed for IF ' + id, e);
+        }
+      });
+
+      log.audit(
+        loggerTitle,
+        `Completed. Updated=${updatedCount}, Failed=${
+          uniqueIds.length - updatedCount
+        }, InvAdjId=${invAdjId}`
+      );
     } catch (error) {
-      log.error(loggerTitle + ' caught with an exception', error);
+      log.error(loggerTitle + ' caught an exception', error);
     }
-    //
-    log.debug(
+
+    log.audit(
       loggerTitle,
-      '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
+      '|>------------------- ' + loggerTitle + ' - Exit -------------------<|'
     );
+    return updatedCount;
   };
   /* *********************** updateItemFulfillment - End *********************** */
+
   //
   /* ----------------------- Helper Functions - End ----------------------- */
   //
