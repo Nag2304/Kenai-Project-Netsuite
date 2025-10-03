@@ -62,18 +62,19 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
       columns: [
         search.createColumn({
           name: 'custrecord_subdivision',
-          summary: search.Summary.GROUP,
+          summary: 'GROUP',
           label: 'Subdivision',
         }),
         search.createColumn({
-          name: 'name',
-          summary: search.Summary.GROUP,
-          label: 'Street Name',
+          name: 'internalid',
+          summary: 'COUNT',
+          label: 'Internal ID',
         }),
         search.createColumn({
-          name: 'internalid',
-          summary: search.Summary.COUNT,
-          label: 'Count',
+          name: 'formulatext',
+          summary: 'GROUP',
+          formula: "LOWER(REGEXP_REPLACE({name}, '[[:space:]]', ''))",
+          label: 'Normalized Name',
         }),
       ],
     });
@@ -99,7 +100,7 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
 
       const subdivisionId =
         result.values['GROUP(custrecord_subdivision)'].value;
-      const streetName = result.values['GROUP(name)'];
+      const streetName = result.values['GROUP(formulatext)'];
 
       const key = `${subdivisionId}::${streetName}`;
       log.debug(loggerTitle, `Key: ${key}`);
@@ -149,6 +150,10 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
       streetIds.sort((a, b) => a - b);
       const primaryStreetId = streetIds[0];
       const duplicateStreetIds = streetIds.slice(1);
+      log.debug(
+        loggerTitle,
+        `primary Street id: ${primaryStreetId} duplicate Street ids: ${duplicateStreetIds}`
+      );
 
       // 3. Mark the primary street (only the first one)
       if (!markAsPrimary(primaryStreetId)) {
@@ -280,7 +285,15 @@ define(['N/search', 'N/record', 'N/runtime'], (search, record, runtime) => {
               subdivisionId,
             ],
             'AND',
-            ['name', 'is', streetName],
+            ['isinactive', 'is', 'F'],
+            'AND',
+            ['custrecord_hsm_primary_street', 'is', 'F'],
+            'AND',
+            [
+              "formulatext: CASE WHEN {name} IS NOT NULL THEN LOWER(REGEXP_REPLACE({name}, '[[:space:]]', '')) END",
+              'is',
+              streetName,
+            ],
           ],
           columns: [search.createColumn({ name: 'internalid' })],
         })
