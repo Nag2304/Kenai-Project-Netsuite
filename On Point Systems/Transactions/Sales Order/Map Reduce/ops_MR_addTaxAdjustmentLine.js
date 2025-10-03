@@ -189,7 +189,10 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
             value: adjustedAmount,
           });
           rec.commitLine({ sublistId: 'item' });
-          log.debug(loggerTitle, `Updated adjustment line on SO ${soId} with amount ${adjustedAmount}`);
+          log.debug(
+            loggerTitle,
+            `Updated adjustment line on SO ${soId} with amount ${adjustedAmount}`
+          );
         } else {
           rec.selectNewLine({ sublistId: 'item' });
           rec.setCurrentSublistValue({
@@ -208,7 +211,10 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
             value: adjustedAmount,
           });
           rec.commitLine({ sublistId: 'item' });
-          log.debug(loggerTitle, `Added adjustment line on SO ${soId} with amount ${adjustedAmount}`);
+          log.debug(
+            loggerTitle,
+            `Added adjustment line on SO ${soId} with amount ${adjustedAmount}`
+          );
         }
       }
 
@@ -272,3 +278,4 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
   exports.summarize = summarize;
   return exports;
   /* ------------------------------ Exports - End ----------------------------- */
+});
