@@ -10,6 +10,7 @@
  * Author           Date       Version               Remarks
  * nagendrababu 03.21.2025       1.00      Initial creation of the script
  * nagendrababu 06.03.2025       1.01      Fixed various scenarios.
+ * nagendrababu       10.03.2025       1.02      Updated retrieveItemId to include boxCount parameter
  */
 
 /* -------------------------- Script Usage - Begin -------------------------- */
@@ -303,7 +304,7 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
 
       for (const boxType in boxTypeCounts) {
         const boxCount = boxTypeCounts[boxType]; // ✅ rename for clarity
-        const itemDetails = retrieveItemId(boxType);
+        const itemDetails = retrieveItemId(boxType, boxCount);
         if (!itemDetails.itemId) {
           log.error(loggerTitle, 'Missing Item ID for: ' + boxType);
           continue;
@@ -430,13 +431,14 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
   //
   /* *********************** retrieveItemId - Begin *********************** */
   /**
-   * Retrieves the item ID and the first inventory location where locationquantityonhand > 0, sorted by location ID.
+   * Retrieves the item ID and the first inventory location where locationquantityonhand > 0 and boxCount <= quantityOnHand, sorted by location ID.
    * Prioritizes location '3' (NC01) if available; otherwise, gets the next available location.
    *
    * @param {String} itemText
+   * @param {Number} boxCount
    * @returns {Object} { itemId: Number, inventorylocation: String }
    */
-  const retrieveItemId = (itemText) => {
+  const retrieveItemId = (itemText, boxCount) => {
     const loggerTitle = 'Retrieve Item ID';
     log.debug(
       loggerTitle,
@@ -458,7 +460,7 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
           search.createColumn({
             name: 'inventorylocation',
             label: 'Inventory Location',
-            sort: search.Sort.ASC, // Sort by location internal ID in ascending order
+            sort: search.Sort.ASC,
           }),
           search.createColumn({
             name: 'locationquantityonhand',
@@ -469,12 +471,11 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
       const searchResultCount = itemSearchObj.runPaged().count;
       log.debug(loggerTitle, `Search Result Count: ${searchResultCount}`);
 
-      // Fetch up to 1000 results to iterate through locations
       const searchResults = itemSearchObj
         .run()
         .getRange({ start: 0, end: 1000 });
       if (searchResults.length > 0) {
-        // First pass: Look for NC-01 (TARGET_LOCATION) with quantity > 1
+        // First pass: NC-01 (TARGET_LOCATION) with qty > 1 and boxCount <= quantityOnHand
         for (let i = 0; i < searchResults.length; i++) {
           const resultRow = searchResults[i];
           const location = resultRow.getValue({ name: 'inventorylocation' });
@@ -483,18 +484,22 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
               resultRow.getValue({ name: 'locationquantityonhand' })
             ) || 0;
 
-          if (location === TARGET_LOCATION && quantityOnHand > 1) {
+          if (
+            location === TARGET_LOCATION &&
+            quantityOnHand > 1 &&
+            boxCount <= quantityOnHand
+          ) {
             result.itemId = resultRow.getValue({ name: 'internalid' });
             result.inventorylocation = location;
             log.debug(
               loggerTitle,
-              `Using NC-01 (Loc ${location}) Qty: ${quantityOnHand}`
+              `Using NC-01 (Loc ${location}) Qty: ${quantityOnHand}, BoxCount: ${boxCount}`
             );
             break;
           }
         }
 
-        // Second pass: If NC-01 not selected, try Manufacturing Plant ('1') with qty > 1
+        // Second pass: Manufacturing Plant ('1') with qty > 1 and boxCount <= quantityOnHand
         if (!result.inventorylocation) {
           for (let i = 0; i < searchResults.length; i++) {
             const resultRow = searchResults[i];
@@ -504,32 +509,48 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
                 resultRow.getValue({ name: 'locationquantityonhand' })
               ) || 0;
 
-            if (location === '1' && quantityOnHand > 1) {
+            if (
+              location === '1' &&
+              quantityOnHand > 1 &&
+              boxCount <= quantityOnHand
+            ) {
               result.itemId = resultRow.getValue({ name: 'internalid' });
               result.inventorylocation = location;
               log.debug(
                 loggerTitle,
-                `Using Manufacturing Plant (Loc ${location}) Qty: ${quantityOnHand}`
+                `Using Manufacturing Plant (Loc ${location}) Qty: ${quantityOnHand}, BoxCount: ${boxCount}`
               );
               break;
             }
           }
         }
 
-        // Third pass: fallback to first available > 0
-        if (!result.inventorylocation && searchResults.length > 0) {
-          const resultRow = searchResults[0];
-          result.itemId = resultRow.getValue({ name: 'internalid' });
-          result.inventorylocation = resultRow.getValue({
-            name: 'inventorylocation',
-          });
-          const quantityOnHand =
-            parseFloat(
-              resultRow.getValue({ name: 'locationquantityonhand' })
-            ) || 0;
+        // Third pass: Fallback to first available with qty > 0 and boxCount <= quantityOnHand
+        if (!result.inventorylocation) {
+          for (let i = 0; i < searchResults.length; i++) {
+            const resultRow = searchResults[i];
+            const location = resultRow.getValue({ name: 'inventorylocation' });
+            const quantityOnHand =
+              parseFloat(
+                resultRow.getValue({ name: 'locationquantityonhand' })
+              ) || 0;
+
+            if (quantityOnHand > 0 && boxCount <= quantityOnHand) {
+              result.itemId = resultRow.getValue({ name: 'internalid' });
+              result.inventorylocation = location;
+              log.debug(
+                loggerTitle,
+                `Fallback location ${location} Qty: ${quantityOnHand}, BoxCount: ${boxCount}`
+              );
+              break;
+            }
+          }
+        }
+
+        if (!result.inventorylocation) {
           log.debug(
             loggerTitle,
-            `Fallback location ${result.inventorylocation} Qty: ${quantityOnHand}`
+            `No location found with sufficient stock for BoxCount: ${boxCount}`
           );
         }
       } else {
