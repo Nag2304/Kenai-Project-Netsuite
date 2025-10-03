@@ -9,6 +9,7 @@
  * Script: OPS | MR Add Tax Adjustment Line
  * Author           Date       Version               Remarks
  * nagendrababu   09.22.2025    1.00      Initial creation of script
+ * nagendrababu   10.03.2025    1.01      Corrected logic to adjust variance sign based on client feedback
  *
  */
 
@@ -158,6 +159,14 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
         }
       }
 
+      // Calculate adjusted amount based on variance sign
+      let adjustedAmount = variance;
+      if (variance < 0) {
+        adjustedAmount = -variance; // Convert negative to positive
+      } else if (variance > 0) {
+        adjustedAmount = -variance; // Convert positive to negative
+      }
+
       // Case 1: Variance = 0 → Remove adjustment line
       if (variance === 0) {
         if (adjustmentLineIndex !== -1) {
@@ -165,22 +174,22 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
           log.debug(loggerTitle, `Removed adjustment line on SO ${soId}`);
         }
       }
-      // Case 2: Variance ≠ 0 → Add or Update adjustment line
+      // Case 2: Variance ≠ 0 → Add or Update adjustment line with adjusted amount
       else {
         if (adjustmentLineIndex !== -1) {
           rec.selectLine({ sublistId: 'item', line: adjustmentLineIndex });
           rec.setCurrentSublistValue({
             sublistId: 'item',
             fieldId: 'rate',
-            value: variance,
+            value: adjustedAmount,
           });
           rec.setCurrentSublistValue({
             sublistId: 'item',
             fieldId: 'amount',
-            value: variance,
+            value: adjustedAmount,
           });
           rec.commitLine({ sublistId: 'item' });
-          log.debug(loggerTitle, `Updated adjustment line on SO ${soId}`);
+          log.debug(loggerTitle, `Updated adjustment line on SO ${soId} with amount ${adjustedAmount}`);
         } else {
           rec.selectNewLine({ sublistId: 'item' });
           rec.setCurrentSublistValue({
@@ -191,15 +200,15 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
           rec.setCurrentSublistValue({
             sublistId: 'item',
             fieldId: 'rate',
-            value: variance,
+            value: adjustedAmount,
           });
           rec.setCurrentSublistValue({
             sublistId: 'item',
             fieldId: 'amount',
-            value: variance,
+            value: adjustedAmount,
           });
           rec.commitLine({ sublistId: 'item' });
-          log.debug(loggerTitle, `Added adjustment line on SO ${soId}`);
+          log.debug(loggerTitle, `Added adjustment line on SO ${soId} with amount ${adjustedAmount}`);
         }
       }
 
@@ -263,4 +272,3 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
   exports.summarize = summarize;
   return exports;
   /* ------------------------------ Exports - End ----------------------------- */
-});
