@@ -10,7 +10,7 @@
  * Author           Date       Version               Remarks
  * nagendrababu 03.21.2025       1.00      Initial creation of the script
  * nagendrababu 06.03.2025       1.01      Fixed various scenarios.
- * nagendrababu       10.03.2025       1.02      Updated retrieveItemId to include boxCount parameter
+ * nagendrababu 10.03.2025       1.02      Updated retrieveItemId to include boxCount parameter
  */
 
 /* -------------------------- Script Usage - Begin -------------------------- */
@@ -103,32 +103,14 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
       const searchResult = JSON.parse(mapContext.value);
       log.debug(loggerTitle + ' After Parsing Results', searchResult);
 
-      // Box type
+      // Extract the box type (pack material)
       const boxType =
         searchResult.values[
           'custrecord_spkg_pack_material.CUSTRECORD_SPKG_ITEM_FULFILLMENT'
         ].text;
 
-      // Package content data JSON string
-      const packageContentRaw =
-        searchResult.values[
-          'custrecord_spkg_package_content.CUSTRECORD_SPKG_ITEM_FULFILLMENT'
-        ];
-      let boxQty = 0;
-
-      if (packageContentRaw) {
-        try {
-          const parsed = JSON.parse(packageContentRaw);
-          if (Array.isArray(parsed)) {
-            boxQty = parsed.length; // ✅ number of boxes = array length
-          }
-        } catch (e) {
-          log.error(loggerTitle + ' JSON parse error (packageContent)', {
-            raw: packageContentRaw,
-            e,
-          });
-        }
-      }
+      // ✅ Each search result line = 1 packaging record (1 box)
+      const boxQty = 1;
 
       const values = {
         fulfillmentId: searchResult.id,
@@ -137,7 +119,14 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
       };
 
       mapContext.write({ key: 'ALL_BOXES', value: values });
-      log.debug(loggerTitle + ' Key & Value Pairs', ['ALL_BOXES', values]);
+
+      log.debug(loggerTitle + ' Key & Value Pairs', {
+        key: 'ALL_BOXES',
+        fulfillmentId: searchResult.id,
+        boxType,
+        boxQty,
+        note: 'Each line = 1 box (packaging record)',
+      });
     } catch (error) {
       log.error(loggerTitle + ' caught an exception', error);
     }
@@ -146,6 +135,7 @@ define(['N/search', 'N/record', 'N/runtime', 'N/format'], (
       '|>-------------------' + loggerTitle + ' -Exit-------------------<|'
     );
   };
+
   /* ----------------------------- Map Phase - End ---------------------------- */
 
   /* -------------------------- Reduce Phase - Begin -------------------------- */
