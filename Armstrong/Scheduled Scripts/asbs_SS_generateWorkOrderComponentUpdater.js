@@ -13,6 +13,8 @@
  * Remarks: Updated to handle new "Target WO Item" requirement from Column F
  */
 
+/*global define,log*/
+
 define(['N/search', 'N/record'], (search, record) => {
   const exports = {};
 
@@ -51,6 +53,11 @@ define(['N/search', 'N/record'], (search, record) => {
     );
     try {
       const detailRecords = getUnprocessedDetails();
+      log.audit(
+        loggerTitle,
+        `Found ${detailRecords.length} unprocessed records`
+      );
+
       detailRecords.forEach(processDetailRecord);
     } catch (error) {
       log.error(`${loggerTitle} caught with an exception`, error);
@@ -63,86 +70,85 @@ define(['N/search', 'N/record'], (search, record) => {
   };
 
   /**
-   * Retrieves all unprocessed work order detail records from the custom table.
-   * @returns {Array} Search results
+   * Retrieves unprocessed Work Order Details from customrecord_as_workorder_details
+   * @returns {Array<Object>} Array of detail objects
    */
   const getUnprocessedDetails = () => {
-    const loggerTitle = 'Get Un Processed Details';
-    log.debug(
-      loggerTitle,
-      `|>--------------------${loggerTitle}-Entry--------------------<|`
-    );
-    const results = [];
-    try {
-      const detailSearch = search.create({
+    const loggerTitle = 'Get Unprocessed Details';
+    log.audit(loggerTitle, '|>--- ENTRY ---<|');
+
+    const columns = [
+      'custrecord_sc_job_number',
+      'custrecord_as_item',
+      'custrecord_as_qty',
+      'custrecord_as_item_class',
+      'custrecord_as_sub_assy',
+      'custrecord_as_sub_assy_uom',
+      'custrecord_as_comp_uom',
+      'custrecord_as_comp_desc',
+      'custrecord_as_component',
+      'custrecord_as_comp_qty',
+      'custrecord_as_so_workorder',
+      'custrecord_as_sub_workorder',
+      'custrecord_as_mbs_xref',
+    ].map((fieldId) => search.createColumn({ name: fieldId }));
+
+    const results = search
+      .create({
         type: 'customrecord_as_workorder_details',
-        filters: [['custrecord_as_so_workorder', 'isempty', '']],
-        columns: [
-          'custrecord_sc_job_number',
-          'custrecord_as_item',
-          'custrecord_as_qty',
-          'custrecord_as_item_class',
-          'custrecord_as_sub_assy',
-          'custrecord_as_sub_assy_uom',
-          'custrecord_as_component',
-          'custrecord_as_comp_qty',
-          'custrecord_as_comp_uom',
-          'custrecord_as_comp_desc',
-          'custrecord_as_so_workorder',
-          'custrecord_as_sub_workorder',
-          'custrecord_as_target_wo_item', // NEW COLUMN for Column F
-        ],
-      });
-      detailSearch.run().each((result) => {
-        results.push(result);
-        return true;
-      });
-      log.debug(loggerTitle, `Results Length: ${results.length}`);
-    } catch (error) {
-      log.error(`${loggerTitle} caught with an exception`, error);
-    }
-    log.debug(
-      loggerTitle,
-      `|>--------------------${loggerTitle}-Exit--------------------<|`
-    );
-    return results;
+        filters: null,
+        columns: columns,
+      })
+      .run()
+      .getRange({ start: 0, end: 1000 });
+
+    const mappedResults = results.map((res) => ({
+      id: res.id,
+      jobNumber: res.getValue('custrecord_sc_job_number'),
+      woItem: res.getValue('custrecord_as_item'),
+      woQty: res.getValue('custrecord_as_qty'),
+      itemClass: res.getValue('custrecord_as_item_class'),
+      subAssembly: res.getValue('custrecord_as_sub_assy'),
+      woUom: res.getValue('custrecord_as_sub_assy_uom'),
+      compUom: res.getValue('custrecord_as_comp_uom'),
+      compDesc: res.getValue('custrecord_as_comp_desc'),
+      component: res.getValue('custrecord_as_component'),
+      compQty: res.getValue('custrecord_as_comp_qty'),
+      soWorkOrder: res.getValue('custrecord_as_so_workorder'),
+      subAssyWorkOrder: res.getValue('custrecord_as_sub_workorder'),
+      mbsXref: res.getValue('custrecord_as_mbs_xref'),
+    }));
+
+    log.audit(loggerTitle, `Retrieved ${mappedResults.length} records`);
+    log.audit(loggerTitle, '|>--- EXIT ---<|');
+    return mappedResults;
   };
 
   /**
    * Processes a single work order detail record
-   * @param {Object} result - Search result row
+   * @param {Object} detail - Search result row
    */
-  const processDetailRecord = (result) => {
+  const processDetailRecord = (detail) => {
     const loggerTitle = 'Process Detail Record';
     log.debug(
       loggerTitle,
       `|>--------------------${loggerTitle}-Entry--------------------<|`
     );
     try {
-      const jobNumber = result.getValue('custrecord_sc_job_number');
-      const itemClass = result.getValue('custrecord_as_item_class');
-      const woItem = result.getValue('custrecord_as_item');
-      const woQty = parseFloat(result.getValue('custrecord_as_qty')) || 1;
-      const isSubAssembly = result.getValue('custrecord_as_sub_assy') === 'T';
-      const componentItem = result.getValue('custrecord_as_component');
-      const componentQty =
-        parseFloat(result.getValue('custrecord_as_comp_qty')) || 1;
-      const componentUom = result.getValue('custrecord_as_comp_uom');
-      const componentDesc = result.getValue('custrecord_as_comp_desc');
-      const targetWoItem = result.getValue('custrecord_as_target_wo_item');
-      const recordId = result.id;
-
-      log.debug(loggerTitle, {
+      const {
+        id,
         jobNumber,
         itemClass,
         woItem,
-        componentItem,
-        componentQty,
-        componentUom,
-        componentDesc,
-        isSubAssembly,
-        targetWoItem,
-      });
+        woQty,
+        subAssembly,
+        component,
+        compQty,
+        compUom,
+        compDesc,
+      } = detail;
+
+      log.debug(loggerTitle, `Processing detail ID: ${id}, Job#: ${jobNumber}`);
 
       const soId = findSalesOrder(jobNumber);
       if (!soId) {
@@ -151,10 +157,7 @@ define(['N/search', 'N/record'], (search, record) => {
       }
 
       let wo;
-      if (targetWoItem) {
-        // New logic: Find WO by target item ID from Column F
-        wo = findWorkOrderByItem(soId, targetWoItem);
-      } else if (isSubAssembly) {
+      if (subAssembly === 'T') {
         wo = findChildWorkOrder(soId, itemClass, woItem);
       } else {
         wo = findTopLevelWorkOrder(soId, itemClass, woItem);
@@ -163,22 +166,26 @@ define(['N/search', 'N/record'], (search, record) => {
       if (!wo) {
         log.error(
           loggerTitle,
-          `No matching Work Order found for record ${recordId}`
+          `No matching Work Order found for detail ID: ${id}`
         );
         return;
       }
-      log.debug(loggerTitle, `Work Order Found: ${JSON.stringify(wo)}`);
 
-      // Always add component line for both cases (original logic modified)
       const updatedId = addComponentToWorkOrder(
         wo.id,
-        componentItem,
-        componentQty,
-        componentUom,
-        componentDesc
+        component,
+        compQty,
+        compUom,
+        compDesc
       );
 
-      if (updatedId) updateCustomRecord(recordId, wo.tranid);
+      if (updatedId) {
+        updateCustomRecord(id, wo.tranid);
+        log.audit(
+          loggerTitle,
+          `Updated Work Order ${wo.id} with component ${component}`
+        );
+      }
     } catch (error) {
       log.error(`${loggerTitle} caught with an exception`, error);
     }
@@ -293,41 +300,41 @@ define(['N/search', 'N/record'], (search, record) => {
       : null;
   };
 
-  /**
-   * Finds WO by Sales Order and Target Item ID (Column F logic)
-   */
-  const findWorkOrderByItem = (soId, itemId) => {
-    const loggerTitle = 'Find Work Order By Item';
-    log.debug(
-      loggerTitle,
-      `|>--------------------${loggerTitle}-Entry--------------------<|`
-    );
-    let result;
-    try {
-      const woSearch = search.create({
-        type: 'workorder',
-        filters: [
-          ['createdfrom.internalidnumber', 'equalto', soId],
-          'AND',
-          ['item.internalidnumber', 'equalto', itemId],
-        ],
-        columns: ['internalid', 'tranid'],
-      });
-      result = woSearch.run().getRange({ start: 0, end: 1 });
-    } catch (error) {
-      log.error(`${loggerTitle} caught with an exception`, error);
-    }
-    log.debug(
-      loggerTitle,
-      `|>--------------------${loggerTitle}-Exit--------------------<|`
-    );
-    return result && result.length
-      ? {
-          id: result[0].getValue('internalid'),
-          tranid: result[0].getValue('tranid'),
-        }
-      : null;
-  };
+  // /**
+  //  * Finds WO by Sales Order and Target Item ID (Column F logic)
+  //  */
+  // const findWorkOrderByItem = (soId, itemId) => {
+  //   const loggerTitle = 'Find Work Order By Item';
+  //   log.debug(
+  //     loggerTitle,
+  //     `|>--------------------${loggerTitle}-Entry--------------------<|`
+  //   );
+  //   let result;
+  //   try {
+  //     const woSearch = search.create({
+  //       type: 'workorder',
+  //       filters: [
+  //         ['createdfrom.internalidnumber', 'equalto', soId],
+  //         'AND',
+  //         ['item.internalidnumber', 'equalto', itemId],
+  //       ],
+  //       columns: ['internalid', 'tranid'],
+  //     });
+  //     result = woSearch.run().getRange({ start: 0, end: 1 });
+  //   } catch (error) {
+  //     log.error(`${loggerTitle} caught with an exception`, error);
+  //   }
+  //   log.debug(
+  //     loggerTitle,
+  //     `|>--------------------${loggerTitle}-Exit--------------------<|`
+  //   );
+  //   return result && result.length
+  //     ? {
+  //         id: result[0].getValue('internalid'),
+  //         tranid: result[0].getValue('tranid'),
+  //       }
+  //     : null;
+  // };
 
   /**
    * Adds a component to a WO
