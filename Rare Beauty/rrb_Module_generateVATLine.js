@@ -12,10 +12,9 @@
 
 /* global define,log */
 
-define(['N/record'], (record) => {
+define(['N/record', 'N/runtime'], (record, runtime) => {
   /* ------------------------ Global Variables - Begin ------------------------ */
   const exports = {};
-  const CUSTOMER_ID = '86490'; // Shopify UK DTC - Kate Somerville
   const VAT_ITEM_ID = 1620;
   const VAT_PERCENT = 20;
 
@@ -29,70 +28,98 @@ define(['N/record'], (record) => {
   const generateVATLine = (scriptContext) => {
     const loggerTitle = 'Generate VAT Line';
     log.debug(loggerTitle, `|>-----------${loggerTitle} Start -----------<|`);
-    //
+
     try {
-      if (scriptContext.type === scriptContext.UserEventType.DELETE) {
-        log.debug(logTitle, 'Delete event - skipping.');
-        return;
-      }
+      if (scriptContext.type === scriptContext.UserEventType.DELETE) return;
+
+      const CUSTOMER_ID = runtime.getCurrentScript().getParameter({
+        name: 'custscript_rrb_customer_id',
+      });
+
+      if (!CUSTOMER_ID) return;
 
       const csId = scriptContext.newRecord.id;
 
-      // Load Cash Sale
       const csRecord = record.load({
         type: 'cashsale',
         id: csId,
+        isDynamic: false,
       });
 
       const customerId = csRecord.getValue('entity');
       const location = csRecord.getValue('location');
       const shipAddress = csRecord.getValue('shipaddress');
-      const total = csRecord.getValue('total');
 
-      log.debug(logTitle, { customerId, location, shipAddress, total });
+      if (String(customerId) !== CUSTOMER_ID) return;
 
-      // ONLY run for customer 86490
-      if (String(customerId) !== CUSTOMER_ID) {
-        log.debug(logTitle, 'Customer not UK DTC – skipping.');
-        return;
-      }
-
-      // Must be Location 6 and Ship to UK
       if (
         !(
           location === '6' &&
           shipAddress &&
           shipAddress.includes('United Kingdom')
         )
-      ) {
-        log.debug(logTitle, 'Not a UK Cash Sale – skipping VAT insert.');
+      )
         return;
-      }
 
       const lineCount = csRecord.getLineCount({ sublistId: 'item' });
+
+      let netTotal = 0;
+
+      for (let i = 0; i < lineCount; i++) {
+        const amount =
+          parseFloat(
+            csRecord.getSublistValue({
+              sublistId: 'item',
+              fieldId: 'amount',
+              line: i,
+            })
+          ) || 0;
+
+        const itemType = csRecord.getSublistValue({
+          sublistId: 'item',
+          fieldId: 'itemtype',
+          line: i,
+        });
+
+        // ---- FIX: Remove VAT from discount lines ----
+        if (amount < 0 || itemType === 'Discount') {
+          const netDiscount = +(amount / (1 + VAT_PERCENT / 100)).toFixed(2);
+
+          csRecord.setSublistValue({
+            sublistId: 'item',
+            fieldId: 'amount',
+            value: netDiscount,
+            line: i,
+          });
+
+          csRecord.setSublistValue({
+            sublistId: 'item',
+            fieldId: 'rate',
+            value: netDiscount,
+            line: i,
+          });
+
+          netTotal += netDiscount;
+        } else {
+          netTotal += amount;
+        }
+      }
+
       const vatLineExists = csRecord.findSublistLineWithValue({
         sublistId: 'item',
         fieldId: 'item',
         value: VAT_ITEM_ID,
       });
 
-      log.debug(logTitle, `VAT line exists? ${vatLineExists}`);
-
-      // Only append VAT line once, and only after last line
       if (vatLineExists === -1) {
-        const insertIndex = lineCount;
-        const vatAmount = ((VAT_PERCENT * total) / 100).toFixed(2);
+        const vatAmount = +((VAT_PERCENT * netTotal) / 100).toFixed(2);
+        const insertIndex = csRecord.getLineCount({ sublistId: 'item' });
 
-        log.debug(logTitle, `Inserting VAT line at line ${insertIndex}`);
-        log.debug(logTitle, `VAT Amount = ${vatAmount}`);
-
-        // Insert new line
         csRecord.insertLine({
           sublistId: 'item',
           line: insertIndex,
         });
 
-        // Set VAT item
         csRecord.setSublistValue({
           sublistId: 'item',
           fieldId: 'item',
@@ -100,7 +127,6 @@ define(['N/record'], (record) => {
           line: insertIndex,
         });
 
-        // Set rate + amount
         csRecord.setSublistValue({
           sublistId: 'item',
           fieldId: 'rate',
@@ -115,18 +141,17 @@ define(['N/record'], (record) => {
           line: insertIndex,
         });
 
-        log.audit(logTitle, `VAT line added: £${vatAmount}`);
+        log.audit(loggerTitle, `VAT line added: £${vatAmount}`);
       }
 
-      // Save record
       csRecord.save();
-      log.debug(logTitle, 'Cash Sale updated successfully.');
     } catch (error) {
-      log.error(loggerTitle, `Error in ${loggerTitle} - ${error.message}`);
+      log.error(loggerTitle, error);
     }
-    //
+
     log.debug(loggerTitle, `|>-----------${loggerTitle} End-----------<|`);
   };
+
   /* ------------------------ Generate VAT Line - End ----------------------- */
   //
   /* ------------------------------ Exports Begin ----------------------------- */
