@@ -34,6 +34,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
   const GENERIC_BROOM_ITEM_ID = '1119'; // SC-40-0000
   const VS_REVERSE_ITEM_ID = '3228'; // SC-70-0287
   const USAGE_THRESHOLD = 9000; // Warn if usage exceeds 90% of 10,000-unit limit
+  const SIDE_SHIFT_PART_IDS = ['5908', '6750'];
   /* ------------------------- Global Constants - End ------------------------- */
 
   /* ------------------------- Map/Reduce Functions - Begin ------------------- */
@@ -54,6 +55,8 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
         ['custbody_scm_wo_updated', 'is', 'F'],
         'AND',
         ['mainline', 'is', 'T'],
+        'AND',
+        ['internalid', 'anyof', '43303'],
       ],
       columns: [
         search.createColumn({ name: 'internalid', label: 'Internal ID' }),
@@ -107,6 +110,14 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
         title: loggerTitle,
         details: `Includes V/S Reverse for WO ${workOrderId}: ${includesVSReverse}`,
       });
+      let includesSideShift = woRecord.getValue({
+        fieldId: 'custbody_scm_incl_side_shift',
+      });
+
+      log.debug({
+        title: loggerTitle,
+        details: `Includes Side Shift for WO ${workOrderId}: ${includesSideShift}`,
+      });
 
       for (let i = 0; i < lineCount; i++) {
         const itemId = woRecord.getSublistValue({
@@ -123,9 +134,8 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           break;
         }
       }
-
+      let changesMade = false;
       if (hasGenericBroom) {
-        let changesMade = false;
         log.debug({
           title: loggerTitle,
           details: `Proceeding with updates for WO ${workOrderId} as generic broom exists`,
@@ -152,6 +162,12 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
             title: loggerTitle,
             details: `V/S Reverse item removed for WO ${workOrderId}`,
           });
+        }
+      }
+      if (includesSideShift) {
+        const removed = removeSideShiftPart(woRecord);
+        if (removed) {
+          changesMade = true;
         }
 
         if (changesMade) {
@@ -180,7 +196,7 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
       log.error({
         title: `${loggerTitle} - Error`,
         details: `Error in reduce for WO ${workOrderId}: ${JSON.stringify(
-          error
+          error,
         )}`,
       });
     }
@@ -377,6 +393,45 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
         details: `No V/S Reverse item found in Work Order`,
       });
     }
+  };
+
+  /**
+   * Removes side shift related part from the Work Order if present.
+   * Removes either SC-76-0003 (5908) or SC-76-0033 (6750).
+   *
+   * @param {Object} woRecord
+   * @returns {boolean} true if a line was removed
+   */
+  const removeSideShiftPart = (woRecord) => {
+    const loggerTitle = `${SCRIPT_NAME} - Remove Side Shift Part`;
+    const sublistId = 'item';
+    const lineCount = woRecord.getLineCount({ sublistId });
+
+    for (let i = 0; i < lineCount; i++) {
+      const itemId = woRecord.getSublistValue({
+        sublistId,
+        fieldId: 'item',
+        line: i,
+      });
+
+      if (SIDE_SHIFT_PART_IDS.includes(String(itemId))) {
+        woRecord.removeLine({ sublistId, line: i });
+
+        log.audit({
+          title: loggerTitle,
+          details: `Removed side shift part (item ${itemId}) at line ${i}`,
+        });
+
+        return true; // only one will ever exist
+      }
+    }
+
+    log.debug({
+      title: loggerTitle,
+      details: 'No side shift part found to remove',
+    });
+
+    return false;
   };
 
   /* ------------------------- Helper Functions - End ------------------------- */
