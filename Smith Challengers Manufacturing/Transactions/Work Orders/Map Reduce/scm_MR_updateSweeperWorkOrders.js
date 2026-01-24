@@ -134,16 +134,20 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
           break;
         }
       }
+      //
       let changesMade = false;
+
+      /* 1. Generic broom logic */
       if (hasGenericBroom) {
         log.debug({
           title: loggerTitle,
-          details: `Proceeding with updates for WO ${workOrderId} as generic broom exists`,
+          details: `Proceeding with broom updates for WO ${workOrderId}`,
         });
 
         if (broomItemId) {
           updateBroomItem(woRecord, broomItemId);
           changesMade = true;
+
           log.debug({
             title: loggerTitle,
             details: `Broom item updated for WO ${workOrderId}`,
@@ -158,40 +162,43 @@ define(['N/record', 'N/search', 'N/runtime'], (record, search, runtime) => {
         if (includesVSReverse) {
           removeVSReverseItem(woRecord);
           changesMade = true;
+
           log.debug({
             title: loggerTitle,
             details: `V/S Reverse item removed for WO ${workOrderId}`,
           });
         }
       }
-      if (includesSideShift) {
+
+      /* 2. Side shift logic */
+      if (includesSideShift === true) {
         const removed = removeSideShiftPart(woRecord);
         if (removed) {
           changesMade = true;
         }
+      }
 
-        if (changesMade) {
-          woRecord.setValue({
-            fieldId: 'custbody_scm_wo_updated',
-            value: true,
-          });
-          const savedId = woRecord.save({ ignoreMandatoryFields: false });
-          log.audit({
-            title: loggerTitle,
-            details: `Successfully updated Work Order ID: ${savedId}`,
-          });
-        } else {
-          log.audit({
-            title: loggerTitle,
-            details: `No updates applied to Work Order ID: ${workOrderId}`,
-          });
-        }
+      /* 3. Save if anything changed */
+      if (changesMade) {
+        woRecord.setValue({
+          fieldId: 'custbody_scm_wo_updated',
+          value: true,
+        });
+
+        const savedId = woRecord.save({ ignoreMandatoryFields: false });
+
+        log.audit({
+          title: loggerTitle,
+          details: `Successfully updated Work Order ID: ${savedId}`,
+        });
       } else {
         log.audit({
           title: loggerTitle,
-          details: `No generic broom found in Work Order ${workOrderId}, skipping update`,
+          details: `No updates applied to Work Order ID: ${workOrderId}`,
         });
       }
+
+      //
     } catch (error) {
       log.error({
         title: `${loggerTitle} - Error`,
