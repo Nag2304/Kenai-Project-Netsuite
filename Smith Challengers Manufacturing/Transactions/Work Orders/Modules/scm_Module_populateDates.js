@@ -22,12 +22,15 @@ define(['N/search', 'N/format', 'N/runtime'], (search, format, runtime) => {
     const loggerTitle = ' Populate Dates ';
     log.debug(
       loggerTitle,
-      `|>-------------------${loggerTitle} - Entry-------------------<|`
+      `|>-------------------${loggerTitle} - Entry-------------------<|`,
     );
     //
     try {
-      if (context.type !== context.UserEventType.CREATE) {
-        log.debug(loggerTitle, 'This is event not type create.');
+      if (
+        context.type !== context.UserEventType.CREATE &&
+        context.type !== context.UserEventType.EDIT
+      ) {
+        log.debug(loggerTitle, 'This is event not type create and edit.');
         return;
       }
 
@@ -35,7 +38,7 @@ define(['N/search', 'N/format', 'N/runtime'], (search, format, runtime) => {
       if (!createdFromId) {
         log.debug(
           loggerTitle,
-          'This Work Order is not linked to another record.'
+          'This Work Order is not linked to another record.',
         );
         return;
       }
@@ -44,7 +47,7 @@ define(['N/search', 'N/format', 'N/runtime'], (search, format, runtime) => {
       if (!createdFromText || !createdFromText.includes('Sales Order')) {
         log.debug(
           loggerTitle,
-          'The Work Order was not created from a Sales Order.'
+          'The Work Order was not created from a Sales Order.',
         );
         return;
       }
@@ -95,7 +98,7 @@ define(['N/search', 'N/format', 'N/runtime'], (search, format, runtime) => {
       });
       log.debug(
         loggerTitle,
-        `Start Date: ${formattedStartDate} End Date: ${formattedEndDate}`
+        `Start Date: ${formattedStartDate} End Date: ${formattedEndDate}`,
       );
 
       workOrder.setValue({ fieldId: 'startdate', value: formattedStartDate });
@@ -103,7 +106,7 @@ define(['N/search', 'N/format', 'N/runtime'], (search, format, runtime) => {
 
       log.audit(
         loggerTitle,
-        'Production Start Date and End Date set successfully.'
+        'Production Start Date and End Date set successfully.',
       );
     } catch (error) {
       log.error(`${loggerTitle} caught with an exception`, error);
@@ -111,7 +114,7 @@ define(['N/search', 'N/format', 'N/runtime'], (search, format, runtime) => {
     //
     log.debug(
       loggerTitle,
-      `|>-------------------${loggerTitle} - Exit-------------------<|`
+      `|>-------------------${loggerTitle} - Exit-------------------<|`,
     );
     return true;
   };
