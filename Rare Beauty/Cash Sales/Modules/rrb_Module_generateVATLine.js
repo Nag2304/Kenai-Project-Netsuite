@@ -41,7 +41,7 @@ define(['N/record', 'N/runtime'], (record, runtime) => {
       const csId = scriptContext.newRecord.id;
 
       const csRecord = record.load({
-        type: 'cashsale',
+        type: record.Type.CASH_SALE,
         id: csId,
         isDynamic: false,
       });
@@ -72,7 +72,7 @@ define(['N/record', 'N/runtime'], (record, runtime) => {
               sublistId: 'item',
               fieldId: 'amount',
               line: i,
-            })
+            }),
           ) || 0;
 
         const itemType = csRecord.getSublistValue({
@@ -81,28 +81,36 @@ define(['N/record', 'N/runtime'], (record, runtime) => {
           line: i,
         });
 
-        // ---- FIX: Remove VAT from discount lines ----
-        if (amount < 0 || itemType === 'Discount') {
-          const netDiscount = +(amount / (1 + VAT_PERCENT / 100)).toFixed(2);
+        const itemId = csRecord.getSublistValue({
+          sublistId: 'item',
+          fieldId: 'item',
+          line: i,
+        });
 
-          csRecord.setSublistValue({
-            sublistId: 'item',
-            fieldId: 'amount',
-            value: netDiscount,
-            line: i,
-          });
+        // Skip VAT item line
+        if (Number(itemId) === VAT_ITEM_ID) continue;
 
-          csRecord.setSublistValue({
-            sublistId: 'item',
-            fieldId: 'rate',
-            value: netDiscount,
-            line: i,
-          });
+        // Skip shipping lines (VAT exempt)
+        if (itemType === 'ShipItem') continue;
 
-          netTotal += netDiscount;
-        } else {
-          netTotal += amount;
-        }
+        // Remove VAT from items and discounts
+        const netAmount = +(amount / (1 + VAT_PERCENT / 100)).toFixed(2);
+
+        csRecord.setSublistValue({
+          sublistId: 'item',
+          fieldId: 'amount',
+          value: netAmount,
+          line: i,
+        });
+
+        csRecord.setSublistValue({
+          sublistId: 'item',
+          fieldId: 'rate',
+          value: netAmount,
+          line: i,
+        });
+
+        netTotal += netAmount;
       }
 
       const vatLineExists = csRecord.findSublistLineWithValue({
