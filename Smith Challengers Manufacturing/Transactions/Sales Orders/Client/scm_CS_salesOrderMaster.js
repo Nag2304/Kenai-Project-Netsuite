@@ -22,7 +22,8 @@
 
 define([
   'SuiteScripts/Transactions/Sales Orders/Modules/scm_Module_salesOrderItemAlert',
-], function (salesOrderItemAlert) {
+  'SuiteScripts/Transactions/Sales Orders/Modules/scm_Module_checkWarningItems',
+], function (salesOrderItemAlert, checkWarningItems) {
   /* ------------------------ Global Variables - Begin ------------------------ */
   var exports = {};
   /* ------------------------- Global Variables - End ------------------------- */
@@ -38,8 +39,21 @@ define([
   }
   /* -------------------------- Field Changed - End------------------------- */
   //
+  /* --------------------------- Save Record - Begin -------------------------- */
+  function saveRecord(context) {
+    var loggerTitle = 'Save Record';
+    try {
+      checkWarningItems.saveRecord(context);
+    } catch (error) {
+      log.error(loggerTitle + ' caught with an exception', error);
+    }
+    return true;
+  }
+  /* ---------------------------- Save Record - End --------------------------- */
+  //
   /* ------------------------------ Exports Begin ----------------------------- */
   exports.fieldChanged = fieldChanged;
+  exports.saveRecord = saveRecord;
   return exports;
   /* ------------------------------- Exports End ------------------------------ */
 });
